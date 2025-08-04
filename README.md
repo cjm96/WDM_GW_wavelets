@@ -15,3 +15,22 @@ pip install -e .
 ```
 
 # Documentation
+
+Documentation is built using `Sphinx`. You will first need to ensure you have this installed; this can be done by installing with the docs extras.
+
+```bash
+pip install .[docs]
+```
+
+Then build the docs by running the following make command.
+
+```bash
+cd docs
+make html
+```
+
+The open the documentation in your browser.
+
+``` bash
+open .docs/build/html/index.html
+```
