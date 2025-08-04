@@ -24,6 +24,12 @@ To check that everything is working as expected you can run the unit tests.
 You will first need to ensure you have `pytest` installed; this can be done by installing with the dev extras.
 
 ```bash
+pip install .[dev]
+```
+
+You will then be able to run all the tests.
+
+```bash
 python -m pytest
 ```
 
