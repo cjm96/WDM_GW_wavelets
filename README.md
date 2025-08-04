@@ -55,3 +55,10 @@ The open the documentation using your browser.
 ``` bash
 open ./docs/build/html/index.html
 ```
+
+If you need to rebuild the `sphinx` docs, the run the following command.
+
+``` bash
+cd ./docs
+sphinx-build ./source ./build
+```

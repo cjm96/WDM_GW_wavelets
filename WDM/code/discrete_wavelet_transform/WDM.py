@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import next_multiple, C_nm
 
@@ -50,7 +51,7 @@ class WDM_transform:
         resolution by :math:`\\Delta F \\Delta T = \\frac{1}{2}`.
     T : float
         Total duraion of the time series (seconds). Related to :math:`N` and 
-        :math:`\delta t` by :math:`T = N \\delta t`.
+        :math:`\\delta t` by :math:`T = N \\delta t`.
     dOmega : float
         Angular Frequency resolution of the wavelets (radians per second), or 
         the total wavelet angular frequency bandwidth 
@@ -317,17 +318,127 @@ class WDM_transform:
 
         return x_padded, mask
     
-    def transform(self, x: jnp.ndarray) -> jnp.ndarray:
+    def forward_transform_exact(self, x: jnp.ndarray) -> jnp.ndarray:
         """
-        Perform the forward discrete wavelet transform.
+        Perform the forward discrete wavelet transform. Transforms the input
+        signal from the time domain into the time-frequency domain.
+
+        This method computes the wavelet coefficients using the exact expression
+
+        .. math::
+
+            w_{nm} = 2\\pi\\delta t\\sum_{k=0}^{N-1} g_{nm}[k] x[k] ,
+
+        where the sum is over the whole time-domain signal (no truncation). The 
+        time domain wavelets `g_{nm}[k]` are computed using an inverse FFT. This 
+        method is slow but exact.
+
+        Parameters
+        ----------
+        x : jnp.ndarray of shape (N,)
+            Input time-domain signal to be transformed.
+
+        Returns
+        -------
+        w : jnp.ndarray of shape (Nt, Nf)
+            WDM time-frequency-domain wavelet coefficients.
+
+        Notes
+        -----
+        This is implemented using for loops. It is slow. It is only intended to 
+        be used for testing and debugging purposes. 
         """
-        raise NotImplementedError()
+        assert x.shape == (self.N,), \
+                    f"Input signal must have shape ({self.N},), got {x.shape=}"
+
+        w = jnp.zeros((self.Nt, self.Nf), dtype=single) 
+
+        for n in range(self.Nt):
+            for m in range(self.Nf):
+                gnm = self.gnm(n, m)
+                w = w.at[n, m].set(2.*jnp.pi*self.dt*jnp.sum(gnm*x))
+
+        return w
     
-    def inverse_transform(self, w: jnp.ndarray) -> jnp.ndarray:
+    def inverse_transform_exact(self, w: jnp.ndarray) -> jnp.ndarray:
         """
-        Perform the inverse discrete wavelet transform.
+        Perform the inverse discrete wavelet transform. Transforms the input
+        signal from the time-frequency wavelet domain into the time domain.
+
+        This method computes the inverse discrete wavelet transform using the 
+        exact expression
+
+        .. math::
+
+            x[k] = \\sum_{n=0}^{N_t-1}\\sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] ,
+
+        where the sum is over the whole time-domain signal (no truncation). The 
+        time domain wavelets `g_{nm}[k]` are computed using an inverse FFT. This 
+        method is slow but exact.
+
+        Parameters
+        ----------
+        w : jnp.ndarray of shape (Nt, Nf)
+            WDM time-frequency-domain wavelet coefficients.
+
+        Returns
+        -------
+        x : jnp.ndarray of shape (N,)
+            Input time-domain signal to be transformed.
+
+        Notes
+        -----
+        This is implemented using for loops. It is slow. It is only intended to 
+        be used for testing and debugging purposes. 
         """
-        raise NotImplementedError()
+        assert w.shape == (self.Nt, self.Nf), \
+                    f"Input signal must have shape ({self.Nt}, {self.Nf}), " \
+                    f"got {w.shape=}"
+        
+        x = jnp.zeros(self.N, dtype=single) 
+
+        for n in range(self.Nt):
+            for m in range(self.Nf):
+                x = x + w[n, m] * self.gnm(n, m)
+
+        return x
+
+    def time_frequency_plot(self, w: jnp.ndarray, part='abs') -> None:
+        """
+        Plot the time-frequency coefficients of the WDM transform.
+
+        Parameters
+        ----------
+        w : jnp.ndarray of shape (Nt, Nf)
+            WDM time-frequency coefficients to be plotted.
+        part : str, optional
+            Part of the coefficients to plot. Options are 'abs' for magnitude, 
+            'real', or 'imag'. Default is 'abs'.
+
+        Returns
+        -------
+        None
+        """
+        assert w.shape == (self.Nt, self.Nf), \
+                    f"Input signal must have shape ({self.Nt}, {self.Nf}), " \
+                    f"got {w.shape=}"
+
+        if part == 'abs':
+            data = jnp.abs(w)
+        elif part == 'real':
+            data = jnp.real(w)
+        elif part == 'imag':
+            data = jnp.imag(w)
+        else:
+            raise ValueError(f"Invalid {part=}. Choose 'abs', 'real', or 'imag'.")
+
+        fig, ax = plt.subplots()
+        im = ax.imshow(data.T, aspect='auto', origin='lower', 
+                   extent=[0., self.T, 0., self.f_Ny], cmap='jet')
+        fig.colorbar(im, label='Magnitude', ax=ax)
+        ax.set_xlabel(r'Time $t$')
+        ax.set_ylabel(r'Frequency $f$')
+        plt.show()
 
     def __repr__(self) -> str:
         """

@@ -176,7 +176,7 @@ The WDM wavelet basis has the following orthonomality property,
 .. math::
    :name: eq:orthonorm
 
-   \delta t \sum_{i=0}^{N} g_{nm}(t_i) g_{n'm'}(t_i) = \delta_{nn'} \delta_{mm'} .
+   2 \pi \delta t \sum_{i=0}^{N} g_{nm}(t_i) g_{n'm'}(t_i) = \delta_{nn'} \delta_{mm'} .
 
 
 
