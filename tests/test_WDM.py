@@ -8,7 +8,7 @@ def test_padding():
     """
     Test the padding function in the WDM class.
     """
-    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, Nf=2**5)
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, Nf=2**5, N=2**6)
 
     x = np.array([9.,9.,9.])
 
