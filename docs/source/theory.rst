@@ -199,7 +199,7 @@ Glossary
 - :math:`f`: Frequency (e.g. Hertz).
 - :math:`\omega`: Angular frequency (e.g. radians/second). Defined as :math:`\omega=2\pi f`.
 - :math:`\delta t`: Time series cadence (seconds). Named ``dt`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
-- :math:`f_{\rm Ny}`: Nyquist frequency, or the maximum frequency (seconds). Defined as :math:`f_{\rm Ny}=\frac{1}{2 \delta t}`. Named ``f_Ny`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
+- :math:`f_{\rm Ny}`: Nyquist frequency, or the maximum frequency (Hertz). Defined as :math:`f_{\rm Ny}=\frac{1}{2 \delta t}`. Named ``f_Ny`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
 - :math:`A`: With of flat-top response in the Meyer window (radians/second). Named ``A`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
 - :math:`B`: With of transition region in the Meyer window (radians/second). Named ``B`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
 - :math:`\Delta \Omega`: Angular frequency resolution of the wavelets (radians/second). Satisfies :math:`\Delta \Omega = 2A + B`. Named ``dOmega`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
