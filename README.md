@@ -27,7 +27,7 @@ You will first need to ensure you have `pytest` installed; this can be done by i
 pip install .[dev]
 ```
 
-You will then be able to run all the tests.
+You will then be able to run all the tests. (Make sure you are in the directory cotaining the pyproject.toml file.)
 
 ```bash
 python -m pytest
@@ -45,11 +45,12 @@ pip install .[docs]
 Then build the docs by running the following make command.
 
 ```bash
-cd docs
+cd ./docs
+make clean
 make html
 ```
 
-The open the documentation in your browser.
+The open the documentation using your browser.
 
 ``` bash
 open ./docs/build/html/index.html
