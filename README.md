@@ -46,5 +46,5 @@ make html
 The open the documentation in your browser.
 
 ``` bash
-open .docs/build/html/index.html
+open ./docs/build/html/index.html
 ```
