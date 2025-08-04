@@ -2,6 +2,7 @@
 <img src="./logo_images/logo.png" alt="logo" width="350"/>
 </p>
 
+
 # WDM_GW_wavelets
 
 A fast, JAX-based Python implementation of the Wilson-Daubechies-Meyer (WDM) wavelet transform for the time-frequency analysis of gravitational wave data.
@@ -13,6 +14,17 @@ To install clone the repository and install using pip. Run the following in the 
 ```bash
 pip install -e .
 ```
+
+
+# Testing
+
+To check that everything is working as expected you can run the unit tests. 
+You will first need to ensure you have `pytest` installed; this can be done by installing with the dev extras.
+
+```bash
+python -m pytest
+```
+
 
 # Documentation
 
