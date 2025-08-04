@@ -82,5 +82,20 @@ def test_orthonormality():
                         f"Failed for (n,m)=({n},{m}), (n',m')=({n_},{m_}): " \
                         f"expected {expected}, got {actual}"
 
-# test forward and inverse transforms
+def test_exact_transforms():
+    """
+    Test the orthonormality of the WDM wavelets.
+    """
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1., 
+                                                                Nf=16, 
+                                                                N=512, 
+                                                                q=5)
 
+    x = np.random.randn(wdm.N) # white noise
+
+    w = wdm.forward_transform_exact(x)
+
+    x_ = wdm.inverse_transform_exact(w)
+
+    assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
+        "Inverse transform did not recover original signal"
