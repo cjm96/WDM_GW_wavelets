@@ -16,7 +16,7 @@ While far from being the only available choice, the WDM basis wavelets have some
 them particularly suitable for this purpose: they are well separated in frequency (in fact, the wavelets have 
 compact support in the frequency domain) which helps to make connections with other GW data analysis which 
 is almost exclusively done in the frequency domain, and they provide uniform tiling in both time and frequency.
-The WDM wavelets were first introduced to GW data analysis in Ref. [1]_ (see also Ref. [2]_) and are used in 
+The WDM wavelets were first introduced to GW data analysis in Ref. [1]_ (see also Ref. [2]_) and are used in the
 coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
 
 
@@ -137,9 +137,9 @@ The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelet
 The wavelets in the time-domain, :math:`g_{nm}(t)`, are constructed by taking an inverse Fourier transform.
 The wavelets :math:`g_{nm}(t)` are implemented in :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm`.
 
-Uisng :math:`N=512`, :math:`\delta t=1`, and :math:`N_f=16`, several examples of the
-time-domain WDM wavelets are plotted in :numref:`fig-WDM_wavelets_TD`, :numref:`fig-WDM_wavelets_TF` and 
-:numref:`fig-WDM_wavelets_animate`.
+Uisng :math:`N=512`, :math:`\delta t=1`, and :math:`N_f=16`, several examples of the time-domain WDM 
+wavelets are plotted in :numref:`fig-WDM_wavelets_TD`, :numref:`fig-WDM_wavelets_TF` and :numref:`fig-WDM_wavelets_animate`.
+ Notice how the wavelets are well localised in frequency but much less so in time.
 
 .. _fig-WDM_wavelets_TD:
 

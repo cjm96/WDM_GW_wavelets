@@ -36,7 +36,7 @@ python -m pytest
 
 # Documentation
 
-Documentation is built using `Sphinx`. You will first need to ensure you have this installed; this can be done by installing with the docs extras.
+Documentation is built using `sphinx`. You will first need to ensure you have this installed; this can be done by installing with the docs extras.
 
 ```bash
 pip install .[docs]
