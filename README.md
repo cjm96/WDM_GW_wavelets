@@ -15,6 +15,8 @@ To install clone the repository and install using pip. Run the following in the 
 pip install -e .
 ```
 
+In Python you should then be able to `import WDM`.
+
 
 # Testing
 
