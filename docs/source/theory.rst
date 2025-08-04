@@ -92,7 +92,7 @@ WDM Wavelets
 Henceforth, we will work with time :math:`t` (e.g. in seconds) and frequency :math:`f` (Hertz) rather than angular frequency 
 :math:`\omega=2\pi f`. This is inline with the rest of the GW data analysis community which tends to work with frequency.
 
-Consider a time series with cadence :math:`\delta t` and duration :math:`T=N \delta t`. 
+Consider a time series with cadence :math:`\delta t`, duration :math:`T=N \delta t`, and maximum Nyquist frequency :math:`f_{\rm Ny} = \frac{1}{2\delta t}`. 
 In order to define the WDM wavelet transform it ie necessary to choose a number of frequency bands :math:`N_f`.
 We will assume that :math:`N_f` divides :math:`N` exactly (if not, then the time series can be padded as necessary), 
 and :math:`N_t = N/N_f` is the number of time bands.
@@ -134,7 +134,7 @@ The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelet
    :math:`m=0, 1, 2,\ldots,N_f`. (The :math:`n` index only describes a time shift and has no effect on 
    this plot.) This plot was produced using :math:`N_f=16` to match Fig.2 of Ref. [1]_.
 
-The wavelets in the time-domain, $g_{nm}(t)$, are constructed by taking an inverse Fourier transform.
+The wavelets in the time-domain, :math:`g_{nm}(t)`, are constructed by taking an inverse Fourier transform.
 The wavelets :math:`g_{nm}(t)` are implemented in :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm`.
 
 Uisng :math:`N=512`, :math:`\delta t=1`, and :math:`N_f=16`, several examples of the
