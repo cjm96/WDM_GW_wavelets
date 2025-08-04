@@ -61,4 +61,6 @@ If you need to rebuild the `sphinx` docs, then run the following command.
 ``` bash
 cd ./docs
 sphinx-build ./source ./build
+make clean
+make html
 ```
