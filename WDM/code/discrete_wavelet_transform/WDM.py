@@ -92,7 +92,12 @@ class WDM_transform:
             Fraction of bandwidth used for flat-top response (default: 0.25). 
         d : int, optional
             Steepness parameter for the window transition (default: 4).
+
+        Returns
+        -------
+        None
         """
+        # User provided parameters
         self.dt = float(dt)
         self.Nf = int(Nf)
         self.N = int(N)
@@ -100,26 +105,11 @@ class WDM_transform:
         self.A_frac = float(A_frac)
         self.d = int(d)
 
-        assert self.dt > 0, \
-                    f"dt must be positive, got {self.dt=}"
-        assert self.Nf > 0, \
-                    f"Nf must be a positive integer, got {self.Nf=}"
-        assert self.Nf > 0, \
-                    f"Nf must be a positive integer, got {self.Nf=}"
-        assert self.N > 0, \
-                    f"Nt must be a positive integer, got {self.N=}"
-        assert self.N % self.Nf == 0 and ( self.N // self.Nf ) % 2 == 0, \
-                    f"N must be even multiple of Nf, got {self.N=}, {self.Nf=}"
-        assert self.q>=1, \
-                    f"q must be a positive integer, got {self.q=}"
-        assert 0. < self.A_frac < 1., \
-                    f"A_frac must be in [0, 1], for {self.A_frac=}"
-        assert self.d>=1, \
-                    f"d must be a positive integer, got {self.d=}"
+        self.validate_parameters()
         
+        # Derived parameters
         self.times = jnp.arange(self.N) * self.dt
         self.freqs = jnp.fft.fftfreq(self.N, d=self.dt)
-
         self.Nt = self.N // self.Nf
         self.T = self.N * self.dt
         self.dF = 1. / ( 2. * self.dt * self.Nf )  
@@ -132,6 +122,39 @@ class WDM_transform:
         self.K = 2 * self.q * self.Nf
 
         self.window = self.build_time_domain_window()
+
+    def validate_parameters(self) -> None:
+        """
+        Validate the parameters provided to the WDM_transform __init__ method.
+        Raises an AssertionError if any parameters are invalid.
+
+        Returns
+        -------
+        None
+        """
+        assert self.dt > 0, \
+                    f"dt must be positive, got {self.dt=}"
+        
+        assert self.Nf > 0, \
+                    f"Nf must be a positive integer, got {self.Nf=}"
+        
+        assert self.Nf > 0, \
+                    f"Nf must be a positive integer, got {self.Nf=}"
+        
+        assert self.N > 0, \
+                    f"Nt must be a positive integer, got {self.N=}"
+        
+        assert self.N % self.Nf == 0 and ( self.N // self.Nf ) % 2 == 0, \
+                    f"N must be even multiple of Nf, got {self.N=}, {self.Nf=}"
+        
+        assert self.q>=1, \
+                    f"q must be a positive integer, got {self.q=}"
+        
+        assert 0. < self.A_frac < 1., \
+                    f"A_frac must be in [0, 1], got {self.A_frac=}"
+        
+        assert self.d>=1, \
+                    f"d must be a positive integer, got {self.d=}"
 
     def build_time_domain_window(self) -> jnp.ndarray:
         """
@@ -293,6 +316,18 @@ class WDM_transform:
             raise ValueError(f"Invalid padding location {where=}.")
 
         return x_padded, mask
+    
+    def transform(self, x: jnp.ndarray) -> jnp.ndarray:
+        """
+        Perform the forward discrete wavelet transform.
+        """
+        raise NotImplementedError()
+    
+    def inverse_transform(self, w: jnp.ndarray) -> jnp.ndarray:
+        """
+        Perform the inverse discrete wavelet transform.
+        """
+        raise NotImplementedError()
 
     def __repr__(self) -> str:
         """
@@ -321,4 +356,4 @@ class WDM_transform:
         jnp.ndarray of shape (Nt, Nf)
             WDM time-frequency coefficients.
         """
-        return None #self.transform(x)
+        return self.transform(x)
