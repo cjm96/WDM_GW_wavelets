@@ -4,7 +4,7 @@ version = "0.0.1"
 authors = [
   { name="Christopher J. Moore", email="cjm96@cam.ac.uk"},
 ]
-description = "WDM wavelets"
+description = "A fast, JAX-based Python implementation of the Wilson-Daubechies-Meyer (WDM) wavelet transform for the time-frequency analysis of gravitational wave data."
 readme = "README.md"
 license = { file="LICENSE" }
 requires-python = ">=3.11"

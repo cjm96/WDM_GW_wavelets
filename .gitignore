@@ -1,6 +1,12 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 
+# Sphinx build
+docs/build/
+
+# Packaging metadata
+*.egg-info/
+
 # JAX compilation cache (if using)
 jax-cache/
 *.jaxlib
