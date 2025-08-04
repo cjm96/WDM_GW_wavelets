@@ -1,0 +1,38 @@
+[project]
+name = "WDM"
+version = "0.0.1"
+authors = [
+  { name="Christopher J. Moore", email="cjm96@cam.ac.uk"},
+]
+description = "WDM wavelets"
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "jax",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ipykernel",
+    "sphinx-autobuild"
+]
+
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme",
+    "myst-parser",
+    "sphinx-autodoc-typehints",
+]
+
+[tool.setuptools]
+packages = ["WDM"]
