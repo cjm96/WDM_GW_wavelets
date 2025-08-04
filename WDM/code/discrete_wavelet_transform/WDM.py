@@ -402,8 +402,155 @@ class WDM_transform:
                 x = x + w[n, m] * self.gnm(n, m)
 
         return x
+    
+    def forward_transform_truncated(self, x: jnp.ndarray) -> jnp.ndarray:
+        """
+        Perform the forward discrete wavelet transform. Transforms the input
+        signal from the time domain into the time-frequency domain.
 
-    def time_frequency_plot(self, w: jnp.ndarray, part='abs') -> None:
+        This method computes the wavelet coefficients using the truncated 
+        expression
+
+        .. math::
+
+            w_{nm} = Eq13 ,
+
+        where the sum is over the truncated window. This method is slow. 
+
+        Parameters
+        ----------
+        x : jnp.ndarray of shape (N,)
+            Input time-domain signal to be transformed.
+
+        Returns
+        -------
+        w : jnp.ndarray of shape (Nt, Nf)
+            WDM time-frequency-domain wavelet coefficients.
+
+        Notes
+        -----
+        This method is slow. It is only intended to be used for testing and 
+        debugging purposes. 
+        """
+        assert x.shape == (self.N,), \
+                    f"Input signal must have shape ({self.N},), got {x.shape=}"
+
+        w = jnp.zeros((self.Nt, self.Nf), dtype=single) 
+
+        for n in range(self.Nt):
+            for m in range(self.Nf):
+                exp_term = jnp.array([ jnp.exp((1j) * jnp.pi * k * m / self.Nf)
+                                    for k in range(-self.K//2, self.K//2)])
+                x_term = jnp.array([ x[(n*self.Nf + k)%self.N]
+                                    for k in range(-self.K//2, self.K//2)])
+                phi_term = jnp.array([ self.window[k%self.K]
+                                    for k in range(-self.K//2, self.K//2)])
+                all_terms = 2.*jnp.sqrt(2.)*jnp.pi*self.dt*C_nm(n,m)*phi_term*exp_term*x_term
+                w = w.at[n, m].set(jnp.sum(all_terms).real)
+
+        return w
+    
+    def inverse_transform_truncated(self, w: jnp.ndarray) -> jnp.ndarray:
+        """
+        Perform the inverse discrete wavelet transform. Transforms the input
+        signal from the time-frequency wavelet domain into the time domain.
+
+        This method computes the wavelet coefficients using the truncated 
+        expression
+
+        .. math::
+
+            x[k] = ? ,
+
+        where the sum is over... This method is slow.
+
+        Parameters
+        ----------
+        w : jnp.ndarray of shape (Nt, Nf)
+            WDM time-frequency-domain wavelet coefficients.
+
+        Returns
+        -------
+        x : jnp.ndarray of shape (N,)
+            Input time-domain signal to be transformed.
+
+        Notes
+        -----
+        This method is slow. It is only intended to be used for testing and 
+        debugging purposes. 
+        """
+        assert w.shape == (self.Nt, self.Nf), \
+                    f"Input signal must have shape ({self.Nt}, {self.Nf}), " \
+                    f"got {w.shape=}"
+        
+        x = jnp.zeros(self.N, dtype=single) 
+
+        #
+
+        return x
+    
+    def fast_forward_transform(self, x: jnp.ndarray) -> jnp.ndarray:
+        """
+        Perform the fast forward discrete wavelet transform. 
+        """
+        pass
+
+    def fast_inverse_transform(self, w: jnp.ndarray) -> jnp.ndarray:
+        """
+        Perform the fast inverse discrete wavelet transform. 
+        """
+        pass
+
+    def time_domain_plot(self, x: jnp.ndarray) -> None:
+        """
+        Plot the time-domain signal.
+
+        Parameters
+        ----------
+        x : jnp.ndarray of shape (N,)
+            Input time-domain signal to be plotted.
+
+        Returns
+        -------
+        None
+        """
+        assert x.shape == (self.N,), \
+                    f"Input signal must have shape ({self.N},), got {x.shape=}"
+        
+        fig, ax = plt.subplots()
+        ax.plot(self.times, x)
+        ax.set_xlabel(r'Time $t$')
+        ax.set_ylabel(r'Signal $x(t)$')
+        plt.show()
+
+    def frequency_domain_plot(self, x: jnp.ndarray) -> None:
+        """
+        Plot the frequency-domain signal.
+
+        Parameters
+        ----------
+        x : jnp.ndarray of shape (N,)
+            Input time-domain signal to be plotted.
+
+        Returns
+        -------
+        None
+        """
+        assert x.shape == (self.N,), \
+                    f"Input signal must have shape ({self.N},), got {x.shape=}"
+        
+        data = jnp.abs(jnp.fft.fft(x))
+        mask = self.freqs >= 0.
+
+        fig, ax = plt.subplots()
+        ax.loglog(self.freqs[mask], data[mask])
+        ax.set_xlabel(r'Frequency $f$')
+        ax.set_ylabel(r'Signal $|\tilde{X}(f)|$')
+        plt.show()
+
+    def time_frequency_plot(self, w: jnp.ndarray, 
+                            part='abs',
+                            scale='linear') -> None:
         """
         Plot the time-frequency coefficients of the WDM transform.
 
@@ -414,6 +561,11 @@ class WDM_transform:
         part : str, optional
             Part of the coefficients to plot. Options are 'abs' for magnitude, 
             'real', or 'imag'. Default is 'abs'.
+        scale : str, optional
+            Scale of the colour axis of the plot. Passed to matplotlib. 
+            Options are 'linear' or 'log'. Default is 'linear'. Logarithmic 
+            scale should only be used with part='abs' otherwise problems with 
+            negative values will typically occur.
 
         Returns
         -------
@@ -433,9 +585,17 @@ class WDM_transform:
             raise ValueError(f"Invalid {part=}. Choose 'abs', 'real', or 'imag'.")
 
         fig, ax = plt.subplots()
-        im = ax.imshow(data.T, aspect='auto', origin='lower', 
-                   extent=[0., self.T, 0., self.f_Ny], cmap='jet')
-        fig.colorbar(im, label='Magnitude', ax=ax)
+        if scale == 'linear':
+            im = ax.imshow(data.T, aspect='auto', origin='lower', 
+                       extent=[0., self.T, 0., self.f_Ny], cmap='jet')
+            fig.colorbar(im, label='Magnitude', ax=ax)
+        elif scale == 'log':
+            im = ax.imshow(jnp.log10(data).T, aspect='auto', origin='lower', 
+                       extent=[0., self.T, 0., self.f_Ny], cmap='jet')
+            fig.colorbar(im, label='log10 Magnitude', ax=ax)
+        else:
+            raise ValueError(f"Invalid {scale=}. Choose 'linear' or 'log'.")
+        
         ax.set_xlabel(r'Time $t$')
         ax.set_ylabel(r'Frequency $f$')
         plt.show()

@@ -41,6 +41,7 @@ def test_Gnm():
     assert G.shape == (2,), \
         "Gnm should return an array with the same shape as the input freqs"
 
+
 def test_gnm():
     """
     Test the time-domain gnm function in the WDM class.
@@ -56,6 +57,7 @@ def test_gnm():
     g = wdm.gnm(n=0, m=0, time=jnp.array([0.0, 1.0]))
     assert g.shape == (2,), \
         "gnm should return an array with the same shape as the input freqs"
+
 
 def test_orthonormality():
     """
@@ -82,6 +84,7 @@ def test_orthonormality():
                         f"Failed for (n,m)=({n},{m}), (n',m')=({n_},{m_}): " \
                         f"expected {expected}, got {actual}"
 
+
 def test_exact_transforms():
     """
     Test the orthonormality of the WDM wavelets.
@@ -99,3 +102,17 @@ def test_exact_transforms():
 
     assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
         "Inverse transform did not recover original signal"
+    
+
+def test_truncated_transforms():
+    """
+    Test the orthonormality of the WDM wavelets.
+    """
+    pass
+
+
+def test_fast_transforms():
+    """
+    Test the orthonormality of the WDM wavelets.
+    """
+    pass

@@ -92,6 +92,7 @@ WDM Wavelets
 Henceforth, we will work with time :math:`t` (e.g. in seconds) and frequency :math:`f` (Hertz) rather than angular frequency 
 :math:`\omega=2\pi f`. This is inline with the rest of the GW data analysis community which tends to work with frequency.
 
+The WDM wavelets form a complete basis for any time series.
 Consider a time series with cadence :math:`\delta t`, duration :math:`T=N \delta t`, and maximum Nyquist frequency :math:`f_{\rm Ny} = \frac{1}{2\delta t}`. 
 In order to define the WDM wavelet transform it ie necessary to choose a number of frequency bands :math:`N_f`.
 We will assume that :math:`N_f` divides :math:`N` exactly (if not, then the time series can be padded as necessary), 
@@ -99,7 +100,18 @@ and :math:`N_t = N/N_f` is the number of time bands.
 Other derived quantities that follow from this are  :math:`\Delta \Omega = 2\pi \Delta F` 
 where :math:`\Delta F = \frac{1}{2 \delta t N_f }` and :math:`\Delta T \Delta F = \frac{1}{2}`.
 
-The WDM wavelets are constructed from the Meyer window function. In the frequency-domain they are defined as
+The wavelet expansion of a time series :math:`x[k]` (where :math:`k\in\{0, 1, \ldots, N\}` indexes the time) is given by
+
+.. math::
+   :name: eq:wavelet_expansion
+
+   x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] ,
+
+where :math:`w_{nm}` are the wavelet coefficients and :math:`n\in\{0, 1, \ldots, N_t-1\}` and 
+:math:`m\in\{0, 1, \ldots, N_f-1\}` index the time and frequency respectively.
+
+The WDM wavelets :math:`g_{nm}` are constructed from the Meyer window function. 
+In the frequency-domain they are defined as
 
 .. math::
    :name: eq:Gnm
@@ -137,9 +149,9 @@ The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelet
 The wavelets in the time-domain, :math:`g_{nm}(t)`, are constructed by taking an inverse Fourier transform.
 The wavelets :math:`g_{nm}(t)` are implemented in :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm`.
 
-Uisng :math:`N=512`, :math:`\delta t=1`, and :math:`N_f=16`, several examples of the time-domain WDM 
+Using :math:`N=512`, :math:`\delta t=1`, and :math:`N_f=16`, several examples of the time-domain WDM 
 wavelets are plotted in :numref:`fig-WDM_wavelets_TD`, :numref:`fig-WDM_wavelets_TF` and :numref:`fig-WDM_wavelets_animate`.
- Notice how the wavelets are well localised in frequency but much less so in time.
+Notice how the wavelets are well localised in frequency but much less so in time.
 
 .. _fig-WDM_wavelets_TD:
 
@@ -176,7 +188,7 @@ The WDM wavelet basis has the following orthonomality property,
 .. math::
    :name: eq:orthonorm
 
-   2 \pi \delta t \sum_{i=0}^{N} g_{nm}(t_i) g_{n'm'}(t_i) = \delta_{nn'} \delta_{mm'} .
+   2 \pi \delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .
 
 
 
