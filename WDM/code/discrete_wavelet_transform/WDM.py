@@ -1,11 +1,15 @@
 import jax
+jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import next_multiple, C_nm
 
 
-single = jnp.float32
+if jax.config.read("jax_enable_x64"):
+    jax_dtype = jnp.float64
+else:
+    jax_dtype = jnp.float32
 
 
 class WDM_transform:
@@ -66,7 +70,7 @@ class WDM_transform:
         Width of the transition region in angular frequency 
         (radians per second).
     window : jnp.ndarray
-        Time-domain window of length :math:`K`, normalized to unit L2 norm.
+        Time-domain window of length :math:`K`.
     """
 
     def __init__(self, 
@@ -167,12 +171,11 @@ class WDM_transform:
         Returns
         -------
         phi : jnp.ndarray of shape (K,)
-            Real-valued time-domain window, normalized to unit L2 norm.
+            Real-valued time-domain window. (This is not normalised.)
         """
         f = jnp.fft.fftfreq(self.K, d=self.dt) 
         Phi = Meyer(2.*jnp.pi*f, self.d, self.A, self.B)
         phi = jnp.fft.ifft(Phi).real
-        phi = phi / jnp.linalg.norm(phi)
         return phi
     
     def Gnm(self, 
@@ -200,7 +203,7 @@ class WDM_transform:
         if freq is None:
             freq = self.freqs
         else:
-            freq = jnp.asarray(freq, dtype=single)
+            freq = jnp.asarray(freq, dtype=jax_dtype)
 
         if m == 0:
             Gnm = jnp.exp(-1j*n*4.*jnp.pi*freq*self.dT) * \
@@ -247,7 +250,7 @@ class WDM_transform:
         if time is None:
             time = self.times
         else:
-            time = jnp.asarray(time, dtype=single)
+            time = jnp.asarray(time, dtype=jax_dtype)
 
         _dt = jnp.mean(jnp.diff(time))
 
@@ -351,7 +354,7 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
 
-        w = jnp.zeros((self.Nt, self.Nf), dtype=single) 
+        w = jnp.zeros((self.Nt, self.Nf), dtype=jax_dtype) 
 
         for n in range(self.Nt):
             for m in range(self.Nf):
@@ -395,7 +398,7 @@ class WDM_transform:
                     f"Input signal must have shape ({self.Nt}, {self.Nf}), " \
                     f"got {w.shape=}"
         
-        x = jnp.zeros(self.N, dtype=single) 
+        x = jnp.zeros(self.N, dtype=jax_dtype) 
 
         for n in range(self.Nt):
             for m in range(self.Nf):
@@ -435,18 +438,37 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
 
-        w = jnp.zeros((self.Nt, self.Nf), dtype=single) 
+        w = jnp.zeros((self.Nt, self.Nf), dtype=jax_dtype) 
 
         for n in range(self.Nt):
             for m in range(self.Nf):
-                exp_term = jnp.array([ jnp.exp((1j) * jnp.pi * k * m / self.Nf)
-                                    for k in range(-self.K//2, self.K//2)])
-                x_term = jnp.array([ x[(n*self.Nf + k)%self.N]
-                                    for k in range(-self.K//2, self.K//2)])
-                phi_term = jnp.array([ self.window[k%self.K]
-                                    for k in range(-self.K//2, self.K//2)])
-                all_terms = 2.*jnp.sqrt(2.)*jnp.pi*self.dt*C_nm(n,m)*phi_term*exp_term*x_term
-                w = w.at[n, m].set(jnp.sum(all_terms).real)
+                if m==0:
+                    if n < self.Nt//2:
+                        x_term = jnp.array([ x[(2*n*self.Nf + k)%self.N]
+                                            for k in range(-self.K//2, self.K//2)])
+                        phi_term = jnp.array([ self.window[k%self.K]
+                                            for k in range(-self.K//2, self.K//2)])
+                        all_terms = 2.*jnp.pi*self.dt*phi_term*x_term
+                        w = w.at[n, m].set(jnp.sum(all_terms))
+                    else:
+                        Q = self.Nf % 2
+                        alt_term = jnp.array([ (-1)**k
+                                            for k in range(-self.K//2, self.K//2)])
+                        x_term = jnp.array([ x[(2*n*self.Nf + Q*self.Nf + k)%self.N]
+                                            for k in range(-self.K//2, self.K//2)])
+                        phi_term = jnp.array([ self.window[k%self.K]
+                                            for k in range(-self.K//2, self.K//2)])
+                        all_terms = 2.*jnp.pi*self.dt*phi_term*x_term
+                        w = w.at[n, m].set(jnp.sum(all_terms))
+                else:
+                    exp_term = jnp.array([ jnp.exp((1j) * jnp.pi * k * m / self.Nf)
+                                        for k in range(-self.K//2, self.K//2)])
+                    x_term = jnp.array([ x[(n*self.Nf + k)%self.N]
+                                        for k in range(-self.K//2, self.K//2)])
+                    phi_term = jnp.array([ self.window[k%self.K]
+                                        for k in range(-self.K//2, self.K//2)])
+                    all_terms = 2.*jnp.sqrt(2.)*jnp.pi*self.dt*C_nm(n,m)*phi_term*exp_term*x_term
+                    w = w.at[n, m].set(jnp.sum(all_terms).real)
 
         return w
     
@@ -483,7 +505,7 @@ class WDM_transform:
                     f"Input signal must have shape ({self.Nt}, {self.Nf}), " \
                     f"got {w.shape=}"
         
-        x = jnp.zeros(self.N, dtype=single) 
+        x = jnp.zeros(self.N, dtype=jax_dtype) 
 
         #
 
