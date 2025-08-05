@@ -1,3 +1,4 @@
+=======================
 Mathematical Background
 =======================
 
@@ -195,6 +196,21 @@ The WDM wavelet basis has the following orthonomality property,
 The Discrete WDM Wavelet Transform
 ----------------------------------
 
+Exact 
+~~~~~
+
+Hello.
+
+
+Truncated 
+~~~~~~~~~
+
+Hello.
+
+
+Fast
+~~~~
+
 Hello.
 
 
@@ -225,6 +241,12 @@ Glossary
 - :math:`T`: Duration of the time series (seconds). Satisfies :math:`T = N \delta t`. Named ``T`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`.
 - :math:`n`: Time index for the wavelets. In the range :math:`n\in\{0,1,\ldots, N_t-1\}`.
 - :math:`m`: Frequency index for the wavelets. In the range :math:`m\in\{0,1,\ldots, N_f\}`.
+- :math:`x[k]`: Time series data, where :math:`k\in\{0,1,\ldots,N-1\}` indexes the time.
+- :math:`\tilde{\Phi}(\omega)`: Meyer window function.
+- :math:`\phi(t)`: Time-domain Meyer window, defined as the inverse Fourier transform of :math:`\tilde{\Phi}(\omega)`.
+- :math:`\tilde{G}_{nm}(\omega)`: Frequency-domain WDM wavelet.
+- :math:`g_{nm}(t)`: Time-domain WDM wavelet, defined as the inverse Fourier transform of :math:`\tilde{G}_{nm}(\omega)`.
+- :math:`w_{nm}`: Wavelet coefficient for the wavelet :math
    
 
 References

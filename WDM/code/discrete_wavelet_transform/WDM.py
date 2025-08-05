@@ -3,7 +3,7 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from WDM.code.utils.Meyer import Meyer
-from WDM.code.utils.utils import next_multiple, C_nm
+from WDM.code.utils.utils import C_nm
 
 
 if jax.config.read("jax_enable_x64"):
@@ -31,10 +31,11 @@ class WDM_transform:
         Length of the input time series. Must be an even multiple of 
         :math:`N_f`.
     Nt : int
-        Number of wavelet time bands. Equal to :math:`N/N_f`.
+        Number of wavelet time bands. Equal to :math:`N/N_f`. This must be even.
     q : int
         Truncation parameter. Formally the time domain wavelet has infinite 
         extent, but in practice it is truncated at :math:`\\pm q \\Delta T`. 
+        This must be an integer in the range :math:`1 \\leq q \\leq N_t/2`.
     A_frac : float
         Fraction of total bandwidth used for the flat-top response region.
         Must be in the range [0, 1].
@@ -154,6 +155,9 @@ class WDM_transform:
         
         assert self.q>=1, \
                     f"q must be a positive integer, got {self.q=}"
+        
+        assert self.q<=self.Nt//2, \
+                    f"q must be less than {self.Nt//2}, got {self.q=}"
         
         assert 0. < self.A_frac < 1., \
                     f"A_frac must be in [0, 1], got {self.A_frac=}"
@@ -333,8 +337,9 @@ class WDM_transform:
             w_{nm} = 2\\pi\\delta t\\sum_{k=0}^{N-1} g_{nm}[k] x[k] ,
 
         where the sum is over the whole time-domain signal (no truncation). The 
-        time domain wavelets `g_{nm}[k]` are computed using an inverse FFT. This 
-        method is slow but exact.
+        time domain wavelets `g_{nm}[k]` are computed using an inverse FFT. 
+        
+        This method is slow but exact.
 
         Parameters
         ----------
@@ -376,8 +381,9 @@ class WDM_transform:
             x[k] = \\sum_{n=0}^{N_t-1}\\sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] ,
 
         where the sum is over the whole time-domain signal (no truncation). The 
-        time domain wavelets `g_{nm}[k]` are computed using an inverse FFT. This 
-        method is slow but exact.
+        time domain wavelets `g_{nm}[k]` are computed using an inverse FFT. 
+        
+        This method is slow but exact.
 
         Parameters
         ----------
@@ -412,13 +418,24 @@ class WDM_transform:
         signal from the time domain into the time-frequency domain.
 
         This method computes the wavelet coefficients using the truncated 
-        expression
+        expressions
 
         .. math::
 
-            w_{nm} = Eq13 ,
+            w_{n0} = 2\\pi\\delta t\\sum_{k=-K/2}^{K/2-1} 
+                                            g_{nm}[k + 2 n N_f] x[k + 2 n N_f] .
 
-        where the sum is over the truncated window. This method is slow. 
+        .. math::
+
+            w_{nm} = 2\\pi\\delta t\\sum_{k=-K/2}^{K/2-1} 
+                                            g_{nm}[k + n N_f] x[k + n N_f] ,
+
+        where the sum is over the truncated window of length :math:`K=2qN_f`.
+
+        (In the above expressions,  indices out of bounds of the array are 
+        to be understood as wrapping around circularly.)
+
+        This method is slow. 
 
         Parameters
         ----------
@@ -442,49 +459,17 @@ class WDM_transform:
 
         for n in range(self.Nt):
             for m in range(self.Nf):
-                if m==0:
-                    if n < self.Nt//2:
-                        x_term = jnp.array([ x[(2*n*self.Nf + k)%self.N]
-                                            for k in range(-self.K//2, self.K//2)])
-                        phi_term = jnp.array([ self.window[k%self.K]
-                                            for k in range(-self.K//2, self.K//2)])
-                        all_terms = 2.*jnp.pi*self.dt*phi_term*x_term
-                        w = w.at[n, m].set(jnp.sum(all_terms))
-                    else:
-                        Q = self.Nf % 2
-                        alt_term = jnp.array([ (-1)**k
-                                            for k in range(-self.K//2, self.K//2)])
-                        x_term = jnp.array([ x[(2*n*self.Nf + Q*self.Nf + k)%self.N]
-                                            for k in range(-self.K//2, self.K//2)])
-                        phi_term = jnp.array([ self.window[k%self.K]
-                                            for k in range(-self.K//2, self.K//2)])
-                        all_terms = 2.*jnp.pi*self.dt*phi_term*x_term
-                        w = w.at[n, m].set(jnp.sum(all_terms))
-                else:
-                    exp_term = jnp.array([ jnp.exp((1j) * jnp.pi * k * m / self.Nf)
-                                        for k in range(-self.K//2, self.K//2)])
-                    x_term = jnp.array([ x[(n*self.Nf + k)%self.N]
-                                        for k in range(-self.K//2, self.K//2)])
-                    phi_term = jnp.array([ self.window[k%self.K]
-                                        for k in range(-self.K//2, self.K//2)])
-                    all_terms = 2.*jnp.sqrt(2.)*jnp.pi*self.dt*C_nm(n,m)*phi_term*exp_term*x_term
-                    w = w.at[n, m].set(jnp.sum(all_terms).real)
+                gnm = self.gnm(n, m)
+                window = jnp.array([ gnm[(k+(1 if m>0 else 2)*n*self.Nf)%self.N] * 
+                                        x[(k+(1 if m>0 else 2)*n*self.Nf)%self.N]
+                                for k in range(-self.K//2, self.K//2)])
+                w = w.at[n, m].set(2.*jnp.pi*self.dt*jnp.sum(window))
 
         return w
     
     def inverse_transform_truncated(self, w: jnp.ndarray) -> jnp.ndarray:
         """
-        Perform the inverse discrete wavelet transform. Transforms the input
-        signal from the time-frequency wavelet domain into the time domain.
-
-        This method computes the wavelet coefficients using the truncated 
-        expression
-
-        .. math::
-
-            x[k] = ? ,
-
-        where the sum is over... This method is slow.
+        This is the same as the inverse_transform_exact method.
 
         Parameters
         ----------
@@ -501,27 +486,54 @@ class WDM_transform:
         This method is slow. It is only intended to be used for testing and 
         debugging purposes. 
         """
-        assert w.shape == (self.Nt, self.Nf), \
-                    f"Input signal must have shape ({self.Nt}, {self.Nf}), " \
-                    f"got {w.shape=}"
-        
-        x = jnp.zeros(self.N, dtype=jax_dtype) 
-
-        #
-
+        x = self.inverse_transform_exact(w)
         return x
     
-    def fast_forward_transform(self, x: jnp.ndarray) -> jnp.ndarray:
+    def forward_transform_truncated_window(self, x: jnp.ndarray) -> jnp.ndarray:
         """
-        Perform the fast forward discrete wavelet transform. 
+        Perform the forward discrete wavelet transform using the truncated sum 
+        and the window function `self.window`.`
+
+        This method is slow. 
+
+        Parameters
+        ----------
+        x : jnp.ndarray of shape (N,)
+            Input time-domain signal to be transformed.
+
+        Returns
+        -------
+        w : jnp.ndarray of shape (Nt, Nf)
+            WDM time-frequency-domain wavelet coefficients.
+
+        Notes
+        -----
+        This method is slow. It is only intended to be used for testing and 
+        debugging purposes. 
         """
         pass
 
-    def fast_inverse_transform(self, w: jnp.ndarray) -> jnp.ndarray:
+    def inverse_transform_truncated_window(self, w: jnp.ndarray) -> jnp.ndarray:
         """
-        Perform the fast inverse discrete wavelet transform. 
+        This is the same as the inverse_transform_exact method.
+
+        Parameters
+        ----------
+        w : jnp.ndarray of shape (Nt, Nf)
+            WDM time-frequency-domain wavelet coefficients.
+
+        Returns
+        -------
+        x : jnp.ndarray of shape (N,)
+            Input time-domain signal to be transformed.
+
+        Notes
+        -----
+        This method is slow. It is only intended to be used for testing and 
+        debugging purposes. 
         """
-        pass
+        x = self.inverse_transform_exact(w)
+        return x
 
     def FWT(self, x: jnp.ndarray) -> jnp.ndarray:
         """
