@@ -37,3 +37,6 @@ dmypy.json
 
 # macOS
 .DS_Store
+
+# large data files
+data/*.txt
