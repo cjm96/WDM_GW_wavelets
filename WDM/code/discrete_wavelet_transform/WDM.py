@@ -155,8 +155,9 @@ class WDM_transform:
         assert self.q>=1, \
                     f"q must be a positive integer, got {self.q=}"
         
-        assert self.q<=self.Nt//2, \
-                    f"q must be less than {self.Nt//2}, got {self.q=}"
+        Nt = self.N // self.Nf
+        assert self.q<=Nt//2, \
+                    f"q must be less than {Nt//2}, got {self.q=}"
         
         assert 0. < self.A_frac < 1., \
                     f"A_frac must be in [0, 1], got {self.A_frac=}"

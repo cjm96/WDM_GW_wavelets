@@ -227,10 +227,53 @@ to the time-frequency domain.
 This exact wavelet transform is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_exact`.
 
+The exact form of the wavelet transform described above is slow to implment.
+An improvement can be made by noticing that the WDM are (approximately) localised in time
+and the sum over :math:`k` can be truncated to a window of length :math:`K=2qN_f` without
+significant loss of accuracy.
+The truncation parameter :math:`1\leq q\leq N_t/2` is a positive integer that controls the length of the window.
+The truncated wavelet transform is given by
+
+.. math::
+
+   w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} 
+                                    g_{nm}[k + 2 n N_f] x[k + 2 n N_f] ,
+
+.. math::
+
+   w_{nm} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} 
+                                    g_{nm}[k + n N_f] x[k + n N_f] 
+                                    \quad \mathrm{for} \; m>0.  
+
+This form of the truncted wavelet transform is implemented in
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated`.
+
+Smaller values of :math:`q` result in a faster but less accurate transform, see :numref:`fig-trunc_err`.
+
+.. _fig-trunc_err:
+
+.. figure:: ../figures/trunc_err.png
+   :alt: trunc_err
+   :align: center
+   :width: 70%
+
+   The error in the truncated wavelet transform as a function of :math:`q`.
+   The error is defined as the maximum relative absolute between an original white-noise time
+   series (with rms=1) and the time series reconstructed from the truncated wavelet transform. 
+   For :math:`q=N_f=16`, there is no truncation and the result agrees with the exact transform.
+
+The wavelet transform can be rewritten in terms of the widow function 
+
+.. math::
+
+   \phi[k] = .
+
+This form of the truncted wavelet transform is implemented in
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_window`.
 
 
 
-
+ 
 Glossary 
 --------
 
