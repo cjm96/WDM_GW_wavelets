@@ -267,10 +267,21 @@ function :math:`\phi[k]` as
 
 .. math::
 
-   w_{nm} = 2\pi \delta t \sum_{k=-K/2}^{K/2-1} x[k + n N_f] 
-                                    \phi[k] \exp(-2\pi i n f_m \Delta T) ,
+   w_{nm} = 2\sqrt{2}\pi\delta t \mathrm{Re} \sum_{k=-K/2}^{K/2-1} 
+                            C_{nm} \exp(i\pi km/N_f) 
+                            x[k+nN_f] \phi[k] \quad \mathrm{for}\; m>0,
 
-This form of the truncted wavelet transform is implemented in
+.. math::
+
+   w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} 
+                            x[k+2nN_f] \phi[k] \quad \mathrm{for}\; n<N_t/2,
+
+.. math::
+
+   w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} (-1)^k x[k+(2n+Q)N_f]
+                            \phi[k] \quad \mathrm{for}\; n\geq N_t/2.
+
+This form of the truncted wavelet transform using the window :math:`\phi[k]` is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_window`.
 
 
@@ -295,6 +306,7 @@ Glossary
 - :math:`N_t`: Number of time bands for the wavelets, must be even. Named ``N_t`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
 - :math:`N`: Number of points in the time series. Satisfies :math:`N = N_t N_f`. Named ``N`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`.
 - :math:`T`: Duration of the time series (seconds). Satisfies :math:`T = N \delta t`. Named ``T`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`.
+- :math:`Q`: Parity of the number of frequency bands :math:`N_f`. This is 0 if :math:`N_f` is even, and 1 if it is odd. Named ``Q`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`.
 - :math:`n`: Time index for the wavelets. In the range :math:`n\in\{0,1,\ldots, N_t-1\}`.
 - :math:`m`: Frequency index for the wavelets. In the range :math:`m\in\{0,1,\ldots, N_f\}`.
 - :math:`x[k]`: Time series data, where :math:`k\in\{0,1,\ldots,N-1\}` indexes the time.

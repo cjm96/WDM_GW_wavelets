@@ -56,6 +56,9 @@ class WDM_transform:
     T : float
         Total duraion of the time series (seconds). Related to :math:`N` and 
         :math:`\delta t` by :math:`T = N \delta t`.
+    Q : int
+        Parity of the number of frequency bands :math:`N_f`. This is 0 if 
+        :math:`N_f` is even, and 1 if :math:`N_f` is odd.
     dOmega : float
         Angular Frequency resolution of the wavelets (radians per second), or 
         the total wavelet angular frequency bandwidth 
@@ -117,6 +120,7 @@ class WDM_transform:
         self.freqs = jnp.fft.fftfreq(self.N, d=self.dt)
         self.Nt = self.N // self.Nf
         self.T = self.N * self.dt
+        self.Q = self.Nf % 2 
         self.dF = 1. / ( 2. * self.dt * self.Nf )  
         self.dOmega = 2. * jnp.pi * self.dF
         self.dT = self.dt * self.Nf 
@@ -174,10 +178,10 @@ class WDM_transform:
 
         Returns
         -------
-        phi : jnp.ndarray of shape (K,)
-            Real-valued time-domain window. (This is not normalised.)
+        phi : jnp.ndarray of shape (N,)
+            Real-valued time-domain window. 
         """
-        f = jnp.fft.fftfreq(self.K, d=self.dt) 
+        f = jnp.fft.fftfreq(self.N, d=self.dt) 
         Phi = Meyer(2.*jnp.pi*f, self.d, self.A, self.B)
         phi = jnp.fft.ifft(Phi).real
         return phi
@@ -359,7 +363,7 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
 
-        w = jnp.zeros((self.Nt, self.Nf), dtype=jax_dtype) 
+        w = jnp.empty((self.Nt, self.Nf), dtype=jax_dtype) 
 
         for n in range(self.Nt):
             for m in range(self.Nf):
@@ -455,7 +459,7 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
 
-        w = jnp.zeros((self.Nt, self.Nf), dtype=jax_dtype) 
+        w = jnp.empty((self.Nt, self.Nf), dtype=jax_dtype) 
 
         for n in range(self.Nt):
             for m in range(self.Nf):
@@ -496,15 +500,22 @@ class WDM_transform:
 
         .. math::
 
-            w_{n0} = 2\sqrt{2}\pi\delta t\sum_{k=-K/2}^{K/2-1} 
-                            \mathrm{Re} C_{nm} \exp(i\pi km/N_f) 
-                            x[k+nN_f] \phi[k] ,
+            w_{nm} = 2\sqrt{2}\pi\delta t \mathrm{Re} \sum_{k=-K/2}^{K/2-1} 
+                            C_{nm} \exp(i\pi km/N_f) 
+                            x[k+nN_f] \phi[k] \quad \mathrm{for}\; m>0.
+
+        The case :math:`m=0` is handled separately, with the following two 
+        expressions:
 
         .. math::
 
-            w_{nm} = 2\sqrt{2}\pi\delta t\sum_{k=-K/2}^{K/2-1} 
-                            \mathrm{Re} C_{nm} \exp(i\pi km/N_f) 
-                            x[k+nN_f] \phi[k] .
+            w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} 
+                            x[k+2nN_f] \phi[k] \quad \mathrm{for}\; n<N_t/2,
+
+        .. math::
+
+            w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} (-1)^k x[k+(2n+Q)N_f]
+                            \phi[k] \quad \mathrm{for}\; n\geq N_t/2.
 
         This method is slow. 
 
@@ -526,15 +537,31 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
 
-        w = jnp.zeros((self.Nt, self.Nf), dtype=jax_dtype) 
+        w = jnp.empty((self.Nt, self.Nf), dtype=jax_dtype) 
 
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
         for n in range(self.Nt):
             for m in range(self.Nf):
-                exp_term = jnp.array((1j)*jnp.pi*k_vals*m/self.Nf)
-                term = exp_term
-                w = w.at[n, m].set(2.*jnp.sqrt(2.)*jnp.pi*self.dt*jnp.sum(term))
+                if m==0:
+                    if n<self.Nt//2:
+                        x_term = x[(k_vals + 2*n*self.Nf) % self.N]
+                        phi_term = self.window[k_vals % self.N]
+                        norm = 2.*jnp.pi*self.dt
+                        term = norm*x_term*phi_term
+                    else:
+                        x_term = x[(k_vals + (2*n+self.Q)*self.Nf) % self.N]
+                        phi_term = self.window[k_vals % self.N]
+                        alt_term = (-1)**k_vals
+                        norm = 2.*jnp.pi*self.dt
+                        term = norm*x_term*phi_term*alt_term
+                else:
+                    exp_term = jnp.exp((1j)*jnp.pi*k_vals*m/self.Nf)
+                    x_term = x[(k_vals + n*self.Nf) % self.N]
+                    phi_term = self.window[k_vals % self.N]
+                    norm = 2.*jnp.sqrt(2.)*jnp.pi*self.dt*C_nm(n,m)
+                    term = norm*exp_term*x_term*phi_term
+                w = w.at[n, m].set(jnp.sum(term).real)
 
         return w
 
