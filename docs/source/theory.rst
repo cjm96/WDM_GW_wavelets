@@ -62,7 +62,8 @@ defined in the frequency domain as
 
     \tilde{\Phi}(\omega) = \begin{cases}
         \frac{1}{\sqrt{\Delta\Omega}} & \text{if } |\omega| < A, \\
-        \frac{1}{\sqrt{\Delta\Omega}} \cos\left(\frac{\pi}{2}\nu_d\left(\frac{|\omega| - A}{B}\right)\right) & \text{if } A \leq |\omega| \leq A + B \\
+        \frac{1}{\sqrt{\Delta\Omega}} \cos\left(\frac{\pi}{2}\nu_d\left(\frac{|\omega| -
+         A}{B}\right)\right) & \text{if } A \leq |\omega| \leq A + B \\
         0 & \text{if } |\omega| > A + B
     \end{cases} ,
 
@@ -116,32 +117,7 @@ There are :math:`N=N_t N_f` cells, each with area :math:`\Delta T \Delta F = \fr
 cover the time-frequency plane with a uniform tiling.
 We will insist that :math:`N` is even.
 
-
-
-
-
-
-
-The WDM wavelets form a complete basis for any time series.
-Consider a time series with cadence :math:`\delta t`, duration :math:`T=N \delta t`, and Nyquist frequency 
-:math:`f_{\rm Ny} = \frac{1}{2\delta t}`. 
-In order to define the wavelet transform it is necessary to choose a number of frequency bands :math:`N_f`.
-We will assume that :math:`N_f` divides :math:`N` exactly (if not, then the time series can be padded as necessary), 
-and :math:`N_t = N/N_f` is the number of time bands.
-Other derived quantities that follow from this are  :math:`\Delta \Omega = 2\pi \Delta F` 
-where :math:`\Delta F = \frac{1}{2 \delta t N_f }` and :math:`\Delta T \Delta F = \frac{1}{2}`.
-
-The wavelet expansion of a time series :math:`x[k]` (where :math:`k\in\{0, 1, \ldots, N\}` indexes the time) is given by
-
-.. math::
-   :name: eq:wavelet_expansion
-
-   x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] ,
-
-where :math:`w_{nm}` are the wavelet coefficients and :math:`n\in\{0, 1, \ldots, N_t-1\}` and 
-:math:`m\in\{0, 1, \ldots, N_f-1\}` index the time and frequency respectively.
-
-The WDM wavelets :math:`g_{nm}` are constructed from the Meyer window function. 
+The WDM wavelets :math:`g_{nm}(t)` are constructed from the Meyer window function. 
 In the frequency-domain they are defined as
 
 .. math::
@@ -151,18 +127,12 @@ In the frequency-domain they are defined as
         \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f) & m=0 \\
         \exp(-2\pi i n f \Delta T) \left( C_{nm}\tilde{\Phi}(2\pi [f-m\Delta F])
         +C^*_{nm}\tilde{\Phi}(2\pi [f+m\Delta F]) \right) & 0<m<N_f \\
-        \exp(-2\pi i Q f \Delta T) \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) + \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right) & m=N_f \\
+        \exp(-4\pi i (n+Q/2) f \Delta T) \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) + \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right) & m=N_f \\
     \end{cases} ,
 
-where :math:`Q=2n+(N_f\,\mathrm{mod}\,2)` and the coefficients :math:`C_{nm}` are defined to be 1 is if :math:`n+m` 
-is even, and :math:`i` if :math:`n+m` is odd and are implemented in :func:`WDM.code.utils.utils.C_nm`.
-
-The WDM wavelets :math:`\tilde{G}_{nm}(\omega)` are implemented in :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm`.
-
-To understand the wavelet definitions it is best to focus first on the middle case, :math:`0<m<N_f`.
-The index :math:`n` describes a time shift by an amount :math:`\Delta T`.
-The index :math:`m` describes a frequency shift of the wavelet by an amount :math:`m\Delta\Omega`.
-Unfortunatelt, this doesn't quite holde for the cases :math:`m=0` and :math:`m=N_f` which are handled separately.
+where the coefficients :math:`C_{nm}` are defined to be 1 is if :math:`n+m` 
+is even, and :math:`i` if :math:`n+m` is odd.
+The constant :math:`Q` is defined to be 0 if :math:`N_f` is even and 1 if it is odd.
 
 The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelets_FD`.
 
@@ -177,12 +147,16 @@ The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelet
    :math:`m=0, 1, 2,\ldots,N_f`. (The :math:`n` index only describes a time shift and has no effect on 
    this plot.) This plot was produced using :math:`N_f=16` to match Fig.2 of Ref. [1]_.
 
-The wavelets in the time-domain, :math:`g_{nm}(t)`, are constructed by taking an inverse Fourier transform.
-The wavelets :math:`g_{nm}(t)` are implemented in :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm`.
+As defined, the :math:`m` takes on both the value 0 and :math:`N_f`.
+However, these two cases can be conveniently grouped together.
+Because of the :math:`2\Delta T` time shift only half of the :math:`n` range is needed for these two cases.
+Therefore, we define :math:`G_{n0}(f)=G_{gN_f}(f)` when :math:`n>N_t/2`.
+With this choice, the index ranges :math:`n\in\{0,1,\ldots,N_t-1\}` and :math:`m\in\{0,1,\ldots,N_f-1\}`
+cover the entire time-frequency plane; see :numref:`fig-WDM_wavelets_animate`.
 
-Using :math:`N=512`, :math:`\delta t=1`, and :math:`N_f=16`, several examples of the time-domain WDM 
-wavelets are plotted in :numref:`fig-WDM_wavelets_TD`, :numref:`fig-WDM_wavelets_TF` and :numref:`fig-WDM_wavelets_animate`.
-Notice how the wavelets are well localised in frequency but much less so in time.
+Some examples of the WDM wavelets with :math:`N=512`, :math:`N_f=16`, and :math:`\delta t=1`
+are shown in :numref:`fig-WDM_wavelets_TD`, :numref:`fig-WDM_wavelets_TF`, and :numref:`fig-WDM_wavelets_animate`.
+Notice that the WDM wavelets are well localised in frequency but much less so in time.
 
 .. _fig-WDM_wavelets_TD:
 
@@ -210,44 +184,42 @@ Notice how the wavelets are well localised in frequency but much less so in time
    :align: center
    :width: 90%
 
-   Animation looping through all the wavelets. Note that the :math:`m\in\{0,1,\ldots, N_f\}` index is related in a straightforward
-   way to the central frequency of the wavelets. The :math:`n\in\{0,1,\ldots, N_t-1\}` index is USUALLY related to the central 
-   time of the wavelet, except when :math:`m=0` or :math:`m=N_f` where the time shifting is more complicated.
+   Animation looping through all the wavelets. 
+   Notice in particular the behaviour of the wavelets for :math:`m=0`.
 
-The WDM wavelet basis has the following orthonomality property,
+The WDM wavelets have the following orthonomality property,
 
 .. math::
    :name: eq:orthonorm
 
    2 \pi \delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .
 
+The WDM wavelets :math:`\tilde{G}_{nm}(f)` are implemented in 
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm`.
+
+The time-domain WDM wavelets :math:`g_{nm}(t)` are implemented in 
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm`.
+
+
+
 
 
 The Discrete WDM Wavelet Transform
 ----------------------------------
 
-Exact 
-~~~~~
+The WDM wavelets form a complete basis for the time series,
 
-Hello.
+.. math::
+   :name: eq:wavelet_expansion
 
+   x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .
 
-Truncated 
-~~~~~~~~~
-
-Hello.
+The :math:`w_{nm}` are the wavelet coefficients.
 
 
-Fast
-~~~~
-
-Hello.
 
 
-The Discrete WDM Wavelet Inverse Transform
-------------------------------------------
 
-Hello.
 
 
 Glossary 
