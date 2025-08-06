@@ -262,11 +262,13 @@ Smaller values of :math:`q` result in a faster but less accurate transform, see 
    series (with rms=1) and the time series reconstructed from the truncated wavelet transform. 
    For :math:`q=N_f=16`, there is no truncation and the result agrees with the exact transform.
 
-The wavelet transform can be rewritten in terms of the widow function 
+Using the definition of the WDM wavelets, the wavelet transform can be rewritten in terms of the widow 
+function :math:`\phi[k]` as
 
 .. math::
 
-   \phi[k] = .
+   w_{nm} = 2\pi \delta t \sum_{k=-K/2}^{K/2-1} x[k + n N_f] 
+                                    \phi[k] \exp(-2\pi i n f_m \Delta T) ,
 
 This form of the truncted wavelet transform is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_window`.

@@ -432,7 +432,7 @@ class WDM_transform:
 
         where the sum is over the truncated window of length :math:`K=2qN_f`.
 
-        (In the above expressions,  indices out of bounds of the array are 
+        (In the above expressions, indices out of bounds of the array are 
         to be understood as wrapping around circularly.)
 
         This method is slow. 
@@ -492,7 +492,19 @@ class WDM_transform:
     def forward_transform_truncated_window(self, x: jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform using the truncated sum 
-        and the window function `self.window`.`
+        and the window function `self.window`.
+
+        .. math::
+
+            w_{n0} = 2\sqrt{2}\pi\delta t\sum_{k=-K/2}^{K/2-1} 
+                            \mathrm{Re} C_{nm} \exp(i\pi km/N_f) 
+                            x[k+nN_f] \phi[k] ,
+
+        .. math::
+
+            w_{nm} = 2\sqrt{2}\pi\delta t\sum_{k=-K/2}^{K/2-1} 
+                            \mathrm{Re} C_{nm} \exp(i\pi km/N_f) 
+                            x[k+nN_f] \phi[k] .
 
         This method is slow. 
 
@@ -511,7 +523,20 @@ class WDM_transform:
         This method is slow. It is only intended to be used for testing and 
         debugging purposes. 
         """
-        pass
+        assert x.shape == (self.N,), \
+                    f"Input signal must have shape ({self.N},), got {x.shape=}"
+
+        w = jnp.zeros((self.Nt, self.Nf), dtype=jax_dtype) 
+
+        k_vals = jnp.arange(-self.K//2, self.K//2)
+
+        for n in range(self.Nt):
+            for m in range(self.Nf):
+                exp_term = jnp.array((1j)*jnp.pi*k_vals*m/self.Nf)
+                term = exp_term
+                w = w.at[n, m].set(2.*jnp.sqrt(2.)*jnp.pi*self.dt*jnp.sum(term))
+
+        return w
 
     def inverse_transform_truncated_window(self, w: jnp.ndarray) -> jnp.ndarray:
         r"""
