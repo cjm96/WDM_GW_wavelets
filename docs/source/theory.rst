@@ -4,6 +4,8 @@ Mathematical Background
 
 This section describes the mathematical background to the WDM wavelet transform.
 
+
+
 .. contents::
    :local:
 
@@ -284,6 +286,12 @@ function :math:`\phi[k]` as
 This form of the truncted wavelet transform using the window :math:`\phi[k]` is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_window`.
 
+This can now be rewritten using the FFT.
+
+
+This FFT form of the truncted wavelet transform is implemented in
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_window`.
+
 
 
  
@@ -316,6 +324,7 @@ Glossary
 - :math:`g_{nm}(t)`: Time-domain WDM wavelet, defined as the inverse Fourier transform of :math:`\tilde{G}_{nm}(\omega)`.
 - :math:`w_{nm}`: The wavelet coefficients.
    
+
 
 References
 ----------

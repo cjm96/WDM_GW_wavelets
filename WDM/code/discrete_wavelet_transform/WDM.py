@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from WDM.code.utils.Meyer import Meyer
-from WDM.code.utils.utils import C_nm
+from WDM.code.utils.utils import C_nm, overlapping_windows
 
 
 if jax.config.read("jax_enable_x64"):
@@ -74,6 +74,8 @@ class WDM_transform:
         (radians per second).
     window : jnp.ndarray
         Time-domain window of length :math:`K`.
+    Cnm : jnp.ndarray of shape (Nt, Nf)
+        Coefficients :math:`C_{nm}` used for the wavelet transform.
     """
 
     def __init__(self, 
@@ -129,6 +131,8 @@ class WDM_transform:
         self.A = self.A_frac * self.dOmega
         self.B = self.B_frac * self.dOmega
         self.K = 2 * self.q * self.Nf
+        self.Cnm = jnp.array([[C_nm(n, m) for m in range(self.Nf)] 
+                              for n in range(self.Nt)])
 
         self.window = self.build_time_domain_window()
 
@@ -329,6 +333,37 @@ class WDM_transform:
 
         return x_padded, mask
     
+    def windowed_fft(self, x: jnp.ndarray) -> jnp.ndarray:
+        """
+        Compute the windowed FFT of the input signal.
+
+        The input time series is split into :math:`N_t` overlapping segments 
+        each of length :math:`K` and with a hop interval of :math:`N_f` between 
+        their centres. Each of these segments is then windowed and transformed 
+        using the FFT.
+
+        Parameters
+        ----------
+        x : jnp.ndarray of shape (N,)
+            Input signal to be transformed.
+
+        Returns
+        -------
+        X : jnp.ndarray of shape (Nt, K)
+            Windowed FFT of the input signal.
+        """
+        assert x.shape == (self.N,), \
+                    f"Input signal must have shape ({self.N},), got {x.shape=}"
+        
+        X = overlapping_windows(x, self.K, self.Nt, self.Nf)
+
+        kvals = jnp.arange(-self.K//2, self.K//2)
+        X *= self.window[kvals%self.N]
+
+        X = jnp.fft.fft(X)
+
+        return X
+
     def forward_transform_exact(self, x: jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform. Transforms the input
@@ -586,6 +621,33 @@ class WDM_transform:
         """
         x = self.inverse_transform_exact(w)
         return x
+    
+    def forward_transform_truncated_fft(self, x: jnp.ndarray) -> jnp.ndarray:
+        r"""
+        Perform the forward discrete wavelet transform using the truncated sum 
+        and the window function `self.window`.
+
+        Parameters
+        ----------
+        x : jnp.ndarray of shape (N,)
+            Input time-domain signal to be transformed.
+
+        Returns
+        -------
+        w : jnp.ndarray of shape (Nt, Nf)
+            WDM time-frequency-domain wavelet coefficients.
+        """
+        assert x.shape == (self.N,), \
+                    f"Input signal must have shape ({self.N},), got {x.shape=}"
+
+        X = self.windowed_fft(x)
+
+        m_vals = jnp.arange(self.Nf)
+
+        w = 2.0 * jnp.pi * jnp.sqrt(2.) * self.dt * \
+                        jnp.real( self.Cnm * X[:,(m_vals*self.q)%self.Nf] )
+
+        return w
 
     def FWT(self, x: jnp.ndarray) -> jnp.ndarray:
         r"""

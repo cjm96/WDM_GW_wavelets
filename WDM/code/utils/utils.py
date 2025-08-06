@@ -99,3 +99,50 @@ def circular_slice(x, start, end):
     y = x[indices]
     return y
 
+
+def overlapping_windows(x: jnp.ndarray, K: int, Nt: int, Nf: int) -> jnp.ndarray:
+    """
+    Extract overlapping, wrapped windows from input array `x`.
+
+    Parameters
+    ----------
+    x : jnp.ndarray, shape (N,)
+        Input array to extract windows from.
+    K : int
+        Window length (must be even).
+    Nt : int
+        Number of windows (time steps).
+    Nf : int
+        Hop size between window centers.
+
+    Returns
+    -------
+    windows : jnp.ndarray, shape (Nt, K)
+        Array of overlapping windows with wraparound indexing.
+
+    Examples
+    --------
+    >>> import jax.numpy as jnp
+    >>> Nt = 4
+    >>> Nf = 4
+    >>> K = 8
+    >>> x = jnp.arange(Nt*Nf)
+    >>> overlapping_windows(x, K, Nt, Nf)
+    array([ [12, 13, 14, 15,  0,  1,  2,  3],
+            [ 0,  1,  2,  3,  4,  5,  6,  7],
+            [ 4,  5,  6,  7,  8,  9, 10, 11],
+            [ 8,  9, 10, 11, 12, 13, 14, 15] ])
+    """
+    N = x.shape[0]
+    assert K % 2 == 0, "Window length K must be even"
+    
+    # Centered window indices relative to each window center
+    k_offsets = jnp.arange(-K//2, K//2)
+    
+    # Window center indices
+    centers = jnp.arange(Nt) * Nf
+    
+    # Create full (Nt, K) index matrix with wraparound
+    idx = (centers[:, None] + k_offsets[None, :]) % N
+    
+    return x[idx]
