@@ -5,7 +5,7 @@ import WDM
 
 
 def test_padding():
-    """
+    r"""
     Test the padding function in the WDM class.
     """
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, 
@@ -26,7 +26,7 @@ def test_padding():
         
 
 def test_Gnm():
-    """
+    r"""
     Test the frequency-domain Gnm function in the WDM class.
     """
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, 
@@ -43,7 +43,7 @@ def test_Gnm():
 
 
 def test_gnm():
-    """
+    r"""
     Test the time-domain gnm function in the WDM class.
     """
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, 
@@ -60,7 +60,7 @@ def test_gnm():
 
 
 def test_orthonormality():
-    """
+    r"""
     Test the orthonormality of the WDM wavelets.
     """
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, 
@@ -86,7 +86,7 @@ def test_orthonormality():
 
 
 def test_exact_transforms():
-    """
+    r"""
     Test the orthonormality of the WDM wavelets.
     """
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1., 
@@ -105,14 +105,14 @@ def test_exact_transforms():
     
 
 def test_truncated_transforms():
-    """
+    r"""
     Test the orthonormality of the WDM wavelets.
     """
     pass
 
 
 def test_fast_transforms():
-    """
+    r"""
     Test the orthonormality of the WDM wavelets.
     """
     pass

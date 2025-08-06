@@ -127,7 +127,8 @@ In the frequency-domain they are defined as
         \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f) & m=0 \\
         \exp(-2\pi i n f \Delta T) \left( C_{nm}\tilde{\Phi}(2\pi [f-m\Delta F])
         +C^*_{nm}\tilde{\Phi}(2\pi [f+m\Delta F]) \right) & 0<m<N_f \\
-        \exp(-4\pi i (n+Q/2) f \Delta T) \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) + \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right) & m=N_f \\
+        \exp(-4\pi i (n+Q/2) f \Delta T) \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) + 
+        \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right) & m=N_f \\
     \end{cases} ,
 
 where the coefficients :math:`C_{nm}` are defined to be 1 is if :math:`n+m` 
@@ -202,21 +203,29 @@ The time-domain WDM wavelets :math:`g_{nm}(t)` are implemented in
 
 
 
-
-
 The Discrete WDM Wavelet Transform
 ----------------------------------
 
 The WDM wavelets form a complete basis for the time series,
 
 .. math::
-   :name: eq:wavelet_expansion
+   :name: waveletexpansion
 
-   x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .
+   x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k]
 
-The :math:`w_{nm}` are the wavelet coefficients.
+An expression for the wavelet coefficients :math:`w_{nm}` can be derived by multiplying both sides of this
+equation by :math:`g_{n'm'}[k]`, summing over :math:`k`, and using the orthonormality property to obtain
 
+.. math::
+   :name: eq:wavelet_transform_exact
 
+   w_{nm} = 2\pi \delta t\sum_{k=0}^{N-1} x[k] g_{nm}[k] .
+
+This is the exact expression for the forward wavelet transform which transforms from the time 
+to the time-frequency domain. 
+
+This exact wavelet transform is implemented in
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_exact`.
 
 
 
@@ -248,7 +257,7 @@ Glossary
 - :math:`\phi(t)`: Time-domain Meyer window, defined as the inverse Fourier transform of :math:`\tilde{\Phi}(\omega)`.
 - :math:`\tilde{G}_{nm}(\omega)`: Frequency-domain WDM wavelet.
 - :math:`g_{nm}(t)`: Time-domain WDM wavelet, defined as the inverse Fourier transform of :math:`\tilde{G}_{nm}(\omega)`.
-- :math:`w_{nm}`: Wavelet coefficient for the wavelet :math
+- :math:`w_{nm}`: The wavelet coefficients.
    
 
 References
@@ -265,6 +274,3 @@ References
 
 .. [4] S. Klimenko *et al.*, *Method for detection and reconstruction of gravitational wave transients with networks of advanced detectors*, Physical Review D 93, 042004, 2016.
        `arXiv:1511.05999 <https://arxiv.org/abs/1511.05999>`_
-
-.. [5] Author, *Title*, Journal, Year.  
-       `arXiv:0000.00000 <https://arxiv.org/abs/0000.00000>`_

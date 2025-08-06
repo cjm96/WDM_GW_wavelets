@@ -1,5 +1,5 @@
 def next_multiple(i: int, N: int) -> int:
-    """
+    r"""
     Return smallest integer multiple of N greater than or equal to integer i.
     
     Parameters
@@ -35,7 +35,7 @@ def next_multiple(i: int, N: int) -> int:
 
 
 def C_nm(n: int, m: int) -> complex:
-    """
+    r"""
     Compute the complex-valued modulation coefficient :math:`C_{nm}`.
 
     This coefficient alternates between 1 and :math:`i` to apply modulation

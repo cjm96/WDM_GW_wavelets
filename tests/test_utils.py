@@ -4,7 +4,7 @@ import WDM
 
 
 def test_nu_d():
-    """
+    r"""
     Test utility function in WDM.
     """
     d = 4
@@ -17,7 +17,7 @@ def test_nu_d():
 
 
 def test_Meyer():
-    """
+    r"""
     Test utility function in WDM.
     """
     d = 4

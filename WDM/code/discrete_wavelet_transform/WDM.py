@@ -1,5 +1,4 @@
 import jax
-jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from WDM.code.utils.Meyer import Meyer
@@ -13,7 +12,7 @@ else:
 
 
 class WDM_transform:
-    """
+    r"""
     This class implements the WDM discrete wavelet transform for the Meyer 
     window function.
 
@@ -24,8 +23,8 @@ class WDM_transform:
         Equal to inverse of the sampling frequency (Hertz).
     Nf : int
         Number of wavelet frequency bands. This controls the time/frequency 
-        resolution; as :math:`N_f \\rightarrow N/2` the wavelet expansion 
-        approaches the  Fourier series, and as :math:`N_f \\rightarrow 1` it 
+        resolution; as :math:`N_f \rightarrow N/2` the wavelet expansion 
+        approaches the  Fourier series, and as :math:`N_f \rightarrow 1` it 
         approaches the original time series.
     N : int
         Length of the input time series. Must be an even multiple of 
@@ -34,36 +33,36 @@ class WDM_transform:
         Number of wavelet time bands. Equal to :math:`N/N_f`. This must be even.
     q : int
         Truncation parameter. Formally the time domain wavelet has infinite 
-        extent, but in practice it is truncated at :math:`\\pm q \\Delta T`. 
-        This must be an integer in the range :math:`1 \\leq q \\leq N_t/2`.
+        extent, but in practice it is truncated at :math:`\pm q \Delta T`. 
+        This must be an integer in the range :math:`1 \leq q \leq N_t/2`.
     A_frac : float
         Fraction of total bandwidth used for the flat-top response region.
         Must be in the range [0, 1].
     B_frac : float
         Fraction of total bandwidth used for the transition region. This is set
-        based on A_frac so :math:`2A_{\\mathrm{frac}}+B_{\\mathrm{frac}}=1`.
+        based on A_frac so :math:`2A_{\mathrm{frac}}+B_{\mathrm{frac}}=1`.
     d : int
         Steepness parameter for the Meyer window transition. 
-        Must be a positive integer, :math:`d\\geq 1`.
+        Must be a positive integer, :math:`d\geq 1`.
     K : int
         Window length in samples (equal to :math:`2 q N_f`). By definition, 
         this is always an even integer.
     dF : float
         Frequency resolution of the wavelets (Hertz), or the total wavelet 
-        frequency bandwidth :math:`\\Delta F = \\frac{\\Delta \\Omega}{2 \\pi}`.
+        frequency bandwidth :math:`\Delta F = \frac{\Delta \Omega}{2 \pi}`.
     dT : float
         Time resolution of the wavelets (seconds). Related to the frequency 
-        resolution by :math:`\\Delta F \\Delta T = \\frac{1}{2}`.
+        resolution by :math:`\Delta F \Delta T = \frac{1}{2}`.
     T : float
         Total duraion of the time series (seconds). Related to :math:`N` and 
-        :math:`\\delta t` by :math:`T = N \\delta t`.
+        :math:`\delta t` by :math:`T = N \delta t`.
     dOmega : float
         Angular Frequency resolution of the wavelets (radians per second), or 
         the total wavelet angular frequency bandwidth 
-        :math:`\\Delta \\Omega = 2A + B`.
+        :math:`\Delta \Omega = 2A + B`.
     f_Ny : float
         Nyquist frequency (i.e. maximum frequency) of the original time series 
-        (Hertz), equal to :math:`\\frac{1}{2 dt}`.
+        (Hertz), equal to :math:`\frac{1}{2 dt}`.
     A : float
         Half-width of the flat-top response region in angular frequency 
         (radians per second).
@@ -81,7 +80,7 @@ class WDM_transform:
                  q: int = 16,
                  d: int = 4,
                  A_frac: float = 0.25) -> None:
-        """
+        r"""
         Initialize the WDM_transform.
 
         Parameters
@@ -130,7 +129,7 @@ class WDM_transform:
         self.window = self.build_time_domain_window()
 
     def validate_parameters(self) -> None:
-        """
+        r"""
         Validate the parameters provided to the WDM_transform __init__ method.
         Raises an AssertionError if any parameters are invalid.
 
@@ -166,8 +165,8 @@ class WDM_transform:
                     f"d must be a positive integer, got {self.d=}"
 
     def build_time_domain_window(self) -> jnp.ndarray:
-        """
-        Construct the time-domain window function :math:`\\phi(t)`.
+        r"""
+        Construct the time-domain window function :math:`\phi(t)`.
 
         This method builds the Meyer window in the frequency domain and applies
         an inverse FFT to obtain the corresponding time-domain window.
@@ -186,8 +185,8 @@ class WDM_transform:
             n: int, 
             m: int,
             freq: jnp.ndarray = None) -> jnp.ndarray:
-        """
-        Compute the frequency-domain wavelets :math:`\\tilde{g}_{nm}(f)`.
+        r"""
+        Compute the frequency-domain wavelets :math:`\tilde{g}_{nm}(f)`.
 
         Parameters
         ----------
@@ -230,7 +229,7 @@ class WDM_transform:
             n: int, 
             m: int, 
             time: jnp.ndarray = None) -> jnp.ndarray:
-        """
+        r"""
         Compute the time-domain wavelets :math:`g_{nm}(t)`.
 
         This function computes the inverse Fourier transform of the 
@@ -272,7 +271,7 @@ class WDM_transform:
         return gnm
     
     def pad_signal(self, x: jnp.ndarray, where: str = 'end') -> jnp.ndarray:
-        """ 
+        r""" 
         The transform method requires the input time series signal to have a 
         specific length :math:`N`.
 
@@ -326,7 +325,7 @@ class WDM_transform:
         return x_padded, mask
     
     def forward_transform_exact(self, x: jnp.ndarray) -> jnp.ndarray:
-        """
+        r"""
         Perform the forward discrete wavelet transform. Transforms the input
         signal from the time domain into the time-frequency domain.
 
@@ -334,10 +333,10 @@ class WDM_transform:
 
         .. math::
 
-            w_{nm} = 2\\pi\\delta t\\sum_{k=0}^{N-1} g_{nm}[k] x[k] ,
+            w_{nm} = 2 \pi \delta t \sum_{k=0}^{N-1} g_{nm}[k] x[k] ,
 
         where the sum is over the whole time-domain signal (no truncation). The 
-        time domain wavelets `g_{nm}[k]` are computed using an inverse FFT. 
+        time domain wavelets :math:`g_{nm}[k]` are computed using an inverse FFT. 
         
         This method is slow but exact.
 
@@ -369,7 +368,7 @@ class WDM_transform:
         return w
     
     def inverse_transform_exact(self, w: jnp.ndarray) -> jnp.ndarray:
-        """
+        r"""
         Perform the inverse discrete wavelet transform. Transforms the input
         signal from the time-frequency wavelet domain into the time domain.
 
@@ -378,7 +377,7 @@ class WDM_transform:
 
         .. math::
 
-            x[k] = \\sum_{n=0}^{N_t-1}\\sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] ,
+            x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] ,
 
         where the sum is over the whole time-domain signal (no truncation). The 
         time domain wavelets `g_{nm}[k]` are computed using an inverse FFT. 
@@ -413,7 +412,7 @@ class WDM_transform:
         return x
     
     def forward_transform_truncated(self, x: jnp.ndarray) -> jnp.ndarray:
-        """
+        r"""
         Perform the forward discrete wavelet transform. Transforms the input
         signal from the time domain into the time-frequency domain.
 
@@ -422,12 +421,12 @@ class WDM_transform:
 
         .. math::
 
-            w_{n0} = 2\\pi\\delta t\\sum_{k=-K/2}^{K/2-1} 
+            w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} 
                                             g_{nm}[k + 2 n N_f] x[k + 2 n N_f] .
 
         .. math::
 
-            w_{nm} = 2\\pi\\delta t\\sum_{k=-K/2}^{K/2-1} 
+            w_{nm} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} 
                                             g_{nm}[k + n N_f] x[k + n N_f] ,
 
         where the sum is over the truncated window of length :math:`K=2qN_f`.
@@ -468,7 +467,7 @@ class WDM_transform:
         return w
     
     def inverse_transform_truncated(self, w: jnp.ndarray) -> jnp.ndarray:
-        """
+        r"""
         This is the same as the inverse_transform_exact method.
 
         Parameters
@@ -490,7 +489,7 @@ class WDM_transform:
         return x
     
     def forward_transform_truncated_window(self, x: jnp.ndarray) -> jnp.ndarray:
-        """
+        r"""
         Perform the forward discrete wavelet transform using the truncated sum 
         and the window function `self.window`.`
 
@@ -514,7 +513,7 @@ class WDM_transform:
         pass
 
     def inverse_transform_truncated_window(self, w: jnp.ndarray) -> jnp.ndarray:
-        """
+        r"""
         This is the same as the inverse_transform_exact method.
 
         Parameters
@@ -536,7 +535,7 @@ class WDM_transform:
         return x
 
     def FWT(self, x: jnp.ndarray) -> jnp.ndarray:
-        """
+        r"""
         Wrapper for the fast_forward_transform with a nice short name.
 
         FWT stands for Fast Wavelet Transform.
@@ -544,7 +543,7 @@ class WDM_transform:
         return self.fast_forward_transform(x)
     
     def IFWT(self, w: jnp.ndarray) -> jnp.ndarray:
-        """
+        r"""
         Wrapper for the fast_inverse_transform with a nice short name.
 
         IFWT stands for Inverse Fast Wavelet Transform.
@@ -552,7 +551,7 @@ class WDM_transform:
         return self.fast_inverse_transform(w)
 
     def time_domain_plot(self, x: jnp.ndarray) -> None:
-        """
+        r"""
         Plot the time-domain signal.
 
         Parameters
@@ -574,7 +573,7 @@ class WDM_transform:
         plt.show()
 
     def frequency_domain_plot(self, x: jnp.ndarray) -> None:
-        """
+        r"""
         Plot the frequency-domain signal.
 
         Parameters
@@ -601,7 +600,7 @@ class WDM_transform:
     def time_frequency_plot(self, w: jnp.ndarray, 
                             part='abs',
                             scale='linear') -> None:
-        """
+        r"""
         Plot the time-frequency coefficients of the WDM transform.
 
         Parameters
@@ -651,7 +650,7 @@ class WDM_transform:
         plt.show()
 
     def __repr__(self) -> str:
-        """
+        r"""
         String representation of the WDM_transform instance.
 
         Returns
@@ -664,7 +663,7 @@ class WDM_transform:
         return text
     
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-        """
+        r"""
         Call method to perform fast forward discrete wavelet transform.
 
         Parameters
