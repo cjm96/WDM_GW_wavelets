@@ -14,11 +14,11 @@ Introduction
 
 The Wilson-Daubechies-Meyer (WDM) wavelet basis is widely used for gravitational wave (GW) data analysis.
 While far from being the only available choice, the WDM basis wavelets have some properties that make 
-them particularly suitable for this purpose: they are well separated in frequency (in fact, the wavelets have 
-compact support in the frequency domain) which helps to make connections with other GW data analysis which 
-is almost exclusively done in the frequency domain, and they provide uniform tiling in both time and frequency.
-The WDM wavelets were first introduced to GW data analysis in Ref. [1]_ (see also Ref. [2]_) and are used in the
-coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
+them particularly suitable for this purpose: they are well separated in frequency (in fact, with
+compact support) which helps making connections with other GW data analysis which is almost exclusively done 
+in the frequency domain, and they provide uniform tiling in both time and frequency.
+The WDM wavelets were first introduced to GW data analysis in Ref. [1]_ (see also Ref. [2]_) and are used in 
+the coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
 
 
 
@@ -32,12 +32,11 @@ beta function, :math:`\nu_d(x)`,
    :name: eq:reg_incomplete_beta
 
    \nu_d(x) = \frac{ \int_0^x \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }
-                         { \int_0^1 \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} } .
+                         { \int_0^1 \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} } ,
+                         \mathrm{for}\; 0\leq x\leq 1.
 
-This is defined for :math:`x \in [0, 1]` and acts as a smooth 
-transition function (or compact sigmoid-like function) from 0 to 1.
-The parameter :math:`d` controls the steepness of the transition;
-see :numref:`fig-reg_incomplete_beta`.
+This acts as a smooth transition function (or compact sigmoid-like function) from 0 to 1.
+The parameter :math:`d` controls the steepness of the transition; see :numref:`fig-reg_incomplete_beta`.
 
 The function :math:`\nu_d(x)` is implemented in :func:`WDM.code.utils.Meyer.nu_d`.
 
@@ -67,10 +66,11 @@ defined in the frequency domain as
         0 & \text{if } |\omega| > A + B
     \end{cases} ,
 
-where :math:`\omega=2\pi f` is the angular frequency, :math:`A` and :math:`B` are two positive angular frequency parameters
-satisfying :math:`2A + B = \Delta\Omega`, and :math:`\Delta\Omega` is the wavelet bandwidth.
+where :math:`\omega=2\pi f`, and :math:`B` are two positive angular frequency parameters that control the shape of the window.
+They satisfy :math:`2A + B = \Delta\Omega`, where :math:`\Delta\Omega` is the total wavelet bandwidth.
 The parameter :math:`A` is the half-width of the flat-top response region while :math:`B` is the width of the transition region;
 see :numref:`fig-Meyer_window`.
+Unless stated otherwise, we will use the default values :math:`A=\Delta \Omega/4`, :math:`B=\Delta \Omega/2`, and :math:`d=4`.
 
 The function :math:`\tilde{\Phi}(\omega)` is implemented in :func:`WDM.code.utils.Meyer.Meyer`.
 
@@ -82,20 +82,50 @@ The function :math:`\tilde{\Phi}(\omega)` is implemented in :func:`WDM.code.util
    :width: 90%
 
    The Meyer window function :math:`\Phi(\omega)` for different values of :math:`d`.
-   The top panel shows the window in the frequency-domain, while the bottom panel shows it in the time-domain; :math:`\phi(t)=\mathrm{FT}^{-1}(\Phi(\omega))`, and where :math:`\Delta T = \pi/\Delta \Omega`.
-   This plot uses :math:`A=\Delta \Omega/4`, :math:`B=\Delta \Omega/2`, and includes the case :math:`d=4` to match Fig.1 of Ref. [2]_.
+   The the bottom panel shows the window in the time-domain, where :math:`\Delta T = \pi/\Delta \Omega`.
+   The case :math:`d=4` matches Fig.1 of Ref. [2]_.
 
 
 
 WDM Wavelets
 ------------
 
-Henceforth, we will work with time :math:`t` (e.g. in seconds) and frequency :math:`f` (Hertz) rather than angular frequency 
-:math:`\omega=2\pi f`. This is inline with the rest of the GW data analysis community which tends to work with frequency.
+Henceforth, we will work with frequency :math:`f` rather than angular frequency :math:`\omega=2\pi f`. 
+This is consistent with the rest of the GW data analysis community which tends to work with frequency.
+
+Consider a function of time :math:`x(t)`. 
+The discretely sampled time series :math:`x[k]=x(t_k)` is indxed by :math:`k\in\{0, 1, \ldots, N-1\}` 
+and is evaluated at the sample times :math:`t_k=k\delta t`, where :math:`\delta t` is the time cadence.
+The total duration of the time series is :math:`T=N\delta t` and the Nyquist frequency is :math:`f_{\rm Ny}=\frac{1}{2\delta t}`.
+We will insist that :math:`N` is even.
+
+The WDM wavelet transformation represents the time series using :math:`N_f` frequency slices of with :math:`\Delta F`
+and :math:`N_t` time slices of width :math:`\Delta T`. 
+
+.. math::
+   :name: eq:DeltaT
+
+   \Delta T = N_f \delta t
+
+.. math::
+   :name: eq:DeltaF
+
+   \Delta F = \frac{1}{2 N_f \delta t} = \frac{N_t}{2T}
+
+There are :math:`N=N_t N_f` cells, each with area :math:`\Delta T \Delta F = \frac{1}{2}`, which taken together 
+cover the time-frequency plane with a uniform tiling.
+We will insist that :math:`N` is even.
+
+
+
+
+
+
 
 The WDM wavelets form a complete basis for any time series.
-Consider a time series with cadence :math:`\delta t`, duration :math:`T=N \delta t`, and maximum Nyquist frequency :math:`f_{\rm Ny} = \frac{1}{2\delta t}`. 
-In order to define the WDM wavelet transform it ie necessary to choose a number of frequency bands :math:`N_f`.
+Consider a time series with cadence :math:`\delta t`, duration :math:`T=N \delta t`, and Nyquist frequency 
+:math:`f_{\rm Ny} = \frac{1}{2\delta t}`. 
+In order to define the wavelet transform it is necessary to choose a number of frequency bands :math:`N_f`.
 We will assume that :math:`N_f` divides :math:`N` exactly (if not, then the time series can be padded as necessary), 
 and :math:`N_t = N/N_f` is the number of time bands.
 Other derived quantities that follow from this are  :math:`\Delta \Omega = 2\pi \Delta F` 
