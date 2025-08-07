@@ -119,7 +119,7 @@ and :math:`N_t` time slices of width :math:`\Delta T`;
 
 There are :math:`N=N_t N_f` cells, each with area :math:`\Delta T \Delta F = \frac{1}{2}`.
 Together, these tiles uniformly cover the time–frequency plane.
-We will insist that :math:`N_t` is also even.
+We will insist that :math:`N_t` and :math:`N_f` are both even.
 
 The WDM wavelets :math:`g_{nm}(t)` are constructed from the Meyer window function :math:`\phi`. 
 In the frequency-domain they are defined as
@@ -131,12 +131,11 @@ In the frequency-domain they are defined as
         \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f) & m=0 \\
         \exp(-2\pi i n f \Delta T) \left( C_{nm}\tilde{\Phi}(2\pi [f-m\Delta F])
         +C^*_{nm}\tilde{\Phi}(2\pi [f+m\Delta F]) \right) & 0<m<N_f \\
-        \exp(-4\pi i (n+Q/2) f \Delta T) \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) + 
+        \exp(-4\pi i n f \Delta T) \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) + 
         \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right) & m=N_f \\
     \end{cases} ,
 
 where the coefficients :math:`C_{nm}` are defined to be 1 is if :math:`n+m` is even, and :math:`i` if :math:`n+m` is odd.
-The constant :math:`Q` is defined to be 0 if :math:`N_f` is even and 1 if it is odd.
 
 The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelets_FD`.
 
@@ -299,7 +298,7 @@ Using the definition of the WDM wavelets, the truncated wavelet transform can be
 
 .. math::
 
-   w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} (-1)^k x[k+(2n+Q)N_f]
+   w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} (-1)^k x[k+2nN_f]
                             \phi[k] \quad \mathrm{for}\; n\geq N_t/2.
 
 This form of the *truncted, window* wavelet transform using :math:`\phi[k]` is implemented in
@@ -361,7 +360,6 @@ Glossary
 - :math:`N_t`: Number of time bands for the wavelets, must be even. Named ``N_t`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
 - :math:`N`: Number of points in the time series. Satisfies :math:`N = N_t N_f`. Named ``N`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`.
 - :math:`T`: Duration of the time series (seconds). Satisfies :math:`T = N \delta t`. Named ``T`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`.
-- :math:`Q`: Parity of the number of frequency bands :math:`N_f`. This is 0 if :math:`N_f` is even, and 1 if it is odd. Named ``Q`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`.
 - :math:`n`: Time index for the wavelets. In the range :math:`n\in\{0,1,\ldots, N_t-1\}`.
 - :math:`m`: Frequency index for the wavelets. In the range :math:`m\in\{0,1,\ldots, N_f\}`.
 - :math:`x[k]`: Time series data, where :math:`k\in\{0,1,\ldots,N-1\}` indexes the time.

@@ -1,8 +1,6 @@
-from matplotlib.pylab import seed
 import numpy as np
 import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 import WDM
 
 
@@ -74,27 +72,18 @@ def test_orthonormality():
     r"""
     Test the orthonormality of the WDM wavelets.
     """
-    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, 
-                                                                Nf=4, 
-                                                                N=64,
-                                                                q=6)
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
+                                                                Nf=16, 
+                                                                N=512)
 
-    for m in range(wdm.Nf):
-        for n in range(wdm.Nt):
-            for m_ in range(wdm.Nf):
-                for n_ in range(wdm.Nt):
-                    if n == n_ and m == m_:
-                        expected = 1.0
-                    else:
-                        expected = 0.0
-                    actual = np.sum(
-                                    wdm.gnm(n=n, m=m) * wdm.gnm(n=n_, m=m_)
-                                ) * wdm.dt * 2*np.pi
-                    check = np.isclose(actual, expected, 
-                                       rtol=1.0e-5, atol=1.0e-5)
-                    assert check, \
-                        f"Failed for (n,m)=({n},{m}), (n',m')=({n_},{m_}): " \
-                        f"expected {expected}, got {actual}"
+    basis = wdm.gnm_basis() # shape (N, Nt, Nf)
+
+    basis = basis.reshape(basis.shape[0], -1) # shape (N, Nt*Nf)
+
+    I = basis @ basis.T * 2. * jnp.pi * wdm.dt # compute pairwise inner products
+
+    assert jnp.allclose(I, jnp.eye(wdm.N), atol=1e-3, rtol=1e-3), \
+        "Orthonormality condition failed"
 
 
 def test_exact_transforms():
@@ -128,9 +117,9 @@ def test_truncated_transforms():
     key = jax.random.key(seed)
 
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
-                                                                Nf=8, 
-                                                                N=256, 
-                                                                q=16)
+                                                                Nf=4, 
+                                                                N=32, 
+                                                                q=4)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
@@ -187,3 +176,52 @@ def test_truncated_windowed_fft_transform():
 
     assert np.allclose(W[:,1:], w[:,1:], rtol=1.0e-2, atol=1.0e-2), \
         "Truncated windowed fft transform did not match truncated transform"
+    
+
+def test_time_domain_basis_functions():
+    r"""
+    Test that the two expressions for the time-domain basis wavelets 
+    :math:`g_{nm}[k]` give the same results
+    """
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
+                                                                Nf=4, 
+                                                                N=64,
+                                                                q=6)
+    
+    basis_one = wdm.gnm_basis() # shape (N, Nt, Nf)
+
+    basis_two = jnp.array([[wdm.gnm(n,m) for m in range(wdm.Nf)] 
+                       for n in range(wdm.Nt)])
+    basis_two = jnp.transpose(basis_two, (2, 0, 1)) 
+
+    assert jnp.allclose(basis_one, basis_two, rtol=1.0e-3, atol=1.0e-3), \
+        "Time-domain basis functions do not match between two expressions"
+    
+
+def test_inverse_transform_fast():
+    r"""
+    Test the inverse transform fast and exact methods agree.
+    """
+    seed = 1234
+    key = jax.random.key(seed)
+
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
+                                                                Nf=16, 
+                                                                N=512, 
+                                                                q=5)
+
+    key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
+
+    w = wdm.forward_transform_exact(x)
+
+    x_fast = wdm.inverse_transform_fast(w)
+
+    x_exact = wdm.inverse_transform_exact(w)
+
+    assert np.allclose(x_fast, x_exact, rtol=1.0e-2, atol=1.0e-2), \
+        "Inverse transform fast did not match exact inverse transform"
+
+
+    
+

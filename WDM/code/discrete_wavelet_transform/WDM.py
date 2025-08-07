@@ -54,9 +54,6 @@ class WDM_transform:
     T : float
         Total duraion of the time series (seconds). Related to :math:`N` and 
         :math:`\delta t` by :math:`T = N \delta t`.
-    Q : int
-        Parity of the number of frequency bands :math:`N_f`. This is 0 if 
-        :math:`N_f` is even, and 1 if :math:`N_f` is odd.
     dOmega : float
         Angular Frequency resolution of the wavelets (radians per second), or 
         the total wavelet angular frequency bandwidth 
@@ -120,7 +117,6 @@ class WDM_transform:
         self.freqs = jnp.fft.fftfreq(self.N, d=self.dt)
         self.Nt = self.N // self.Nf
         self.T = self.N * self.dt
-        self.Q = self.Nf % 2 
         self.dF = 1. / ( 2. * self.dt * self.Nf )  
         self.dOmega = 2. * jnp.pi * self.dF
         self.dT = self.dt * self.Nf 
@@ -130,6 +126,7 @@ class WDM_transform:
         self.B = self.B_frac * self.dOmega
         self.K = 2 * self.q * self.Nf
         self.kvals = jnp.arange(-self.K//2, self.K//2) % self.N
+        self._cached_gnm_basis = None
         self.Cnm = jnp.array([[C_nm(n, m) for m in range(self.Nf)] 
                               for n in range(self.Nt)])
 
@@ -212,7 +209,7 @@ class WDM_transform:
             m: int,
             freq: jnp.ndarray = None) -> jnp.ndarray:
         r"""
-        Compute the frequency-domain wavelets :math:`\tilde{g}_{nm}(f)`.
+        Compute the frequency-domain wavelets :math:`\tilde{G}_{nm}(f)`.
 
         Parameters
         ----------
@@ -261,6 +258,8 @@ class WDM_transform:
         This function computes the inverse Fourier transform of the 
         frequency-domain wavelet, computed using the method Gnm.
 
+        This method is slow.
+
         Parameters
         ----------
         n : int
@@ -275,6 +274,12 @@ class WDM_transform:
         -------
         gnm : jnp.ndarray 
             Array shape (N,). The time-domain wavelet.
+
+        Notes
+        -----
+        This method compute the wavelets using the inverse Fourier transform.
+        It is slow and only intended for testing and debugging purposes.
+        For production purposes, use gnm_basis.
         """
         if time is None:
             time = self.times
@@ -295,6 +300,70 @@ class WDM_transform:
         gnm = jnp.fft.ifft(Gnm).real / _dt
 
         return gnm
+    
+    def gnm_basis(self) -> jnp.ndarray:
+        r"""
+        Efficient computation of time-domain wavelet basis :math:`g_{nm}(t)`.
+        The result is cached to speed up subsequent calls.
+
+        This method uses the following expression for the wavelet basis in terms
+        of the window function :math:`\phi[k]`.
+
+        .. math::
+            g_{nm}[k] = 
+
+        Returns
+        -------
+        basis : jnp.ndarray 
+            Array of shape (N, Nt, Nf). The time-domain wavelet basis.
+        """
+        if self._cached_gnm_basis is not None:
+            pass
+        
+        else:
+            n_vals = jnp.arange(self.Nt)
+            m_vals = jnp.arange(self.Nf)
+            k_vals = jnp.arange(self.N)
+
+            def temp_func(n, m):
+                return jnp.where((n + m) % 2 == 0, 
+                                jnp.sqrt(2.) * (-1)**(n*m) * \
+                                    jnp.cos(jnp.pi*m*k_vals/self.Nf) * \
+                                        self.window[(k_vals-n*self.Nf)%self.N], 
+                                -jnp.sqrt(2.) * \
+                                    jnp.sin(jnp.pi*m*k_vals/self.Nf) * \
+                                        self.window[(k_vals-n*self.Nf)%self.N])
+
+            f_vmapped = jax.vmap(jax.vmap(temp_func, 
+                                        in_axes=(None, 0)), 
+                                in_axes=(0, None))
+
+            basis = f_vmapped(n_vals, m_vals)
+            basis = jnp.transpose(basis, (2, 0, 1))
+
+            # overwrite m=0 terms for n<Nt/2
+            n_vals = jnp.arange(self.Nt//2)
+            temp = self.window[(k_vals[:,jnp.newaxis] - 
+                                2*n_vals[jnp.newaxis,:]*self.Nf)%self.N]
+            basis = basis.at[:, n_vals, 0].set(temp)
+
+            # overwrite m=0 terms for n>=Nt/2
+            def temp_func(n):
+                return jnp.where((n+self.Nf) % 2 == 0, 
+                                (-1)**(n*self.Nf) * \
+                                jnp.cos(jnp.pi*self.Nf*k_vals/self.Nf) * \
+                                    self.window[(k_vals-2*n*self.Nf)%self.N], 
+                                #-jnp.sin(jnp.pi*self.Nf*k_vals/self.Nf) * \
+                                (-1)**k_vals * \
+                                    self.window[(k_vals-2*n*self.Nf)%self.N])
+            n_vals = jnp.arange(self.Nt//2, self.Nt)
+            f_vmapped = jax.vmap(temp_func)
+            temp = f_vmapped(n_vals).T
+            basis = basis.at[:, n_vals, 0].set(temp)
+
+            self._cached_gnm_basis = basis
+
+        return self._cached_gnm_basis
     
     def pad_signal(self, x: jnp.ndarray, where: str = 'end') -> jnp.ndarray:
         r"""
@@ -532,9 +601,30 @@ class WDM_transform:
 
         return w
     
+    def inverse_transform_fast(self, w : jnp.ndarray) -> jnp.ndarray:
+        r"""
+        Perform a fast inverse discrete wavelet transform. Transforms the input
+        signal from the time-frequency wavelet domain into the time domain.
+
+        Parameters
+        ----------
+        w : jnp.ndarray 
+            Array shape (Nt, Nf). 
+            WDM time-frequency-domain wavelet coefficients.
+            
+        Returns
+        -------
+        x : jnp.ndarray 
+            Array shape (N,). The time-domain signal.
+        """
+        basis = self.gnm_basis()
+        w_times_basis = w*basis
+        x = jnp.sum(w_times_basis.reshape(w_times_basis.shape[0], -1), axis=1)
+        return x
+    
     def inverse_transform_truncated(self, w: jnp.ndarray) -> jnp.ndarray:
         r"""
-        This is the same as the inverse_transform_exact method.
+        This is the same as the inverse_transform_fast method.
 
         Parameters
         ----------
@@ -552,7 +642,7 @@ class WDM_transform:
         This method is slow. It is only intended to be used for testing and 
         debugging purposes. 
         """
-        x = self.inverse_transform_exact(w)
+        x = self.inverse_transform_fast(w)
         return x
     
     def forward_transform_truncated_window(self, x: jnp.ndarray) -> jnp.ndarray:
@@ -613,7 +703,7 @@ class WDM_transform:
                         norm = 2.*jnp.pi*self.dt
                         term = norm*x_term*phi_term
                     else:
-                        x_term = x[(k_vals + (2*n+self.Q)*self.Nf) % self.N]
+                        x_term = x[(k_vals + (2*n)*self.Nf) % self.N]
                         phi_term = self.window[k_vals % self.N]
                         alt_term = (-1)**k_vals
                         norm = 2.*jnp.pi*self.dt
@@ -630,7 +720,7 @@ class WDM_transform:
 
     def inverse_transform_truncated_window(self, w: jnp.ndarray) -> jnp.ndarray:
         r"""
-        This is the same as the inverse_transform_exact method.
+        This is the same as the inverse_transform_fast method.
 
         Parameters
         ----------
@@ -648,7 +738,7 @@ class WDM_transform:
         This method is slow. It is only intended to be used for testing and 
         debugging purposes. 
         """
-        x = self.inverse_transform_exact(w)
+        x = self.inverse_transform_fast(w)
         return x
     
     def forward_transform_truncated_windowed_fft(self, x: jnp.ndarray,
@@ -702,7 +792,7 @@ class WDM_transform:
                     norm = 2.*jnp.pi*self.dt
                     term = norm*x_term*phi_term
                 else:
-                    x_term = x[(k_vals + (2*n+self.Q)*self.Nf) % self.N]
+                    x_term = x[(k_vals + 2*n*self.Nf) % self.N]
                     phi_term = self.window[k_vals % self.N]
                     alt_term = (-1)**k_vals
                     norm = 2.*jnp.pi*self.dt
@@ -714,7 +804,7 @@ class WDM_transform:
     def inverse_transform_truncated_windowed_fft(self, 
                                                  w: jnp.ndarray) -> jnp.ndarray:
         r"""
-        This is the same as the inverse_transform_exact method.
+        This is the same as the inverse_transform_fast method.
 
         Parameters
         ----------
@@ -732,7 +822,7 @@ class WDM_transform:
         This method is slow. It is only intended to be used for testing and 
         debugging purposes. 
         """
-        x = self.inverse_transform_exact(w)
+        x = self.inverse_transform_fast(w)
         return x
     
     def forward_transform_truncated_fft(self, x: jnp.ndarray,
@@ -793,7 +883,7 @@ class WDM_transform:
                     norm = 2.*jnp.pi*self.dt
                     term = norm*x_term*phi_term
                 else:
-                    x_term = x[(k_vals + (2*n+self.Q)*self.Nf) % self.N]
+                    x_term = x[(k_vals + 2*n*self.Nf) % self.N]
                     phi_term = self.window[k_vals % self.N]
                     alt_term = (-1)**k_vals
                     norm = 2.*jnp.pi*self.dt
