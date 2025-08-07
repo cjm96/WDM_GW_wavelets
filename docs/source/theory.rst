@@ -149,7 +149,7 @@ The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelet
 
    The :math:`d=4` WDM wavelets :math:`|\tilde{G}_{nm}(\omega)|` plotted in the frequency domain for 
    :math:`m=0, 1, 2,\ldots,N_f`. (The :math:`n` index only describes a time shift and has no effect on 
-   this plot.) Wavelets computed using :math:`N_f=16` are shown to match Fig.2 of Ref.[1]_
+   this plot.) Wavelets computed using :math:`N_f=16` are shown to match Fig.2 of Ref. [1]_.
 
 As defined, the index :math:`m` takes on both the value 0 and :math:`N_f`.
 However, these two cases can be conveniently grouped together.
@@ -272,8 +272,18 @@ Smaller values of :math:`q` yield faster but less accurate results, see :numref:
    that reconstructed signals from the truncated wavelet transform. 
    For :math:`q=N_f=16`, there is no truncation and the result agrees with the exact transform.
 
-Using the definition of the WDM wavelets, the wavelet transform can be rewritten in terms of the window 
-function :math:`\phi[k]` as
+The truncated wavelet transform can be rewritten in terms of the window function :math:`\phi[k]`
+
+.. code-block:: python
+
+   f = jnp.fft.fftfreq(N, d=dt) 
+   Phi = Meyer(2.*jnp.pi*f, d, A, B)
+   phi = jnp.fft.ifft(Phi).real
+
+This window is created using
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window`.
+
+Using the definition of the WDM wavelets, the truncated wavelet transform can be written as
 
 .. math::
 
@@ -294,19 +304,41 @@ function :math:`\phi[k]` as
 This form of the *truncted, window* wavelet transform using :math:`\phi[k]` is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_window`.
 
-This can now be rewritten using the windowed FFT,
+The greatest computational speed up comes from writing the truncated wavelet transform in terms of the
+the windowed Fast Fourier Transform (FFT).
+The windowed FFT is defined as
 
 .. math::
 
-   X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k] .
+   X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k] ,
+
+where the index :math:`j` runs over a range :math:`K`.
 
 The *windowed FFT* (with these index and sign conventions) is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.windowed_fft`
 
+Using the windowed FFT, the truncated wavelet transform can be written as
 
-This *FFT* form of the truncted wavelet transform is implemented in
-:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_window`.
+.. math::
 
+   w_{nm} = 2\pi \sqrt{2} \delta t \mathrm{Re} C_{nm} X_n[mq] , \quad \mathrm{for} \; m>0.
+
+I.e., the wavelet transform can be computed using the windowed FFT of the time series downsampled to 
+every :math:`q^{\rm th}` coefficient.
+
+This expression only holds for :math:`m>0`.
+If the :math:`m=0` terms are required, they can be computed using the above truncted-window
+wavelet transform expressions.
+However, in many applications the :math:`m=0` terms are not needed anyway.
+
+This *windowed FFT* form of the truncted wavelet transform is implemented in
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated_windowed_fft`.
+If the :math:`m=0` terms are required, pass the argument ``m0=True`` to this function.
+
+This windowed FFT form of the truncated wavelet transform is much more efficient.
+However, a small further improvement is possible by using the fact that the WDM wavelets 
+are more compact in the frequency domain than in the time domain.
+It is slightly faster to compute the transform using the FFT of the full original time series. 
 
 
  

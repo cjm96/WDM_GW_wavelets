@@ -3,12 +3,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, overlapping_windows
-
-
-if jax.config.read("jax_enable_x64"):
-    jax_dtype = jnp.float64
-else:
-    jax_dtype = jnp.float32
+from typing import Tuple
 
 
 class WDM_transform:
@@ -139,6 +134,12 @@ class WDM_transform:
                               for n in range(self.Nt)])
 
         self.window = self.build_time_domain_window()
+        self.window_FD = self.build_frequency_domain_window()
+
+        if jax.config.read("jax_enable_x64"):
+            self.jax_dtype = jnp.float64
+        else:
+            self.jax_dtype = jnp.float32
 
     def validate_parameters(self) -> None:
         r"""
@@ -186,13 +187,26 @@ class WDM_transform:
 
         Returns
         -------
-        phi : jnp.ndarray of shape (N,)
-            Real-valued time-domain window. 
+        phi : jnp.ndarray 
+            Array of shape (N,). Real-valued time-domain window. 
         """
         f = jnp.fft.fftfreq(self.N, d=self.dt) 
         Phi = Meyer(2.*jnp.pi*f, self.d, self.A, self.B)
         phi = jnp.fft.ifft(Phi).real
         return phi
+    
+    def build_frequency_domain_window(self) -> jnp.ndarray:
+        r"""
+        Construct the frequenct-domain window function :math:`\tilde{\Phi}(f)`.
+
+        Returns
+        -------
+        Phi : jnp.ndarray 
+            Array of shape (N,). Real-valued time-domain window. 
+        """
+        f = jnp.fft.fftfreq(self.N, d=self.dt) 
+        Phi = Meyer(2.*jnp.pi*f, self.d, self.A, self.B)
+        return Phi
     
     def Gnm(self, 
             n: int, 
@@ -207,19 +221,19 @@ class WDM_transform:
             Wavelet time index.
         m : int
             Wavelet frequency index.
-        freq : jnp.ndarray, optional
+        freq : jnp.ndarray
             Frequencies at which to evaluate the wavelet (Hertz). 
-            If None, then defaults to the FFT frequencies.
+            If None, then defaults to the FFT frequencies. Optional
 
         Returns
         -------
-        Gnm : complex jnp.ndarray shaped like freq
-            The frequency-domain wavelet.
+        Gnm : jnp.ndarray
+            Complex array shaped like freq. The frequency-domain wavelet.
         """
         if freq is None:
             freq = self.freqs
         else:
-            freq = jnp.asarray(freq, dtype=jax_dtype)
+            freq = jnp.asarray(freq, dtype=self.jax_dtype)
 
         if m == 0:
             Gnm = jnp.exp(-1j*n*4.*jnp.pi*freq*self.dT) * \
@@ -254,19 +268,19 @@ class WDM_transform:
             Wavelet time index.
         m : int
             Wavelet frequency index.
-        time : jnp.ndarray, optional
+        time : jnp.ndarray
             Times at which to evaluate the wavelet (seconds). 
-            If None, then defaults to the FFT values.
+            If None, then defaults to the FFT values. Optional
 
         Returns
         -------
-        gnm : jnp.ndarray of shape (N,)
-            The time-domain wavelet.
+        gnm : jnp.ndarray 
+            Array shape (N,). The time-domain wavelet.
         """
         if time is None:
             time = self.times
         else:
-            time = jnp.asarray(time, dtype=jax_dtype)
+            time = jnp.asarray(time, dtype=self.jax_dtype)
 
         _dt = jnp.mean(jnp.diff(time))
 
@@ -295,10 +309,10 @@ class WDM_transform:
         ----------
         x : jnp.ndarray
             Input signal to be padded.
-        where : str, optional
+        where : str
             Where to add the padding. Options are 'end', 'start', or 'equal' 
             which puts the zero padding at the end of the signal, the start of 
-            the signal, or equally at both ends respectively.
+            the signal, or equally at both ends respectively. Optional.
 
         Returns
         -------
@@ -352,13 +366,13 @@ class WDM_transform:
 
         Parameters
         ----------
-        x : jnp.ndarray of shape (N,)
-            Input signal to be transformed.
+        x : jnp.ndarray
+            Array shape (N,). Input signal to be transformed.
 
         Returns
         -------
-        X : jnp.ndarray of shape (Nt, K)
-            Windowed FFT of the input signal.
+        X : jnp.ndarray
+            Array shape shape (Nt, K). Windowed FFT of the input signal.
         """
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
@@ -385,18 +399,19 @@ class WDM_transform:
             w_{nm} = 2 \pi \delta t \sum_{k=0}^{N-1} g_{nm}[k] x[k] ,
 
         where the sum is over the whole time-domain signal (no truncation). The 
-        time domain wavelets :math:`g_{nm}[k]` are computed using an inverse FFT. 
+        time domain wavelets :math:`g_{nm}[k]` are computed using an iFFT. 
         
         This method is slow but exact.
 
         Parameters
         ----------
-        x : jnp.ndarray of shape (N,)
-            Input time-domain signal to be transformed.
+        x : jnp.ndarray
+            Array shape shape (N,). Input time-domain signal to be transformed.
 
         Returns
         -------
-        w : jnp.ndarray of shape (Nt, Nf)
+        w : jnp.ndarray
+            Array shape shape (Nt, Nf). 
             WDM time-frequency-domain wavelet coefficients.
 
         Notes
@@ -407,7 +422,7 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
 
-        w = jnp.empty((self.Nt, self.Nf), dtype=jax_dtype) 
+        w = jnp.empty((self.Nt, self.Nf), dtype=self.jax_dtype) 
 
         for n in range(self.Nt):
             for m in range(self.Nf):
@@ -435,12 +450,14 @@ class WDM_transform:
 
         Parameters
         ----------
-        w : jnp.ndarray of shape (Nt, Nf)
+        w : jnp.ndarray
+            Array shape  shape (Nt, Nf). 
             WDM time-frequency-domain wavelet coefficients.
 
         Returns
         -------
-        x : jnp.ndarray of shape (N,)
+        x : jnp.ndarray 
+            Array shape shape (N,). 
             Input time-domain signal to be transformed.
 
         Notes
@@ -452,7 +469,7 @@ class WDM_transform:
                     f"Input signal must have shape ({self.Nt}, {self.Nf}), " \
                     f"got {w.shape=}"
         
-        x = jnp.zeros(self.N, dtype=jax_dtype) 
+        x = jnp.zeros(self.N, dtype=self.jax_dtype) 
 
         for n in range(self.Nt):
             for m in range(self.Nf):
@@ -487,12 +504,13 @@ class WDM_transform:
 
         Parameters
         ----------
-        x : jnp.ndarray of shape (N,)
-            Input time-domain signal to be transformed.
+        x : jnp.ndarray 
+            Array shape (N,). Input time-domain signal to be transformed.
 
         Returns
         -------
-        w : jnp.ndarray of shape (Nt, Nf)
+        w : jnp.ndarray 
+            Array shape (Nt, Nf). 
             WDM time-frequency-domain wavelet coefficients.
 
         Notes
@@ -503,13 +521,13 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
 
-        w = jnp.empty((self.Nt, self.Nf), dtype=jax_dtype) 
+        w = jnp.empty((self.Nt, self.Nf), dtype=self.jax_dtype) 
 
         for n in range(self.Nt):
             for m in range(self.Nf):
                 gnm = self.gnm(n, m)
-                window = jnp.array([ gnm[(k+(1 if m>0 else 2)*n*self.Nf)%self.N] * 
-                                        x[(k+(1 if m>0 else 2)*n*self.Nf)%self.N]
+                window = jnp.array([gnm[(k+(1 if m>0 else 2)*n*self.Nf)%self.N]* 
+                                     x[(k+(1 if m>0 else 2)*n*self.Nf)%self.N]
                                 for k in range(-self.K//2, self.K//2)])
                 w = w.at[n, m].set(2.*jnp.pi*self.dt*jnp.sum(window))
 
@@ -521,13 +539,14 @@ class WDM_transform:
 
         Parameters
         ----------
-        w : jnp.ndarray of shape (Nt, Nf)
+        w : jnp.ndarray 
+            Array shape (Nt, Nf). 
             WDM time-frequency-domain wavelet coefficients.
 
         Returns
         -------
-        x : jnp.ndarray of shape (N,)
-            Input time-domain signal to be transformed.
+        x : jnp.ndarray 
+            Array shape (N,). Input time-domain signal to be transformed.
 
         Notes
         -----
@@ -565,12 +584,13 @@ class WDM_transform:
 
         Parameters
         ----------
-        x : jnp.ndarray of shape (N,)
-            Input time-domain signal to be transformed.
+        x : jnp.ndarray 
+            Array shape (N,). Input time-domain signal to be transformed.
 
         Returns
         -------
-        w : jnp.ndarray of shape (Nt, Nf)
+        w : jnp.ndarray
+            Array shape (Nt, Nf). 
             WDM time-frequency-domain wavelet coefficients.
 
         Notes
@@ -581,7 +601,7 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
 
-        w = jnp.empty((self.Nt, self.Nf), dtype=jax_dtype) 
+        w = jnp.empty((self.Nt, self.Nf), dtype=self.jax_dtype) 
 
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
@@ -615,13 +635,14 @@ class WDM_transform:
 
         Parameters
         ----------
-        w : jnp.ndarray of shape (Nt, Nf)
+        w : jnp.ndarray 
+            Array shape (Nt, Nf). 
             WDM time-frequency-domain wavelet coefficients.
 
         Returns
         -------
-        x : jnp.ndarray of shape (N,)
-            Input time-domain signal to be transformed.
+        x : jnp.ndarray 
+            Array shape (N,). Input time-domain signal to be transformed.
 
         Notes
         -----
@@ -631,21 +652,32 @@ class WDM_transform:
         x = self.inverse_transform_exact(w)
         return x
     
-    def forward_transform_truncated_fft(self, x: jnp.ndarray,
+    def forward_transform_truncated_windowed_fft(self, x: jnp.ndarray,
                                         m0: bool = False) -> jnp.ndarray:
         r"""
-        Perform the forward discrete wavelet transform using the truncated sum 
-        and the window function `self.window`.
+        Perform the forward discrete wavelet transform using the windowed FFT
+        of the input time series.
+
+        For :math:`m>0`, the wavelet coefficients are computed using 
+
+        .. math::
+
+            w_{nm} = 2\pi \sqrt{2} \delta t \mathrm{Re} C_{nm} X_n[mq] , 
+                        \quad \mathrm{for} \; m>0.
+
+        This is quite fast. But it only works for the :math:`m>0` terms. If the
+        :math:`m=0` terms are needed, then set `m0=True` and the method will
+        compute them using the truncated window expressions. (This is slower.)
 
         Parameters
         ----------
-        x : jnp.ndarray of shape (N,)
-            Input time-domain signal to be transformed.
-        m0 : bool, optional
+        x : jnp.ndarray 
+            Array shape (N,). Input time-domain signal to be transformed.
+        m0 : bool
             If True, then the :math:`m=0` terms are computed correctly.
             If False, then these terms will be incorrect.
             If these terms are not needed, then leave this at the default False 
-            value for faster performance.
+            value for faster performance. Optional.
 
         Returns
         -------
@@ -659,16 +691,115 @@ class WDM_transform:
 
         m_vals = jnp.arange(self.Nf)
 
-        dt2pi = 2.0 * jnp.pi * self.dt
-
-        w = jnp.sqrt(2.) * dt2pi * \
+        w = jnp.sqrt(2.) * 2. * jnp.pi * self.dt * \
                     jnp.real( self.Cnm * X[:,(m_vals*self.q)%self.K] )
         
         if m0:
-            n_vals = jnp.arange(self.Nt//2)
+            k_vals = jnp.arange(-self.K//2, self.K//2)
+            for n in range(self.Nt):
+                if n<self.Nt//2:
+                    x_term = x[(k_vals + 2*n*self.Nf) % self.N]
+                    phi_term = self.window[k_vals % self.N]
+                    norm = 2.*jnp.pi*self.dt
+                    term = norm*x_term*phi_term
+                else:
+                    x_term = x[(k_vals + (2*n+self.Q)*self.Nf) % self.N]
+                    phi_term = self.window[k_vals % self.N]
+                    alt_term = (-1)**k_vals
+                    norm = 2.*jnp.pi*self.dt
+                    term = norm*x_term*phi_term*alt_term
+                w = w.at[n, 0].set(jnp.sum(term).real)
 
-            w = w.at[:self.Nt//2,0].set(dt2pi*
-                            jnp.sum(x[(2*n_vals*self.Nf)%self.N], axis=-1))
+        return w
+    
+    def inverse_transform_truncated_windowed_fft(self, 
+                                                 w: jnp.ndarray) -> jnp.ndarray:
+        r"""
+        This is the same as the inverse_transform_exact method.
+
+        Parameters
+        ----------
+        w : jnp.ndarray 
+            Array shape (Nt, Nf). 
+            WDM time-frequency-domain wavelet coefficients.
+
+        Returns
+        -------
+        x : jnp.ndarray 
+            Array shape (N,). Input time-domain signal to be transformed.
+
+        Notes
+        -----
+        This method is slow. It is only intended to be used for testing and 
+        debugging purposes. 
+        """
+        x = self.inverse_transform_exact(w)
+        return x
+    
+    def forward_transform_truncated_fft(self, x: jnp.ndarray,
+                                        m0: bool = False) -> jnp.ndarray:
+        r"""
+        Perform the forward 
+
+        This is fast. But it only works for the :math:`m>0` terms. If the
+        :math:`m=0` terms are needed, then set `m0=True` and the method will
+        compute them using the truncated window expressions. (This is slower.)
+
+        Parameters
+        ----------
+        x : jnp.ndarray 
+            Array shape (N,). Input time-domain signal to be transformed.
+        m0 : bool
+            If True, then the :math:`m=0` terms are computed correctly.
+            If False, then these terms will be incorrect.
+            If these terms are not needed, then leave this at the default False 
+            value for faster performance. Optional.
+
+        Returns
+        -------
+        w : jnp.ndarray
+            Array shape shape (Nt, Nf). 
+            WDM time-frequency-domain wavelet coefficients.
+        """
+        assert x.shape == (self.N,), \
+                    f"Input signal must have shape ({self.N},), got {x.shape=}"
+        
+        n_vals = jnp.arange(self.Nt)
+        m_vals = jnp.arange(self.Nf)
+        alternate = (-1)**(n_vals[:,jnp.newaxis] * m_vals[jnp.newaxis,:])
+
+        X = jnp.fft.ifftshift(x, axes=-1)
+
+        X = jnp.fft.ifft(X, axis=-1)
+
+        X = overlapping_windows(X, self.Nt, self.Nf, self.Nt//2) # (Nf, Nf)
+
+        l_vals = jnp.arange(-self.Nt//2, self.Nt//2)
+
+        X *= self.window_FD[l_vals % self.N]
+
+        X = jnp.fft.ifftshift(X, axes=-1)
+
+        X = jnp.fft.fft(X, axis=-1) 
+
+        w = jnp.sqrt(2.) * 2. * jnp.pi * self.dt * alternate * \
+                    jnp.real( self.Cnm * X.T )
+        
+        if m0:
+            k_vals = jnp.arange(-self.K//2, self.K//2)
+            for n in range(self.Nt):
+                if n<self.Nt//2:
+                    x_term = x[(k_vals + 2*n*self.Nf) % self.N]
+                    phi_term = self.window[k_vals % self.N]
+                    norm = 2.*jnp.pi*self.dt
+                    term = norm*x_term*phi_term
+                else:
+                    x_term = x[(k_vals + (2*n+self.Q)*self.Nf) % self.N]
+                    phi_term = self.window[k_vals % self.N]
+                    alt_term = (-1)**k_vals
+                    norm = 2.*jnp.pi*self.dt
+                    term = norm*x_term*phi_term*alt_term
+                w = w.at[n, 0].set(jnp.sum(term).real)
 
         return w
 
@@ -688,18 +819,27 @@ class WDM_transform:
         """
         return self.fast_inverse_transform(w)
 
-    def time_domain_plot(self, x: jnp.ndarray) -> None:
+    def time_domain_plot(self, 
+                         x: jnp.ndarray) -> Tuple[plt.Figure, plt.Axes]:
         r"""
         Plot the time-domain signal.
 
         Parameters
         ----------
-        x : jnp.ndarray of shape (N,)
-            Input time-domain signal to be plotted.
+        x : jnp.ndarray
+            Array shape (N,). Input time-domain signal to be plotted.
 
         Returns
         -------
-        None
+        fig : matplotlib.figure.Figure
+            The matplotlib Figure object.
+        ax : matplotlib.axes.Axes
+            The matplotlib Axes object where the wavelets were plotted.
+
+        Notes
+        -----
+        This function does not call ``plt.show()``. The user is responsible
+        for displaying or saving the plot.
         """
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
@@ -708,20 +848,29 @@ class WDM_transform:
         ax.plot(self.times, x)
         ax.set_xlabel(r'Time $t$')
         ax.set_ylabel(r'Signal $x(t)$')
-        plt.show()
+        return fig, ax
 
-    def frequency_domain_plot(self, x: jnp.ndarray) -> None:
+    def frequency_domain_plot(self,
+                              x: jnp.ndarray) -> Tuple[plt.Figure, plt.Axes]:
         r"""
         Plot the frequency-domain signal.
 
         Parameters
         ----------
-        x : jnp.ndarray of shape (N,)
-            Input time-domain signal to be plotted.
+        x : jnp.ndarray
+            Array shape (N,). Input time-domain signal to be plotted.
 
         Returns
         -------
-        None
+        fig : matplotlib.figure.Figure
+            The matplotlib Figure object.
+        ax : matplotlib.axes.Axes
+            The matplotlib Axes object where the wavelets were plotted.
+
+        Notes
+        -----
+        This function does not call ``plt.show()``. The user is responsible
+        for displaying or saving the plot.
         """
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
@@ -733,11 +882,12 @@ class WDM_transform:
         ax.loglog(self.freqs[mask], data[mask])
         ax.set_xlabel(r'Frequency $f$')
         ax.set_ylabel(r'Signal $|\tilde{X}(f)|$')
-        plt.show()
+        return fig, ax
 
-    def time_frequency_plot(self, w: jnp.ndarray, 
+    def time_frequency_plot(self, 
+                            w: jnp.ndarray, 
                             part='abs',
-                            scale='linear') -> None:
+                            scale='linear') -> Tuple[plt.Figure, plt.Axes]:
         r"""
         Plot the time-frequency coefficients of the WDM transform.
 
@@ -745,18 +895,26 @@ class WDM_transform:
         ----------
         w : jnp.ndarray of shape (Nt, Nf)
             WDM time-frequency coefficients to be plotted.
-        part : str, optional
+        part : str
             Part of the coefficients to plot. Options are 'abs' for magnitude, 
-            'real', or 'imag'. Default is 'abs'.
-        scale : str, optional
+            'real', or 'imag'. Default is 'abs'. Optional.
+        scale : str
             Scale of the colour axis of the plot. Passed to matplotlib. 
             Options are 'linear' or 'log'. Default is 'linear'. Logarithmic 
             scale should only be used with part='abs' otherwise problems with 
-            negative values will typically occur.
+            negative values will occur. Optional.
 
         Returns
         -------
-        None
+        fig : matplotlib.figure.Figure
+            The matplotlib Figure object.
+        ax : matplotlib.axes.Axes
+            The matplotlib Axes object where the wavelets were plotted.
+
+        Notes
+        -----
+        This function does not call ``plt.show()``. The user is responsible
+        for displaying or saving the plot.
         """
         assert w.shape == (self.Nt, self.Nf), \
                     f"Input signal must have shape ({self.Nt}, {self.Nf}), " \
@@ -769,7 +927,8 @@ class WDM_transform:
         elif part == 'imag':
             data = jnp.imag(w)
         else:
-            raise ValueError(f"Invalid {part=}. Choose 'abs', 'real', or 'imag'.")
+            raise ValueError(f"Invalid {part=}. " + 
+                             "Choose 'abs', 'real', or 'imag'.")
 
         fig, ax = plt.subplots()
         if scale == 'linear':
@@ -785,7 +944,7 @@ class WDM_transform:
         
         ax.set_xlabel(r'Time $t$')
         ax.set_ylabel(r'Frequency $f$')
-        plt.show()
+        return fig, ax
 
     def __repr__(self) -> str:
         r"""
@@ -806,12 +965,12 @@ class WDM_transform:
 
         Parameters
         ----------
-        x : jnp.ndarray of shape (N,)
-            Input signal to be transformed. 
+        x : jnp.ndarray
+            Array shape (N,). Input signal to be transformed. 
         
         Returns
         -------
-        jnp.ndarray of shape (Nt, Nf)
-            WDM time-frequency coefficients.
+        jnp.ndarray 
+            Array shape (Nt, Nf). WDM time-frequency coefficients.
         """
         return self.FWT(x)

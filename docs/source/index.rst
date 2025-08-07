@@ -3,10 +3,12 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-WDM documentation
-=================
+WDM_GW_wavelets documentation
+=============================
 
-WDM wavelets.
+A fast, JAX-based Python implementation of the Wilson-Daubechies-Meyer (WDM) wavelet 
+transform for the time-frequency analysis of gravitational wave data.
+
 
 .. image:: ../../logo_images/logo.png
   :align: center
@@ -20,3 +22,4 @@ WDM wavelets.
 
    theory
    modules
+   examples
