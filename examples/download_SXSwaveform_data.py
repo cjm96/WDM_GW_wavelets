@@ -15,13 +15,15 @@ horizons = sim.horizons
 h = sim.h
 
 times = h.time
-strain = h.data[:,4].real
+re_strain = h.data[:,4].real
+im_strain = h.data[:,4].imag 
 
 # interpolate the strain data to a uniform time grid
-dt = 0.05
+dt = 0.5
 new_times = np.arange(times[0], times[-1], dt)
-new_strain = interp1d(times, strain)(new_times)
+new_re_strain = interp1d(times, re_strain)(new_times)
+new_im_strain = interp1d(times, im_strain)(new_times)
 
 # Save the waveform data to a text file
 np.savetxt("../data/waveform_SXS:BBH:0305_Reh22.txt", 
-           np.vstack((new_times, new_strain)))
+           np.vstack((new_times, new_re_strain, new_im_strain)))
