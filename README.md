@@ -17,6 +17,10 @@ pip install -e .
 
 In Python you should then be able to `import WDM`.
 
+To help you get started look at some of the example notebooks, e.g. `getting_started.ipynb`.
+
+For mathematical details about the WDM wavelet transform see the documentation page `Mathematical Background`.
+
 
 # Testing
 
