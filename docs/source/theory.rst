@@ -271,7 +271,7 @@ Smaller values of :math:`q` yield faster but less accurate results, see :numref:
    The wavelet transform is applied to a white-noise time series with :math:`\mathrm{rms}=1`.
    The error is defined as the maximum relative absolute difference between the original signal and 
    that reconstructed signals from the truncated wavelet transform. 
-   For :math:`q=N_f=16`, there is no truncation and the result agrees with the exact transform.
+   For :math:`q=N_t/2=16`, there is no truncation and the result agrees with the exact transform.
 
 The truncated wavelet transform can be rewritten in terms of the window function :math:`\phi[k]`
 
