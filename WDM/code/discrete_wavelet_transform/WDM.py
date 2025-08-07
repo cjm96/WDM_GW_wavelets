@@ -297,7 +297,7 @@ class WDM_transform:
         return gnm
     
     def pad_signal(self, x: jnp.ndarray, where: str = 'end') -> jnp.ndarray:
-        r""" 
+        r"""
         The transform method requires the input time series signal to have a 
         specific length :math:`N`.
 

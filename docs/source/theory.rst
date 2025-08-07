@@ -93,6 +93,8 @@ The function :math:`\tilde{\Phi}(\omega)` is implemented in :func:`WDM.code.util
 WDM Wavelets
 ------------
 
+This section relates to the example notebook `./examples/plotting_the_mother_wavelets.ipynb`.
+
 Henceforth, we will work with frequency :math:`f` rather than angular frequency :math:`\omega=2\pi f`. 
 This fits with the rest of the GW data analysis community which tends to work with frequency.
 
@@ -208,6 +210,8 @@ The time-domain WDM wavelets :math:`g_{nm}(t)` are implemented in
 
 The Discrete WDM Wavelet Transform
 ----------------------------------
+
+This section relates to the example notebook `./examples/motivating_the_discrete_wavelet_transform.ipynb`.
 
 This section defines the discrete WDM wavelet transform, present its exact formulation, and describe a 
 computationally efficient implementation suitable for practical use.

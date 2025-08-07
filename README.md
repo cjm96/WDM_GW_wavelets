@@ -69,11 +69,11 @@ make html
 # To Do List
 
  - tidy up parts of the WDM_transform class
- - add derivations to the docs
- - write a vectorised version of the transform for performing multiple FFTs at once.
- - write a fast inverse transform
+ - add derivations of key equations to docs
+ - write vectorised version of the transform for multiple DWTs at once.
+ - write fast inverse transform
  - explore jitting
- - getting started notebook (with plotting tools)
- - GW waveform notebook
- - GW170817 data processing notebook (a type of periodogram)
- - 
+ - getting started notebook (with plotting tools, applied to GW waveform)
+ - GW170817 data processing notebook (inc. a type of periodogram)
+ - waveforms?
+ - likelihoods?
