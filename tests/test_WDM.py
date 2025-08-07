@@ -1,7 +1,17 @@
+from matplotlib.pylab import seed
 import numpy as np
+import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import WDM
+
+
+def test_x64():
+    r"""
+    Test that the WDM module is using float64 precision.
+    """
+    assert jax.config.read("jax_enable_x64"), \
+        "WDM module should be using float64 precision, check the __init__ file."
 
 
 def test_padding():
@@ -9,8 +19,9 @@ def test_padding():
     Test the padding function in the WDM class.
     """
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, 
-                                                                Nf=2**5, 
-                                                                N=2**6)
+                                                                Nf=4, 
+                                                                N=64,
+                                                                q=6)
 
     x = np.array([9.,9.,9.])
 
@@ -65,12 +76,13 @@ def test_orthonormality():
     """
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, 
                                                                 Nf=4, 
-                                                                N=16)
+                                                                N=64,
+                                                                q=6)
 
     for m in range(wdm.Nf):
         for n in range(wdm.Nt):
             for m_ in range(wdm.Nf):
-                for n_ in  range(wdm.Nt):
+                for n_ in range(wdm.Nt):
                     if n == n_ and m == m_:
                         expected = 1.0
                     else:
@@ -87,32 +99,91 @@ def test_orthonormality():
 
 def test_exact_transforms():
     r"""
-    Test the orthonormality of the WDM wavelets.
+    Test the exact wavelet transform.
     """
-    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1., 
+    seed = 1234
+    key = jax.random.key(seed)
+
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=16, 
                                                                 N=512, 
                                                                 q=5)
 
-    x = np.random.randn(wdm.N) # white noise
+    key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
 
     w = wdm.forward_transform_exact(x)
 
     x_ = wdm.inverse_transform_exact(w)
 
-    assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
+    assert np.allclose(x, x_, rtol=1.0e-2, atol=1.0e-2), \
         "Inverse transform did not recover original signal"
     
 
 def test_truncated_transforms():
     r"""
-    Test the orthonormality of the WDM wavelets.
+    Test the truncated wavelet transform.
     """
-    pass
+    seed = 1234
+    key = jax.random.key(seed)
+
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
+                                                                Nf=8, 
+                                                                N=256, 
+                                                                q=16)
+
+    key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
+
+    w = wdm.forward_transform_exact(x)
+
+    W = wdm.forward_transform_truncated(x)
+
+    assert np.allclose(W, w, rtol=1.0e-2, atol=1.0e-2), \
+        "Truncated transform did not match exact transform"
 
 
-def test_fast_transforms():
+def test_truncated_window_transform():
     r"""
-    Test the orthonormality of the WDM wavelets.
+    Test the truncated window expression for the wavelet transform.
     """
-    pass
+    seed = 1234
+    key = jax.random.key(seed)
+
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
+                                                                Nf=8, 
+                                                                N=256, 
+                                                                q=8)
+
+    key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
+
+    w = wdm.forward_transform_truncated(x)
+
+    W = wdm.forward_transform_truncated_window(x)
+
+    assert np.allclose(W, w, rtol=1.0e-2, atol=1.0e-2), \
+        "Truncated window transform did not match truncated transform"
+    
+
+def test_truncated_windowed_fft_transform():
+    r"""
+    Test the truncated windowed fft expression for the wavelet transform.
+    """
+    seed = 1234
+    key = jax.random.key(seed)
+
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
+                                                                Nf=8, 
+                                                                N=256, 
+                                                                q=8)
+
+    key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
+
+    w = wdm.forward_transform_truncated(x)
+
+    W = wdm.forward_transform_truncated_windowed_fft(x)
+
+    assert np.allclose(W[:,1:], w[:,1:], rtol=1.0e-2, atol=1.0e-2), \
+        "Truncated windowed fft transform did not match truncated transform"

@@ -191,7 +191,7 @@ class WDM_transform:
             Array of shape (N,). Real-valued time-domain window. 
         """
         Phi = self.build_frequency_domain_window()
-        phi = jnp.fft.ifft(Phi).real
+        phi = jnp.fft.ifft(Phi).real / self.dt
         return phi
     
     def build_frequency_domain_window(self) -> jnp.ndarray:
