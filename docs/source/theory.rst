@@ -27,8 +27,7 @@ the coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
 Regularised Incomplete Beta Function
 ------------------------------------
 
-The WDM wavelets use the regularised (normalised) incomplete
-beta function, :math:`\nu_d(x)`,
+The WDM wavelets use the regularised (normalised) incomplete beta function, :math:`\nu_d(x)`,
 
 .. math::
    :name: eq:reg_incomplete_beta
@@ -136,8 +135,7 @@ In the frequency-domain they are defined as
         \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right) & m=N_f \\
     \end{cases} ,
 
-where the coefficients :math:`C_{nm}` are defined to be 1 is if :math:`n+m` 
-is even, and :math:`i` if :math:`n+m` is odd.
+where the coefficients :math:`C_{nm}` are defined to be 1 is if :math:`n+m` is even, and :math:`i` if :math:`n+m` is odd.
 The constant :math:`Q` is defined to be 0 if :math:`N_f` is even and 1 if it is odd.
 
 The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelets_FD`.
@@ -242,8 +240,7 @@ This *exact* wavelet transform is implemented in
 
 The exact form of the wavelet transform described above is slow to implement.
 A practical improvement arises from the observation that the WDM are (approximately) localised in time
-and the sum over :math:`k` can be truncated to a window of length :math:`K=2qN_f` without
-significant loss of accuracy.
+and the sum over :math:`k` can be truncated to a window of length :math:`K=2qN_f` without significant loss of accuracy.
 The truncation parameter :math:`1\leq q\leq N_t/2` is a positive integer that controls the length of the window.
 The truncated wavelet transform is given by
 
@@ -331,8 +328,7 @@ I.e., the wavelet transform can be computed using the windowed FFT of the time s
 every :math:`q^{\rm th}` coefficient.
 
 This expression only holds for :math:`m>0`.
-If the :math:`m=0` terms are required, they can be computed using the above truncted-window
-wavelet transform expressions.
+If the :math:`m=0` terms are required, they can be computed using the above truncted-window wavelet transform expressions.
 However, in many applications the :math:`m=0` terms are not needed anyway.
 
 This *windowed FFT* form of the truncted wavelet transform is implemented in
