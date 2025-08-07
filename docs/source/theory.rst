@@ -15,9 +15,9 @@ Introduction
 ------------
 
 The Wilson-Daubechies-Meyer (WDM) wavelet basis is widely used for gravitational wave (GW) data analysis.
-While far from being the only available choice, the WDM basis wavelets have some properties that make 
+While far from being the only available choice, the WDM basis wavelets have properties that make 
 them particularly suitable for this purpose: they are well separated in frequency (in fact, with
-compact support) which helps making connections with other GW data analysis which is almost exclusively done 
+compact support) which helps connect with other GW data analysis which is almost exclusively done 
 in the frequency domain, and they provide uniform tiling in both time and frequency.
 The WDM wavelets were first introduced to GW data analysis in Ref. [1]_ (see also Ref. [2]_) and are used in 
 the coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
@@ -57,7 +57,7 @@ Meyer Window
 ------------
 
 The WDM wavelet transform is based on the Meyer window function, which is 
-defined in the frequency domain as
+defined in the frequency domain by
 
 .. math::
    :name: eq:Meyer_window
@@ -73,7 +73,7 @@ where :math:`\omega=2\pi f`, and :math:`B` are two positive angular frequency pa
 They satisfy :math:`2A + B = \Delta\Omega`, where :math:`\Delta\Omega` is the total wavelet bandwidth.
 The parameter :math:`A` is the half-width of the flat-top response region while :math:`B` is the width of the transition region;
 see :numref:`fig-Meyer_window`.
-Unless stated otherwise, we will use the default values :math:`A=\Delta \Omega/4`, :math:`B=\Delta \Omega/2`, and :math:`d=4`.
+Unless otherwise stated, we use the default values :math:`A=\Delta \Omega/4`, :math:`B=\Delta \Omega/2`, and :math:`d=4`.
 
 The function :math:`\tilde{\Phi}(\omega)` is implemented in :func:`WDM.code.utils.Meyer.Meyer`.
 
@@ -84,9 +84,9 @@ The function :math:`\tilde{\Phi}(\omega)` is implemented in :func:`WDM.code.util
    :align: center
    :width: 90%
 
-   The Meyer window function :math:`\Phi(\omega)` for different values of :math:`d`.
-   The the bottom panel shows the window in the time-domain, where :math:`\Delta T = \pi/\Delta \Omega`.
-   The case :math:`d=4` matches Fig.1 of Ref. [2]_.
+   The Meyer window function :math:`\tilde{\Phi}(\omega)` for different values of :math:`d`.
+   The bottom panel shows the window in the time-domain, :math:`\phi(t)`, 
+   where :math:`\Delta T = \pi/\Delta \Omega`. The case :math:`d=4` matches Fig.1 of Ref. [2]_.
 
 
 
@@ -94,32 +94,33 @@ WDM Wavelets
 ------------
 
 Henceforth, we will work with frequency :math:`f` rather than angular frequency :math:`\omega=2\pi f`. 
-This is consistent with the rest of the GW data analysis community which tends to work with frequency.
+This fits with the rest of the GW data analysis community which tends to work with frequency.
 
 Consider a function of time :math:`x(t)`. 
-The discretely sampled time series :math:`x[k]=x(t_k)` is indxed by :math:`k\in\{0, 1, \ldots, N-1\}` 
-and is evaluated at the sample times :math:`t_k=k\delta t`, where :math:`\delta t` is the time cadence.
-The total duration of the time series is :math:`T=N\delta t` and the Nyquist frequency is :math:`f_{\rm Ny}=\frac{1}{2\delta t}`.
+The discretely sampled time series :math:`x[k]=x(t_k)` is indexed by :math:`k\in\{0, 1, \ldots, N-1\}` 
+and evaluated at the sample times :math:`t_k=k\delta t`, where :math:`\delta t` is the cadence.
+The total duration of the time series is :math:`T=N\delta t`, 
+and the Nyquist frequency is :math:`f_{\rm Ny}=\frac{1}{2\delta t}`.
 We will insist that :math:`N` is even.
 
 The WDM wavelet transformation represents the time series using :math:`N_f` frequency slices of with :math:`\Delta F`
-and :math:`N_t` time slices of width :math:`\Delta T`. 
+and :math:`N_t` time slices of width :math:`\Delta T`; 
 
 .. math::
    :name: eq:DeltaT
 
-   \Delta T = N_f \delta t
+   \Delta T = N_f \delta t ,
 
 .. math::
    :name: eq:DeltaF
 
-   \Delta F = \frac{1}{2 N_f \delta t} = \frac{N_t}{2T}
+   \Delta F = \frac{1}{2 N_f \delta t} = \frac{N_t}{2T} .
 
-There are :math:`N=N_t N_f` cells, each with area :math:`\Delta T \Delta F = \frac{1}{2}`, which taken together 
-cover the time-frequency plane with a uniform tiling.
-We will insist that :math:`N` is even.
+There are :math:`N=N_t N_f` cells, each with area :math:`\Delta T \Delta F = \frac{1}{2}`.
+Together, these tiles uniformly cover the time–frequency plane.
+We will insist that :math:`N_t` is also even.
 
-The WDM wavelets :math:`g_{nm}(t)` are constructed from the Meyer window function. 
+The WDM wavelets :math:`g_{nm}(t)` are constructed from the Meyer window function :math:`\phi`. 
 In the frequency-domain they are defined as
 
 .. math::
@@ -148,16 +149,16 @@ The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelet
 
    The :math:`d=4` WDM wavelets :math:`|\tilde{G}_{nm}(\omega)|` plotted in the frequency domain for 
    :math:`m=0, 1, 2,\ldots,N_f`. (The :math:`n` index only describes a time shift and has no effect on 
-   this plot.) This plot was produced using :math:`N_f=16` to match Fig.2 of Ref. [1]_.
+   this plot.) Wavelets computed using :math:`N_f=16` are shown to match Fig.2 of Ref.[1]_
 
-As defined, the :math:`m` takes on both the value 0 and :math:`N_f`.
+As defined, the index :math:`m` takes on both the value 0 and :math:`N_f`.
 However, these two cases can be conveniently grouped together.
-Because of the :math:`2\Delta T` time shift only half of the :math:`n` range is needed for these two cases.
-Therefore, we define :math:`G_{n0}(f)=G_{gN_f}(f)` when :math:`n>N_t/2`.
+Because of the :math:`2\Delta T` time shift, only half of the :math:`n` range is needed for these two cases.
+Therefore, we redefine :math:`G_{n0}(f):=G_{gN_f}(f)` when :math:`n>N_t/2`.
 With this choice, the index ranges :math:`n\in\{0,1,\ldots,N_t-1\}` and :math:`m\in\{0,1,\ldots,N_f-1\}`
 cover the entire time-frequency plane; see :numref:`fig-WDM_wavelets_animate`.
 
-Some examples of the WDM wavelets with :math:`N=512`, :math:`N_f=16`, and :math:`\delta t=1`
+Examples of the WDM wavelets with :math:`N=512`, :math:`N_f=16`, and :math:`\delta t=1`
 are shown in :numref:`fig-WDM_wavelets_TD`, :numref:`fig-WDM_wavelets_TF`, and :numref:`fig-WDM_wavelets_animate`.
 Notice that the WDM wavelets are well localised in frequency but much less so in time.
 
@@ -168,7 +169,7 @@ Notice that the WDM wavelets are well localised in frequency but much less so in
    :align: center
    :width: 70%
 
-   The WDM wavelets :math:`g_{nm}(t)` plotted in the time domain for a few selected values of :math:`n` and :math:`m`.
+   The time-domain WDM wavelets :math:`g_{nm}(t)` for selected values of :math:`n` and :math:`m`.
 
 .. _fig-WDM_wavelets_TF:
 
@@ -178,7 +179,7 @@ Notice that the WDM wavelets are well localised in frequency but much less so in
    :width: 90%
 
    The WDM wavelets plotted in the time (top) and frequency (right) domains for selected values of :math:`n` and :math:`m`.
-   The main plot shows a grid of time-frequency shaded to indicate where the corresponding wavelets have significant support.
+   The main plot shows a grid of time-frequency shaded to indicate where the wavelets have significant support.
 
 .. _fig-WDM_wavelets_animate:
 
@@ -187,7 +188,7 @@ Notice that the WDM wavelets are well localised in frequency but much less so in
    :align: center
    :width: 90%
 
-   Animation looping through all the wavelets. 
+   Animated version of :numref:`fig-WDM_wavelets_TF` looping through all the wavelets. 
    Notice in particular the behaviour of the wavelets for :math:`m=0`.
 
 The WDM wavelets have the following orthonomality property,
@@ -197,7 +198,7 @@ The WDM wavelets have the following orthonomality property,
 
    2 \pi \delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .
 
-The WDM wavelets :math:`\tilde{G}_{nm}(f)` are implemented in 
+The frequency-domain WDM wavelets :math:`\tilde{G}_{nm}(f)` are implemented in 
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm`.
 
 The time-domain WDM wavelets :math:`g_{nm}(t)` are implemented in 
@@ -208,12 +209,18 @@ The time-domain WDM wavelets :math:`g_{nm}(t)` are implemented in
 The Discrete WDM Wavelet Transform
 ----------------------------------
 
-The WDM wavelets form a complete basis for the time series,
+This section defines the discrete WDM wavelet transform, present its exact formulation, and describe a 
+computationally efficient implementation suitable for practical use.
+
+The WDM wavelets form a complete orthonormal basis for discretely sampled time series,
 
 .. math::
    :name: waveletexpansion
 
-   x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k]
+   x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .
+
+Here, :math:`x[k]` is the input time series, :math:`w_{nm}` are the wavelet coefficients, and :math:`g_{nm}[k]` are the 
+WDM wavelet basis function.
 
 An expression for the wavelet coefficients :math:`w_{nm}` can be derived by multiplying both sides of this
 equation by :math:`g_{n'm'}[k]`, summing over :math:`k`, and using the orthonormality property to obtain
@@ -226,11 +233,11 @@ equation by :math:`g_{n'm'}[k]`, summing over :math:`k`, and using the orthonorm
 This is the exact expression for the forward wavelet transform which transforms from the time 
 to the time-frequency domain. 
 
-This exact wavelet transform is implemented in
+This *exact* wavelet transform is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_exact`.
 
-The exact form of the wavelet transform described above is slow to implment.
-An improvement can be made by noticing that the WDM are (approximately) localised in time
+The exact form of the wavelet transform described above is slow to implement.
+A practical improvement arises from the observation that the WDM are (approximately) localised in time
 and the sum over :math:`k` can be truncated to a window of length :math:`K=2qN_f` without
 significant loss of accuracy.
 The truncation parameter :math:`1\leq q\leq N_t/2` is a positive integer that controls the length of the window.
@@ -247,10 +254,10 @@ The truncated wavelet transform is given by
                                     g_{nm}[k + n N_f] x[k + n N_f] 
                                     \quad \mathrm{for} \; m>0.  
 
-This form of the truncted wavelet transform is implemented in
+This form of the *truncated* wavelet transform is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated`.
 
-Smaller values of :math:`q` result in a faster but less accurate transform, see :numref:`fig-trunc_err`.
+Smaller values of :math:`q` yield faster but less accurate results, see :numref:`fig-trunc_err`.
 
 .. _fig-trunc_err:
 
@@ -260,11 +267,12 @@ Smaller values of :math:`q` result in a faster but less accurate transform, see 
    :width: 70%
 
    The error in the truncated wavelet transform as a function of :math:`q`.
-   The error is defined as the maximum relative absolute between an original white-noise time
-   series (with rms=1) and the time series reconstructed from the truncated wavelet transform. 
+   The wavelet transform is applied to a white-noise time series with :math:`\mathrm{rms}=1`.
+   The error is defined as the maximum relative absolute difference between the original signal and 
+   that reconstructed signals from the truncated wavelet transform. 
    For :math:`q=N_f=16`, there is no truncation and the result agrees with the exact transform.
 
-Using the definition of the WDM wavelets, the wavelet transform can be rewritten in terms of the widow 
+Using the definition of the WDM wavelets, the wavelet transform can be rewritten in terms of the window 
 function :math:`\phi[k]` as
 
 .. math::
@@ -283,13 +291,20 @@ function :math:`\phi[k]` as
    w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} (-1)^k x[k+(2n+Q)N_f]
                             \phi[k] \quad \mathrm{for}\; n\geq N_t/2.
 
-This form of the truncted wavelet transform using the window :math:`\phi[k]` is implemented in
+This form of the *truncted, window* wavelet transform using :math:`\phi[k]` is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_window`.
 
-This can now be rewritten using the FFT.
+This can now be rewritten using the windowed FFT,
+
+.. math::
+
+   X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k] .
+
+The *windowed FFT* (with these index and sign conventions) is implemented in
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.windowed_fft`
 
 
-This FFT form of the truncted wavelet transform is implemented in
+This *FFT* form of the truncted wavelet transform is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_window`.
 
 

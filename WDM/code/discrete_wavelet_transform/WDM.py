@@ -47,6 +47,9 @@ class WDM_transform:
     K : int
         Window length in samples (equal to :math:`2 q N_f`). By definition, 
         this is always an even integer.
+    kvals : jnp.ndarray of shape (K,) 
+        Array of integers from :math:`-K/2` to :math:`K/2-1` mod N. Used for 
+        indexing arrays.
     dF : float
         Frequency resolution of the wavelets (Hertz), or the total wavelet 
         frequency bandwidth :math:`\Delta F = \frac{\Delta \Omega}{2 \pi}`.
@@ -131,6 +134,7 @@ class WDM_transform:
         self.A = self.A_frac * self.dOmega
         self.B = self.B_frac * self.dOmega
         self.K = 2 * self.q * self.Nf
+        self.kvals = jnp.arange(-self.K//2, self.K//2) % self.N
         self.Cnm = jnp.array([[C_nm(n, m) for m in range(self.Nf)] 
                               for n in range(self.Nt)])
 
@@ -334,13 +338,17 @@ class WDM_transform:
         return x_padded, mask
     
     def windowed_fft(self, x: jnp.ndarray) -> jnp.ndarray:
-        """
-        Compute the windowed FFT of the input signal.
+        r"""
+        Compute the windowed FFT of the input. (Uses unusual FFT conventions)
 
         The input time series is split into :math:`N_t` overlapping segments 
         each of length :math:`K` and with a hop interval of :math:`N_f` between 
         their centres. Each of these segments is then windowed and transformed 
         using the FFT.
+
+        .. math::
+
+            X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k]
 
         Parameters
         ----------
@@ -357,10 +365,11 @@ class WDM_transform:
         
         X = overlapping_windows(x, self.K, self.Nt, self.Nf)
 
-        kvals = jnp.arange(-self.K//2, self.K//2)
-        X *= self.window[kvals%self.N]
+        X *= self.window[self.kvals]
 
-        X = jnp.fft.fft(X)
+        X = jnp.fft.ifftshift(X, axes=-1)
+
+        X = jnp.fft.ifft(X, axis=-1) * self.K
 
         return X
 
@@ -622,7 +631,8 @@ class WDM_transform:
         x = self.inverse_transform_exact(w)
         return x
     
-    def forward_transform_truncated_fft(self, x: jnp.ndarray) -> jnp.ndarray:
+    def forward_transform_truncated_fft(self, x: jnp.ndarray,
+                                        m0: bool = False) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform using the truncated sum 
         and the window function `self.window`.
@@ -631,6 +641,11 @@ class WDM_transform:
         ----------
         x : jnp.ndarray of shape (N,)
             Input time-domain signal to be transformed.
+        m0 : bool, optional
+            If True, then the :math:`m=0` terms are computed correctly.
+            If False, then these terms will be incorrect.
+            If these terms are not needed, then leave this at the default False 
+            value for faster performance.
 
         Returns
         -------
@@ -644,8 +659,16 @@ class WDM_transform:
 
         m_vals = jnp.arange(self.Nf)
 
-        w = 2.0 * jnp.pi * jnp.sqrt(2.) * self.dt * \
-                        jnp.real( self.Cnm * X[:,(m_vals*self.q)%self.Nf] )
+        dt2pi = 2.0 * jnp.pi * self.dt
+
+        w = jnp.sqrt(2.) * dt2pi * \
+                    jnp.real( self.Cnm * X[:,(m_vals*self.q)%self.K] )
+        
+        if m0:
+            n_vals = jnp.arange(self.Nt//2)
+
+            w = w.at[:self.Nt//2,0].set(dt2pi*
+                            jnp.sum(x[(2*n_vals*self.Nf)%self.N], axis=-1))
 
         return w
 
