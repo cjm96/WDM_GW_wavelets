@@ -190,8 +190,7 @@ class WDM_transform:
         phi : jnp.ndarray 
             Array of shape (N,). Real-valued time-domain window. 
         """
-        f = jnp.fft.fftfreq(self.N, d=self.dt) 
-        Phi = Meyer(2.*jnp.pi*f, self.d, self.A, self.B)
+        Phi = self.build_frequency_domain_window()
         phi = jnp.fft.ifft(Phi).real
         return phi
     
@@ -772,7 +771,7 @@ class WDM_transform:
 
         X = jnp.fft.ifft(X, axis=-1)
 
-        X = overlapping_windows(X, self.Nt, self.Nf, self.Nt//2) # (Nf, Nf)
+        X = overlapping_windows(X, self.Nt, self.Nf, self.Nt//2) 
 
         l_vals = jnp.arange(-self.Nt//2, self.Nt//2)
 
