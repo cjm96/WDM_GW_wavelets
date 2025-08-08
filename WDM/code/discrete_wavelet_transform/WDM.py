@@ -816,21 +816,21 @@ class WDM_transform:
 
         return x
 
-    def FWT(self, x: jnp.ndarray) -> jnp.ndarray:
+    def dwt(self, x: jnp.ndarray) -> jnp.ndarray:
         r"""
-        Wrapper for the fast_forward_transform with a nice short name.
+        Forward discrete wavelet transform.
 
-        FWT stands for Fast Wavelet Transform.
+        Calls self.fast_forward_transform.
         """
-        return self.fast_forward_transform(x)
+        return self.forward_transform_fft(x)
     
-    def IFWT(self, w: jnp.ndarray) -> jnp.ndarray:
+    def idwt(self, w: jnp.ndarray) -> jnp.ndarray:
         r"""
-        Wrapper for the fast_inverse_transform with a nice short name.
+        Inverse discrete wavelet transform.
 
-        IFWT stands for Inverse Fast Wavelet Transform.
+        Calls self.inverse_transform.
         """
-        return self.fast_inverse_transform(w)
+        return self.inverse_transform(w)
 
     def time_domain_plot(self, 
                          x: jnp.ndarray) -> Tuple[plt.Figure, plt.Axes]:
@@ -981,16 +981,7 @@ class WDM_transform:
     
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
         r"""
-        Call method to perform fast forward discrete wavelet transform.
-
-        Parameters
-        ----------
-        x : jnp.ndarray
-            Array shape (N,). Input signal to be transformed. 
-        
-        Returns
-        -------
-        jnp.ndarray 
-            Array shape (Nt, Nf). WDM time-frequency coefficients.
+        Calls the forward transform self.dwt.
         """
-        return self.FWT(x)
+        return self.dwt(x)
+    
