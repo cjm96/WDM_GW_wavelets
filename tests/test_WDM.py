@@ -36,57 +36,71 @@ def test_padding():
 
 def test_Gnm():
     r"""
-    Test the frequency-domain Gnm function in the WDM class.
+    Test the frequency-domain Gnm functions in the WDM class.
     """
-    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, 
-                                                                Nf=16, 
-                                                                N=512)
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
+                                                                Nf=8, 
+                                                                N=64,
+                                                                q=4,
+                                                                calc_m0=True)
     
-    for m in range(3):
-        for n in range(3):
-            G = wdm.Gnm(n, m)
+    Gnm_basis = wdm.Gnm_basis()
 
-    G = wdm.Gnm(n=0, m=0, freq=jnp.array([0.0, 0.5]))
-    assert G.shape == (2,), \
-        "Gnm should return an array with the same shape as the input freqs"
+    assert Gnm_basis.shape == (wdm.N, wdm.Nt, wdm.Nf), \
+        "Gnm_basis should return an array with shape (N, Nt, Nf)."
+    
+    Gnm_basis_slow = jnp.transpose(
+                        jnp.array([[wdm.Gnm(n,m) 
+                                 for m in range(wdm.Nf)] 
+                                  for n in range(wdm.Nt)]), 
+                        (2, 0, 1))
+    
+    assert jnp.allclose(Gnm_basis, Gnm_basis_slow, rtol=1.0e-3, atol=1.0e-3), \
+        "The two methods for computing Gnm_basis should match."
+    
+    # reshape to (N, Nt*Nf) for orthonormality check
+    Gnm_basis = Gnm_basis.reshape(Gnm_basis.shape[0], -1) 
 
+    I = jnp.conj(Gnm_basis) @ Gnm_basis.T * wdm.df
+
+    assert jnp.allclose(I, jnp.eye(wdm.N), atol=1e-3, rtol=1e-3), \
+        "The Gnm_basis should be orthonormal."
+    
 
 def test_gnm():
     r"""
-    Test the time-domain gnm function in the WDM class.
-    """
-    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, 
-                                                                Nf=16, 
-                                                                N=512)
-    
-    for m in range(3):
-        for n in range(3):
-            g = wdm.gnm(n, m)
-
-    g = wdm.gnm(n=0, m=0, time=jnp.array([0.0, 1.0]))
-    assert g.shape == (2,), \
-        "gnm should return an array with the same shape as the input freqs"
-
-
-def test_orthonormality():
-    r"""
-    Test the orthonormality of the WDM wavelets.
+    Test the time-domain gnm functions in the WDM class.
     """
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
-                                                                Nf=16, 
-                                                                N=512)
+                                                                Nf=8, 
+                                                                N=64,
+                                                                q=4,
+                                                                calc_m0=True)
+    
+    gnm_basis = wdm.gnm_basis()
 
-    basis = wdm.gnm_basis() # shape (N, Nt, Nf)
+    assert gnm_basis.shape == (wdm.N, wdm.Nt, wdm.Nf), \
+        "Gnm_basis should return an array with shape (N, Nt, Nf)."
+    
+    gnm_basis_slow = jnp.transpose(
+                        jnp.array([[wdm.gnm(n,m) 
+                                 for m in range(wdm.Nf)] 
+                                  for n in range(wdm.Nt)]), 
+                        (2, 0, 1))
+    
+    assert jnp.allclose(gnm_basis, gnm_basis_slow, rtol=1.0e-3, atol=1.0e-3), \
+        "The two methods for computing gnm_basis should match."
+    
+    # reshape to (N, Nt*Nf) for orthonormality check
+    gnm_basis = gnm_basis.reshape(gnm_basis.shape[0], -1) 
 
-    basis = basis.reshape(basis.shape[0], -1) # shape (N, Nt*Nf)
-
-    I = basis @ basis.T * 2. * jnp.pi * wdm.dt # compute pairwise inner products
+    I = jnp.conj(gnm_basis) @ gnm_basis.T * wdm.dt
 
     assert jnp.allclose(I, jnp.eye(wdm.N), atol=1e-3, rtol=1e-3), \
-        "Orthonormality condition failed"
+        "The gnm_basis should be orthonormal."
+    
 
-
-def test_exact_transforms():
+def test_exact_transform():
     r"""
     Test the exact wavelet transform.
     """
@@ -96,132 +110,65 @@ def test_exact_transforms():
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=16, 
                                                                 N=512, 
-                                                                q=5)
+                                                                q=5,
+                                                                calc_m0=True)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
 
     w = wdm.forward_transform_exact(x)
 
-    x_ = wdm.inverse_transform_exact(w)
+    x_ = wdm.inverse_transform(w)
 
     assert np.allclose(x, x_, rtol=1.0e-2, atol=1.0e-2), \
-        "Inverse transform did not recover original signal"
+        "Inverse transform did not recover original signal."
     
 
-def test_truncated_transforms():
+def test_truncated_transform():
     r"""
-    Test the truncated wavelet transform.
+    Test the exact wavelet transform.
     """
     seed = 1234
     key = jax.random.key(seed)
 
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=4, 
-                                                                N=32, 
-                                                                q=4)
+                                                                N=64, 
+                                                                q=8,
+                                                                calc_m0=True)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
 
     w = wdm.forward_transform_exact(x)
 
-    W = wdm.forward_transform_truncated(x)
+    w_ = wdm.forward_transform_truncated(x)
 
-    assert np.allclose(W, w, rtol=1.0e-2, atol=1.0e-2), \
-        "Truncated transform did not match exact transform"
+    assert np.allclose(w, w_, rtol=1.0e-2, atol=1.0e-2), \
+        "Truncated transform did not agree with the exact transform."
+    
 
-
-def test_truncated_window_transform():
+def test_short_fft_transform():
     r"""
-    Test the truncated window expression for the wavelet transform.
+    Test the short FFT transform.
     """
     seed = 1234
     key = jax.random.key(seed)
 
-    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
-                                                                Nf=8, 
-                                                                N=256, 
-                                                                q=8)
-
-    key, subkey = jax.random.split(key)
-    x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
-
-    w = wdm.forward_transform_truncated(x)
-
-    W = wdm.forward_transform_truncated_window(x)
-
-    assert np.allclose(W, w, rtol=1.0e-2, atol=1.0e-2), \
-        "Truncated window transform did not match truncated transform"
-    
-
-def test_truncated_windowed_fft_transform():
-    r"""
-    Test the truncated windowed fft expression for the wavelet transform.
-    """
-    seed = 1234
-    key = jax.random.key(seed)
-
-    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
-                                                                Nf=8, 
-                                                                N=256, 
-                                                                q=8)
-
-    key, subkey = jax.random.split(key)
-    x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
-
-    w = wdm.forward_transform_truncated(x)
-
-    W = wdm.forward_transform_truncated_windowed_fft(x)
-
-    assert np.allclose(W[:,1:], w[:,1:], rtol=1.0e-2, atol=1.0e-2), \
-        "Truncated windowed fft transform did not match truncated transform"
-    
-
-def test_time_domain_basis_functions():
-    r"""
-    Test that the two expressions for the time-domain basis wavelets 
-    :math:`g_{nm}[k]` give the same results
-    """
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=4, 
-                                                                N=64,
-                                                                q=6)
-    
-    basis_one = wdm.gnm_basis() # shape (N, Nt, Nf)
-
-    basis_two = jnp.array([[wdm.gnm(n,m) for m in range(wdm.Nf)] 
-                       for n in range(wdm.Nt)])
-    basis_two = jnp.transpose(basis_two, (2, 0, 1)) 
-
-    assert jnp.allclose(basis_one, basis_two, rtol=1.0e-3, atol=1.0e-3), \
-        "Time-domain basis functions do not match between two expressions"
-    
-
-def test_inverse_transform_fast():
-    r"""
-    Test the inverse transform fast and exact methods agree.
-    """
-    seed = 1234
-    key = jax.random.key(seed)
-
-    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
-                                                                Nf=16, 
-                                                                N=512, 
-                                                                q=5)
+                                                                N=64, 
+                                                                q=8,
+                                                                calc_m0=True)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
 
     w = wdm.forward_transform_exact(x)
 
-    x_fast = wdm.inverse_transform_fast(w)
+    w_ = wdm.forward_transform_short_fft(x)
 
-    x_exact = wdm.inverse_transform_exact(w)
-
-    assert np.allclose(x_fast, x_exact, rtol=1.0e-2, atol=1.0e-2), \
-        "Inverse transform fast did not match exact inverse transform"
-
-
+    assert np.allclose(w, w_, rtol=1.0e-2, atol=1.0e-2), \
+        "Truncated transform did not agree with the exact transform."
     
-
+    

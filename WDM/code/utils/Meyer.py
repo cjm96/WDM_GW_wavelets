@@ -5,8 +5,7 @@ from jax.scipy.special import betainc
 
 def nu_d(x: jnp.ndarray, d: int) -> jnp.ndarray:
     r"""
-    This function evaluates the regularised (or normalised) incomplete beta 
-    function.
+    This function evaluates the normalised incomplete beta function.
 
     .. math::
 
@@ -18,14 +17,14 @@ def nu_d(x: jnp.ndarray, d: int) -> jnp.ndarray:
     Parameters
     ----------
     x : jnp.ndarray
-        Input array of values in the interval [0, 1].
+        Input array of values in the interval :math:`0 \leq x \leq 1`.
     d : int
         Steepness parameter controls smoothness of the transition region.
 
     Returns
     -------
     nu : jnp.ndarray
-        The normalized beta function evaluated at :math:`x`.
+        The normalized beta function :math:`\nu_d(x)`.
 
     Notes
     -----
@@ -34,7 +33,7 @@ def nu_d(x: jnp.ndarray, d: int) -> jnp.ndarray:
     This function returns nan if :math:`x` is outside the range [0, 1].
     """
     d = int(d)
-    x = jnp.asarray(x, dtype=jnp.float32)
+    x = jnp.asarray(x)
     nu = betainc(d, d, x) 
     return nu
 
@@ -85,7 +84,7 @@ def Meyer(omega: jnp.ndarray,
     """
     dOmega = 2*A + B
 
-    absw = jnp.abs(jnp.asarray(omega, dtype=jnp.float32))
+    absw = jnp.abs(jnp.asarray(omega))
 
     term1 = (absw < A)
     term2 = (absw >= A) & (absw <= A + B)

@@ -16,39 +16,38 @@ Introduction
 
 The Wilson-Daubechies-Meyer (WDM) wavelet basis is widely used for gravitational wave (GW) data analysis.
 While far from being the only available choice, the WDM basis wavelets have properties that make 
-them particularly suitable for this purpose: they are well separated in frequency (in fact, with
-compact support) which helps connect with other GW data analysis which is almost exclusively done 
+them particularly suitable for this purpose: they are well separated in frequency (in fact, they have
+compact support) which helps connect with the rest of GW data analysis which is almost exclusively done 
 in the frequency domain, and they provide uniform tiling in both time and frequency.
-The WDM wavelets were first introduced to GW data analysis in Ref. [1]_ (see also Ref. [2]_) and are used in 
-the coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
+The WDM wavelets were first introduced to GW data analysis in Ref. [1]_ (see also Ref. [2]_) and are used 
+in Coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
 
 
 
-Regularised Incomplete Beta Function
-------------------------------------
+Normalised Incomplete Beta Function
+-----------------------------------
 
-The WDM wavelets use the regularised (normalised) incomplete beta function, :math:`\nu_d(x)`,
+The WDM wavelets use the normalised incomplete beta function, :math:`\nu_d(x)`,
 
 .. math::
-   :name: eq:reg_incomplete_beta
 
    \nu_d(x) = \frac{ \int_0^x \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }
                          { \int_0^1 \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} } ,
-                         \mathrm{for}\; 0\leq x\leq 1.
+                         \quad \mathrm{for}\; 0\leq x\leq 1.
 
 This acts as a smooth transition function (or compact sigmoid-like function) from 0 to 1.
-The parameter :math:`d` controls the steepness of the transition; see :numref:`fig-reg_incomplete_beta`.
+The parameter :math:`d` controls the steepness of the transition; see :numref:`fig-norm_incomplete_beta`.
 
 The function :math:`\nu_d(x)` is implemented in :func:`WDM.code.utils.Meyer.nu_d`.
 
-.. _fig-reg_incomplete_beta:
+.. _fig-norm_incomplete_beta:
 
-.. figure:: ../figures/reg_incomplete_beta.png
-   :alt: reg_incomplete_beta
+.. figure:: ../figures/norm_incomplete_beta.png
+   :alt: norm_incomplete_beta
    :align: center
    :width: 70%
 
-   The regularised incomplete beta function :math:`\nu_d(x)` for different values of :math:`d`.
+   The normalised incomplete beta function :math:`\nu_d(x)` for several values of :math:`d`.
 
 
 
@@ -59,7 +58,6 @@ The WDM wavelet transform is based on the Meyer window function, which is
 defined in the frequency domain by
 
 .. math::
-   :name: eq:Meyer_window
 
     \tilde{\Phi}(\omega) = \begin{cases}
         \frac{1}{\sqrt{\Delta\Omega}} & \text{if } |\omega| < A, \\
@@ -108,12 +106,10 @@ The WDM wavelet transformation represents the time series using :math:`N_f` freq
 and :math:`N_t` time slices of width :math:`\Delta T`; 
 
 .. math::
-   :name: eq:DeltaT
 
    \Delta T = N_f \delta t ,
 
 .. math::
-   :name: eq:DeltaF
 
    \Delta F = \frac{1}{2 N_f \delta t} = \frac{N_t}{2T} .
 
@@ -125,7 +121,6 @@ The WDM wavelets :math:`g_{nm}(t)` are constructed from the Meyer window functio
 In the frequency-domain they are defined as
 
 .. math::
-   :name: eq:Gnm
 
     \tilde{G}_{nm}(f) = \begin{cases}
         \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f) & m=0 \\
@@ -147,15 +142,27 @@ The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelet
    :width: 70%
 
    The :math:`d=4` WDM wavelets :math:`|\tilde{G}_{nm}(\omega)|` plotted in the frequency domain for 
-   :math:`m=0, 1, 2,\ldots,N_f`. (The :math:`n` index only describes a time shift and has no effect on 
-   this plot.) Wavelets computed using :math:`N_f=16` are shown to match Fig.2 of Ref. [1]_.
+   :math:`m=0, 1, 2,\ldots,N_f`. 
+   Wavelets computed using :math:`N_f=16` are shown to match Fig.2 of Ref. [1]_.
 
-As defined, the index :math:`m` takes on both the value 0 and :math:`N_f`.
+As defined, the index :math:`m` takes on both values 0 and :math:`N_f`.
 However, these two cases can be conveniently grouped together.
-Because of the :math:`2\Delta T` time shift, only half of the :math:`n` range is needed for these two cases.
-Therefore, we redefine :math:`G_{n0}(f):=G_{gN_f}(f)` when :math:`n>N_t/2`.
+Because of the :math:`2\Delta T` time shift, only half of the :math:`n` range is needed;
+therefore, we redefine :math:`G_{n0}(f):=G_{nN_f}(f)` when :math:`n>N_t/2`.
 With this choice, the index ranges :math:`n\in\{0,1,\ldots,N_t-1\}` and :math:`m\in\{0,1,\ldots,N_f-1\}`
 cover the entire time-frequency plane; see :numref:`fig-WDM_wavelets_animate`.
+The central time and frequency of the wavelet :math:`g_{nm}(t)` are given by
+
+.. math::
+
+   t_{nm} = \begin{cases} ( 2n \,\mathrm{mod} \, N_t ) \Delta T & \mathrm{if}\;m=0 \\
+                     n \Delta T & \mathrm{if}\;m>0 \end{cases} \,,
+
+.. math::
+
+   f_{nm} = \begin{cases} \begin{cases}0&\mathrm{if}\;n<N_t/2\\
+                           f_{\rm Ny}&\mathrm{if}\,n\geq N_t/2\end{cases} & \mathrm{if}\;m=0 \\
+                     m \Delta F & \mathrm{if}\;m>0 \end{cases} \,.
 
 Examples of the WDM wavelets with :math:`N=512`, :math:`N_f=16`, and :math:`\delta t=1`
 are shown in :numref:`fig-WDM_wavelets_TD`, :numref:`fig-WDM_wavelets_TF`, and :numref:`fig-WDM_wavelets_animate`.
@@ -193,7 +200,6 @@ Notice that the WDM wavelets are well localised in frequency but much less so in
 The WDM wavelets have the following orthonomality property,
 
 .. math::
-   :name: eq:orthonorm
 
    2 \pi \delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .
 
@@ -216,7 +222,6 @@ computationally efficient implementation suitable for practical use.
 The WDM wavelets form a complete orthonormal basis for discretely sampled time series,
 
 .. math::
-   :name: waveletexpansion
 
    x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .
 
@@ -227,7 +232,6 @@ An expression for the wavelet coefficients :math:`w_{nm}` can be derived by mult
 equation by :math:`g_{n'm'}[k]`, summing over :math:`k`, and using the orthonormality property to obtain
 
 .. math::
-   :name: eq:wavelet_transform_exact
 
    w_{nm} = 2\pi \delta t\sum_{k=0}^{N-1} x[k] g_{nm}[k] .
 
