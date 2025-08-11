@@ -205,35 +205,38 @@ class WDM_transform:
         phi = jnp.fft.ifft(jnp.fft.ifftshift(self.window_FD)).real / self.dt
         return phi
     
-    def check_indices(self, n: int, m: int) -> bool:
+    def check_indices(self, n: jnp.ndarray, m: jnp.ndarray) -> bool:
         r"""
         Check if the wavelet indices are in the valid range.
 
+        The arrays n and m must have the same shape.
+
         Parameters
         ----------
-        n : int
-            Wavelet time index.
-        m : int
-            Wavelet frequency index.
+        n : jnp.ndarray
+            Array of n indices, dtype=int. Wavelet time index.
+        m : jnp.ndarray
+            Array of m indices, dtype=int. Wavelet frequency index.
 
         Returns
         -------
-        bool
+        check : bool
             True if the indices are valid, False otherwise.
         """
-        n_test = 0 <= n < self.Nt
-        m_test = 0 <= m < self.Nf
+        n = jnp.asarray(n)
+        m = jnp.asarray(m)
 
-        assert n_test, \
-            f"Invalid wavelet time index {n=}. Must be in [0, {self.Nt})."
-        assert m_test, \
-            f"Invalid wavelet frequency index {m=}. Must be in [0, {self.Nf})."
-        
-        return (n_test and m_test)
+        n_test = jnp.logical_and(n >= 0, n < self.Nt)
+        m_test = jnp.logical_and(m >= 0, m < self.Nf)
+
+        check = jnp.all(jnp.logical_and(n_test, m_test))
+
+        return check
 
     def wavelet_central_time_frequency(self, 
-                                       n: int, 
-                                       m: int) -> Tuple[float, float]:
+                                       n: jnp.ndarray, 
+                                       m: jnp.ndarray) -> Tuple[jnp.ndarray, 
+                                                                jnp.ndarray]:
         r"""
         Compute the central time :math:`t_{nm}= n \Delta t` and the central 
         frequency :math:`f_{nm} = m \Delta f` of the wavelet :math:`g_{nm}(t)`.
@@ -251,27 +254,35 @@ class WDM_transform:
 
         Parameters
         ----------
-        n : int
-            Wavelet time index.
-        m : int
-            Wavelet frequency index.
+        n : jnp.ndarray
+            Array of n indices, dtype=int. Wavelet time index.
+        m : jnp.ndarray
+            Array of m indices, dtype=int. Wavelet frequency index.
 
         Returns
         -------
         t_nm : float
-            The central time of the wavelet.
+            Array of times, shaped like n and m. The wavelet central times.
         f_nm : float
-            The central frequency of the wavelet.
+            Array of frequencies, shaped like n and m. The wavelet central 
+            frequencies.
         """
         assert self.check_indices(n, m), f"Invalid indices"
 
-        if m > 0:
-            t_nm = n * self.dT
-            f_nm = m * self.dF
+        n = jnp.asarray(n)
+        m = jnp.asarray(m)
 
-        else:
-            t_nm = ( (2*n) % self.Nt ) * self.dT
-            f_nm = 0. if n < self.Nt // 2 else self.f_Ny
+        m_pos = m > 0
+
+        # time
+        t_when_mpos = n * self.dT
+        t_when_m0   = (jnp.mod(2 * n, self.Nt)) * self.dT
+        t_nm = jnp.where(m_pos, t_when_mpos, t_when_m0)
+
+        # frequency
+        f_when_mpos = m * self.dF
+        f_when_m0   = jnp.where(n < (self.Nt // 2), 0.0, self.f_Ny)
+        f_nm = jnp.where(m_pos, f_when_mpos, f_when_m0)
 
         return t_nm, f_nm
 
@@ -615,7 +626,7 @@ class WDM_transform:
 
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
-        windowed_fft *= self.window_TD[k_vals]
+        windowed_fft *= self.window_TD[k_vals%self.N]
 
         windowed_fft = jnp.fft.ifftshift(windowed_fft, axes=-1)
 
@@ -776,7 +787,26 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
         
-        w = 1
+        n_vals = jnp.arange(self.Nt)
+        m_vals = jnp.arange(self.Nf)
+
+        alt = (-1.)**(n_vals[:,jnp.newaxis]*m_vals[jnp.newaxis, :])
+
+        term = jnp.fft.fft(jnp.fft.fftshift(x))
+
+        term = overlapping_windows(term, self.Nt, self.Nf, self.Nt//2)
+
+        l_vals = jnp.arange(-self.Nt//2, self.Nt//2)
+        term = term * self.window_FD[l_vals%self.N]
+
+        term = jnp.fft.fftshift(term, axes=-1)
+
+        term = jnp.fft.fft(term, axis=-1) 
+
+        w = jnp.sqrt(2.) * self.dt * alt * jnp.real( self.Cnm * term.T )
+
+        if self.calc_m0:
+            pass
 
         return w
     
