@@ -1,7 +1,16 @@
 import numpy as np
+import jax
 import matplotlib.pyplot as plt
 import WDM
 
+
+def test_x64():
+    r"""
+    Test that the WDM module is using float64 precision.
+    """
+    assert jax.config.read("jax_enable_x64"), \
+        "WDM module should be using float64 precision, check the __init__ file."
+    
 
 def test_nu_d():
     r"""

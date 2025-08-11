@@ -8,67 +8,93 @@ from typing import Tuple
 
 class WDM_transform:
     r"""
-    This class implements the WDM discrete wavelet transform for the Meyer 
-    window function.
+    This class implements the WDM discrete wavelet transform.
 
     Attributes
     ----------
     dt : float
-        The cadence, or time step, of the original time series (seconds). 
-        Equal to inverse of the sampling frequency (Hertz).
+        The cadence, or time step, of the time series, :math:`\delta t`. 
+        Equal to inverse of the sampling frequency.
     Nf : int
-        Number of wavelet frequency bands. Must be even. This controls the 
-        time/frequency resolution of the wavelets. 
+        Number of wavelet frequency bands, :math:`N_f`. Must be even. 
+        This controls the time/frequency resolution of the wavelets. 
     N : int
-        Length of the input time series. Must be an even multiple of 
+        Length of the input time series, :math:`N`. Must be an even multiple of 
         :math:`N_f`.
     Nt : int
-        Number of wavelet time bands. Equal to :math:`N/N_f`. Must be even.
+        Number of wavelet time bands, :math:`N_t`. Equal to :math:`N/N_f`. 
+        Must be even.
     q : int
-        Truncation parameter. Formally the time domain wavelet has infinite 
-        extent, but in practice it is truncated at :math:`\pm q \Delta T`. 
+        Truncation parameter, :math:`q`. Formally the time domain wavelets have 
+        infinite extent but in practice are truncated at :math:`\pm q \Delta T`.
         This must be an integer in the range :math:`1 \leq q \leq N_t/2`.
+    d : int
+        Steepness parameter for the Meyer window transition. 
+        Must be a positive integer, :math:`d\geq 1`.
     A_frac : float
         Fraction of total bandwidth used for the flat-top response region.
         Must be in the range [0, 1].
     B_frac : float
         Fraction of total bandwidth used for the transition region. This is set
         based on A_frac so :math:`2A_{\mathrm{frac}}+B_{\mathrm{frac}}=1`.
-    d : int
-        Steepness parameter for the Meyer window transition. 
-        Must be a positive integer, :math:`d\geq 1`.
-    K : int
-        Window length in samples (equal to :math:`2 q N_f`). By definition, 
-        this is always an even integer.
-    kvals : jnp.ndarray of shape (K,) 
-        Array of integers from :math:`-K/2` to :math:`K/2-1` mod N. Used for 
-        indexing arrays.
+    A : float
+        Half-width of the flat-top response region in angular frequency (radians
+        per unit time), :math:`A`. Satisfies :math:`\Delta \Omega = 2A + B`.
+    B : float
+        Width of the transition region in angular frequency (radians per unit 
+        time), :math:`B`. Satisfies :math:`\Delta \Omega = 2A + B`.
     dF : float
-        Frequency resolution of the wavelets (Hertz), or the total wavelet 
+        Frequency resolution of the wavelets, or the total wavelet 
         frequency bandwidth :math:`\Delta F = \frac{\Delta \Omega}{2 \pi}`.
     dT : float
-        Time resolution of the wavelets (seconds). Related to the frequency 
+        Time resolution of the wavelets. Related to the frequency 
         resolution by :math:`\Delta F \Delta T = \frac{1}{2}`.
-    T : float
-        Total duraion of the time series (seconds). Related to :math:`N` and 
-        :math:`\delta t` by :math:`T = N \delta t`.
     dOmega : float
-        Angular Frequency resolution of the wavelets (radians per second), or 
-        the total wavelet angular frequency bandwidth 
-        :math:`\Delta \Omega = 2A + B`.
+        Angular Frequency resolution of the wavelets (radians per unit time), or
+        total wavelet angular frequency bandwidth, :math:`\Delta \Omega = 2A+B`.
+    T : float
+        Total duration of the time series. Related to :math:`N` and 
+        :math:`\delta t` by :math:`T = N \delta t`.
+    df : float
+        The frequency resolution of the time series, :math:`\delta f = 1/T`.
+    f_s : float
+        Sampling frequency of the time series, :math:`f_s = \frac{1}{2 dt}`.
     f_Ny : float
-        Nyquist frequency (i.e. maximum frequency) of the original time series 
-        (Hertz), equal to :math:`\frac{1}{2 dt}`.
-    A : float
-        Half-width of the flat-top response region in angular frequency 
-        (radians per second).
-    B : float
-        Width of the transition region in angular frequency 
-        (radians per second).
-    window : jnp.ndarray
-        Time-domain window of length :math:`K`.
-    Cnm : jnp.ndarray of shape (Nt, Nf)
-        Coefficients :math:`C_{nm}` used for the wavelet transform.
+        Nyquist frequency (i.e. maximum frequency) of the time series,
+        :math:`f_{\rm Ny} = \frac{1}{2 dt}`.
+    K : int
+        Window length in samples, :math:`K = 2 q N_f`. By definition, 
+        this is always an even integer.
+    times : jnp.ndarray
+        The sample times of the time series, :math:`t_k = k \delta t` for 
+        :math:`k\in\{0,1,\ldtots,N-1\}`. Array shape=(N,).
+    freqs : jnp.ndarray
+        The sample frequencies of the time series, :math:`f_k = k \delta f` for 
+        :math:`k\in\{-N/2,N/2+1,\ldtots,N/2-1\}`. Array shape=(N,).
+    Cnm : jnp.ndarray 
+        Coefficients :math:`C_{nm}` used for the wavelet transform. Equal to 1 
+        if :math:`n+m` is even or :math:`i` if it is odd. 
+        Array shape=(N_t, N_f).
+    calc_m0 : bool
+        If this is set to False (default value) then the wavelet coefficients
+        with :math:`m=0` are handled INCORRECTLY. This is faster. If these 
+        coefficients are needed the initialise the class with `calc_m0=True`.
+    window_TD : jnp.ndarray 
+        The time-domain Meyer window function, :math:`\phi(t)`. 
+        Array shape=(N,).
+    window_FD : jnp.ndarray 
+        The frequency-domain Meyer window function, :math:`\tilde{\Phi}(f)`. 
+        Array shape=(N,), dtype=complex.
+    cached_Gnm_basis : jnp.ndarray
+        The frequency-domain wavelet basis :math:`\tilde{G}_{nm}(f)`.
+        Array shape=(N, Nt, Nf).
+    cached_gnm_basis : jnp.ndarray
+        The time-domain wavelet basis :math:`g_{nm}(t)`. 
+        Array shape=(N, Nt, Nf).
+    jax_dtype : jnp.float64
+        Use jax.config.update("jax_enable_x64", True).
+    jax_dtype_int : jnp.int64
+        Use jax.config.update("jax_enable_x64", True).
     """
 
     def __init__(self, 
@@ -85,18 +111,20 @@ class WDM_transform:
         Parameters
         ----------
         dt : float
-            The cadence, or time step (seconds). 
+            The time series cadence, or time step. 
         Nf : int
             Number of frequency bands, controls the time/frequency resolution.
         N : int
             Length of the input time series. Must be an even multiple of Nf.
-        q : int, optional
+        q : int
             Truncation parameter (default: 16). This must be an integer in the 
-            range :math:`1 \leq q \leq N_t/2`.
-        A_frac : float, optional
+            range :math:`1 \leq q \leq N_t/2`. Optional.
+        A_frac : float
             Fraction of bandwidth used for flat-top response (default: 0.25). 
-        d : int, optional
+            Optional.
+        d : int
             Steepness parameter for the window transition (default: 4).
+            Optional.
         calc_m0 : bool
             If this is set to False then the all wavelet calculations for 
             :math:`m=0` will be handled incorrectly. This comes with some
@@ -107,7 +135,6 @@ class WDM_transform:
         -------
         None
         """
-        # User provided parameters
         self.dt = float(dt)
         self.Nf = int(Nf)
         self.N = int(N)
@@ -144,8 +171,10 @@ class WDM_transform:
 
         if jax.config.read("jax_enable_x64"):
             self.jax_dtype = jnp.float64
+            self.jax_dtype_int = jnp.int64
         else:
             self.jax_dtype = jnp.float32
+            self.jax_dtype_int = jnp.int32
 
     def validate_parameters(self) -> None:
         r"""
@@ -157,30 +186,30 @@ class WDM_transform:
         None
         """
         assert self.dt > 0, \
-                    f"dt must be positive, got {self.dt=}"
+                    f"dt must be positive, got {self.dt=}."
         
         assert self.Nf > 0 and self.Nf % 2 == 0, \
-                    f"Nf must be a positive even integer, got {self.Nf=}"
+                    f"Nf must be a positive even integer, got {self.Nf=}."
         
         assert self.N > 0 and self.N % 2 == 0, \
-                    f"Nt must be a positive even integer, got {self.N=}"
+                    f"Nt must be a positive even integer, got {self.N=}."
         
         assert self.N % self.Nf == 0 and ( self.N // self.Nf ) % 2 == 0, \
-                    f"N must be even multiple of Nf, got {self.N=}, {self.Nf=}"
+                    f"N must be even multiple of Nf, got {self.N=}, {self.Nf=}."
         
         Nt = self.N // self.Nf
         assert self.q >= 1 and self.q <= Nt//2, \
-                    f"q must be integer in range 1<=q<={Nt//2}, got {self.q=}"
+                    f"q must be integer in range 1<=q<={Nt//2}, got {self.q=}."
         
         assert 0. < self.A_frac < 1., \
-                    f"A_frac must be in range 0<A_frac<1, got {self.A_frac=}"
+                    f"A_frac must be in range 0<A_frac<1, got {self.A_frac=}."
 
         assert self.d >= 1, \
-                    f"d must be a positive integer, got {self.d=}"
+                    f"d must be a positive integer, got {self.d=}."
 
     def build_frequency_domain_window(self) -> jnp.ndarray:
         r"""
-        Construct the frequenct-domain window function :math:`\tilde{\Phi}(f)`.
+        Construct the frequency-domain window function :math:`\tilde{\Phi}(f)`.
 
         Returns
         -------
@@ -209,7 +238,7 @@ class WDM_transform:
         r"""
         Check if the wavelet indices are in the valid range.
 
-        The arrays n and m must have the same shape.
+        The arrays `n` and `m` must have the same shape.
 
         Parameters
         ----------
@@ -221,10 +250,10 @@ class WDM_transform:
         Returns
         -------
         check : bool
-            True if the indices are valid, False otherwise.
+            True if the indices are all valid, False otherwise.
         """
-        n = jnp.asarray(n)
-        m = jnp.asarray(m)
+        n = jnp.asarray(n, self.jax_dtype_int)
+        m = jnp.asarray(m, self.jax_dtype_int)
 
         n_test = jnp.logical_and(n >= 0, n < self.Nt)
         m_test = jnp.logical_and(m >= 0, m < self.Nf)
@@ -252,7 +281,7 @@ class WDM_transform:
             f_{n0} = \begin{cases} 0 & \mathrm{if}\; n<N_t/2 \\ 
                     f_{\mathrm{Ny}} & \mathrm{if}\; n\geq N_t/2 \end{cases} . 
 
-        The arrays n and m must have the same shape, (n,).
+        The arrays `n` and `m` must have the same shape, (n,).
 
         Parameters
         ----------
@@ -271,8 +300,8 @@ class WDM_transform:
         """
         assert self.check_indices(n, m), f"Invalid indices"
 
-        n = jnp.asarray(n)
-        m = jnp.asarray(m)
+        n = jnp.asarray(n, self.jax_dtype_int)
+        m = jnp.asarray(m, self.jax_dtype_int)
 
         m_pos = m > 0
 
@@ -548,7 +577,8 @@ class WDM_transform:
     def pad_signal(self, x: jnp.ndarray, where: str = 'end') -> jnp.ndarray:
         r"""
         The transform method requires the input time series signal to have a 
-        specific length :math:`N`.
+        specific length :math:`N`. This method can be used to zero-pad any 
+        signal to the desired length.
 
         This function also returns a Boolean mask that can be used later to 
         recover arrays of the original length.
@@ -834,6 +864,88 @@ class WDM_transform:
         x : jnp.ndarray 
             Array shape (N,). The time-domain signal.
         """
+        w = jnp.asarray(w, dtype=self.jax_dtype)
+
+        assert w.shape == (self.Nt, self.Nf), \
+                f"Input coefficients must have shape ({self.Nt}, {self.Nf}), " \
+                f"got {w.shape=}."
+        
+        x = jnp.zeros(self.N, dtype=self.jax_dtype)
+
+        def add_one_band(x, n):
+            def add_one_cell(x, m):
+                m0_cond = jnp.where(m > 0, 1, 2) 
+                k_vals = jnp.arange(self.N)
+                indices = (k_vals-m0_cond*n*self.Nf)%self.N
+
+                minusone_mn = (-1)**(n*m)
+                minusone_nNf = (-1)**(n*self.Nf)
+                minusone_k = (-1)**k_vals
+
+                wavelet = jnp.where(m > 0,
+                            jnp.where((n + m) % 2 == 0, 
+                                jnp.sqrt(2.) * minusone_mn * \
+                                    jnp.cos(jnp.pi*m*k_vals/self.Nf) * \
+                                        self.window_TD[indices], 
+                                -jnp.sqrt(2.) * \
+                                    jnp.sin(jnp.pi*m*k_vals/self.Nf) * \
+                                        self.window_TD[indices]),
+                            jnp.where(n < self.Nt // 2, 
+                                    self.window_TD[indices], 
+                                    jnp.where(n % 2 == 0, 
+                                        minusone_nNf * \
+                                        jnp.cos(jnp.pi*self.Nf*k_vals/self.Nf)*\
+                                        self.window_TD[indices], 
+                                        minusone_k * \
+                                        self.window_TD[indices])
+                                )
+                            )
+
+                x = x + w[n, m] * wavelet
+                return x
+            
+            x = jax.lax.fori_loop(0, 
+                                  self.Nf, 
+                                  lambda m, acc: add_one_cell(acc, m), 
+                                  x)
+            return x
+
+        x = jax.lax.fori_loop(0, 
+                              self.Nt, 
+                              lambda n, acc: add_one_band(acc, n), 
+                              x)
+
+        return x
+    
+    def inverse_transform_old(self, w : jnp.ndarray) -> jnp.ndarray:
+        r"""
+        Perform the inverse discrete wavelet transform. Transforms the wavelet 
+        coefficients from the time-frequency domain into the time domain.
+
+        This method computes the wavelet coefficients using the expression
+
+        .. math::
+
+            x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .
+
+        This method computes all the basis vectors :math:`g_{nm}[k]` together
+        using the method `gnm_basis` and then sums them up. This is quite fast
+        but uses O(N^2) memory. A more memory-efficient implementation is 
+        provided in the method `inverse_transform`.
+
+        Parameters
+        ----------
+        w : jnp.ndarray 
+            Array shape (Nt, Nf). 
+            WDM time-frequency-domain wavelet coefficients.
+            
+        Returns
+        -------
+        x : jnp.ndarray 
+            Array shape (N,). The time-domain signal.
+        """
+        w = jnp.asarray(w, dtype=self.jax_dtype)
+
         assert w.shape == (self.Nt, self.Nf), \
                 f"Input coefficients must have shape ({self.Nt}, {self.Nf}), " \
                 f"got {w.shape=}."
@@ -883,7 +995,7 @@ class WDM_transform:
 
         Notes
         -----
-        This function does not call ``plt.show()``. The user is responsible
+        This function does not call `plt.show()`. The user is responsible
         for displaying or saving the plot.
         """
         assert x.shape == (self.N,), \
@@ -914,7 +1026,7 @@ class WDM_transform:
 
         Notes
         -----
-        This function does not call ``plt.show()``. The user is responsible
+        This function does not call `plt.show()`. The user is responsible
         for displaying or saving the plot.
         """
         assert x.shape == (self.N,), \
@@ -958,7 +1070,7 @@ class WDM_transform:
 
         Notes
         -----
-        This function does not call ``plt.show()``. The user is responsible
+        This function does not call `plt.show()`. The user is responsible
         for displaying or saving the plot.
         """
         assert w.shape == (self.Nt, self.Nf), \
@@ -1016,4 +1128,5 @@ class WDM_transform:
         Calls the forward transform self.dwt.
         """
         return self.dwt(x)
+    
     

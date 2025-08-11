@@ -4,13 +4,6 @@ import jax.numpy as jnp
 import WDM
 
 
-def test_x64():
-    r"""
-    Test that the WDM module is using float64 precision.
-    """
-    assert jax.config.read("jax_enable_x64"), \
-        "WDM module should be using float64 precision, check the __init__ file."
-
 
 def test_padding():
     r"""
@@ -123,6 +116,31 @@ def test_exact_transform():
     assert np.allclose(x, x_, rtol=1.0e-2, atol=1.0e-2), \
         "Inverse transform did not recover original signal."
     
+
+def test_inverse_transforms():
+    r"""
+    Test that the two methods for performing the inverse transform agree.
+    """
+    seed = 1234
+    key = jax.random.key(seed)
+
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
+                                                                Nf=16, 
+                                                                N=512, 
+                                                                q=5,
+                                                                calc_m0=True)
+
+    key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
+
+    w = wdm.forward_transform_exact(x)
+
+    x = wdm.inverse_transform_old(w)
+    x_ = wdm.inverse_transform(w)
+
+    assert np.allclose(x, x_, rtol=1.0e-2, atol=1.0e-2), \
+        "Inverse transforms don't agree."
+
 
 def test_truncated_transform():
     r"""
