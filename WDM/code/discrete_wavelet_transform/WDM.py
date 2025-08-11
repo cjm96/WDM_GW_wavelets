@@ -252,19 +252,21 @@ class WDM_transform:
             f_{n0} = \begin{cases} 0 & \mathrm{if}\; n<N_t/2 \\ 
                     f_{\mathrm{Ny}} & \mathrm{if}\; n\geq N_t/2 \end{cases} . 
 
+        The arrays n and m must have the same shape, (n,).
+
         Parameters
         ----------
         n : jnp.ndarray
-            Array of n indices, dtype=int. Wavelet time index.
+            Array of n indices, dtype=int, shape=(n,). Wavelet time index.
         m : jnp.ndarray
-            Array of m indices, dtype=int. Wavelet frequency index.
+            Array of m indices, dtype=int, shape=(n,). Wavelet frequency index.
 
         Returns
         -------
         t_nm : float
-            Array of times, shaped like n and m. The wavelet central times.
+            Array of times, shape=(n,). The wavelet central times.
         f_nm : float
-            Array of frequencies, shaped like n and m. The wavelet central 
+            Array of frequencies, shape=(n,). The wavelet central 
             frequencies.
         """
         assert self.check_indices(n, m), f"Invalid indices"
