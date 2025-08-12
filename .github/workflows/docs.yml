@@ -1,0 +1,41 @@
+name: Build & Deploy Sphinx docs
+
+on:
+  push:
+    branches: [ main ]   # or your default branch
+  workflow_dispatch:      # allow manual runs
+
+permissions:
+  contents: write         # required to push to gh-pages
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install doc dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docs/requirements.txt
+
+      - name: Build HTML
+        run: |
+          sphinx-build -b html docs/source _build/html
+          # If your Sphinx sources are elsewhere, adjust those paths.
+          # Optional: fail build on warnings:
+          # sphinx-build -W -b html docs/source _build/html
+
+      - name: Deploy to GitHub Pages (gh-pages branch)
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: _build/html
+          publish_branch: gh-pages
