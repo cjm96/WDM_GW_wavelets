@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, overlapping_windows
 from typing import Tuple
+from functools import partial
 
 
 class WDM_transform:
@@ -234,6 +235,7 @@ class WDM_transform:
         phi = jnp.fft.ifft(jnp.fft.ifftshift(self.window_FD)).real / self.dt
         return phi
     
+    @partial(jax.jit, static_argnums=0)
     def check_indices(self, n: jnp.ndarray, m: jnp.ndarray) -> bool:
         r"""
         Check if the wavelet indices are in the valid range.
@@ -252,16 +254,18 @@ class WDM_transform:
         check : bool
             True if the indices are all valid, False otherwise.
         """
-        n = jnp.asarray(n, self.jax_dtype_int)
-        m = jnp.asarray(m, self.jax_dtype_int)
+        return (n >= 0) & (n < self.Nt) & (m >= 0) & (m < self.Nf)
+        #n = jnp.asarray(n, self.jax_dtype_int)
+        #m = jnp.asarray(m, self.jax_dtype_int)
 
-        n_test = jnp.logical_and(n >= 0, n < self.Nt)
-        m_test = jnp.logical_and(m >= 0, m < self.Nf)
+        #n_test = jnp.logical_and(n >= 0, n < self.Nt)
+        #m_test = jnp.logical_and(m >= 0, m < self.Nf)
 
-        check = jnp.all(jnp.logical_and(n_test, m_test))
+        #check = jnp.all(jnp.logical_and(n_test, m_test))
 
-        return check
+        #return check
 
+    @partial(jax.jit, static_argnums=0)
     def wavelet_central_time_frequency(self, 
                                        n: jnp.ndarray, 
                                        m: jnp.ndarray) -> Tuple[jnp.ndarray, 
@@ -396,6 +400,7 @@ class WDM_transform:
 
         return Gnm
     
+    @partial(jax.jit, static_argnums=0)
     def Gnm_basis(self) -> jnp.ndarray:
         r"""
         Efficient computation of frequency-domain wavelet basis 
@@ -506,6 +511,7 @@ class WDM_transform:
 
         return gnm
     
+    @partial(jax.jit, static_argnums=0)
     def gnm_basis(self) -> jnp.ndarray:
         r"""
         Efficient computation of time-domain wavelet basis :math:`g_{nm}(f)`. 
@@ -629,6 +635,7 @@ class WDM_transform:
 
         return x_padded, mask
     
+    @partial(jax.jit, static_argnums=0)
     def windowed_fft(self, x: jnp.ndarray) -> jnp.ndarray:
         r"""
         The windowed short FFT of the input.
@@ -666,6 +673,7 @@ class WDM_transform:
 
         return windowed_fft
     
+    @partial(jax.jit, static_argnums=0)
     def forward_transform_exact(self, x: jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform. Transforms the input
@@ -701,6 +709,7 @@ class WDM_transform:
 
         return w
     
+    @partial(jax.jit, static_argnums=0)
     def forward_transform_truncated(self, x: jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform. Transforms the input
@@ -760,6 +769,7 @@ class WDM_transform:
 
         return w
     
+    @partial(jax.jit, static_argnums=0)
     def forward_transform_short_fft(self, x: jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform. Transforms the input
@@ -801,6 +811,7 @@ class WDM_transform:
 
         return w
     
+    @partial(jax.jit, static_argnums=0)
     def forward_transform_fft(self, x: jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform. Transforms the input
@@ -842,6 +853,7 @@ class WDM_transform:
 
         return w
     
+    @partial(jax.jit, static_argnums=0)
     def inverse_transform(self, w : jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the inverse discrete wavelet transform. Transforms the wavelet 
