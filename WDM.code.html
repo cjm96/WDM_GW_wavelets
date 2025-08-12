@@ -1,0 +1,206 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WDM.code package &mdash; WDM 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=86424434" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="WDM.code.discrete_wavelet_transform package" href="WDM.code.discrete_wavelet_transform.html" />
+    <link rel="prev" title="WDM package" href="WDM.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            WDM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="theory.html">Mathematical Background</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">WDM</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="WDM.html">WDM package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="WDM.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">WDM.code package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">WDM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">WDM</a></li>
+          <li class="breadcrumb-item"><a href="WDM.html">WDM package</a></li>
+      <li class="breadcrumb-item active">WDM.code package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/WDM.code.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="wdm-code-package">
+<h1>WDM.code package<a class="headerlink" href="#wdm-code-package" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html">WDM.code.discrete_wavelet_transform package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#module-WDM.code.discrete_wavelet_transform.WDM">WDM.code.discrete_wavelet_transform.WDM module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="docutils literal notranslate"><span class="pre">WDM_transform</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dt"><code class="docutils literal notranslate"><span class="pre">WDM_transform.dt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Nf"><code class="docutils literal notranslate"><span class="pre">WDM_transform.Nf</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.N"><code class="docutils literal notranslate"><span class="pre">WDM_transform.N</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Nt"><code class="docutils literal notranslate"><span class="pre">WDM_transform.Nt</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.q"><code class="docutils literal notranslate"><span class="pre">WDM_transform.q</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.d"><code class="docutils literal notranslate"><span class="pre">WDM_transform.d</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.A_frac"><code class="docutils literal notranslate"><span class="pre">WDM_transform.A_frac</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.B_frac"><code class="docutils literal notranslate"><span class="pre">WDM_transform.B_frac</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.A"><code class="docutils literal notranslate"><span class="pre">WDM_transform.A</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.B"><code class="docutils literal notranslate"><span class="pre">WDM_transform.B</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dF"><code class="docutils literal notranslate"><span class="pre">WDM_transform.dF</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dT"><code class="docutils literal notranslate"><span class="pre">WDM_transform.dT</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dOmega"><code class="docutils literal notranslate"><span class="pre">WDM_transform.dOmega</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.T"><code class="docutils literal notranslate"><span class="pre">WDM_transform.T</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.df"><code class="docutils literal notranslate"><span class="pre">WDM_transform.df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.f_s"><code class="docutils literal notranslate"><span class="pre">WDM_transform.f_s</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.f_Ny"><code class="docutils literal notranslate"><span class="pre">WDM_transform.f_Ny</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.K"><code class="docutils literal notranslate"><span class="pre">WDM_transform.K</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.times"><code class="docutils literal notranslate"><span class="pre">WDM_transform.times</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.freqs"><code class="docutils literal notranslate"><span class="pre">WDM_transform.freqs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Cnm"><code class="docutils literal notranslate"><span class="pre">WDM_transform.Cnm</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.calc_m0"><code class="docutils literal notranslate"><span class="pre">WDM_transform.calc_m0</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.window_TD"><code class="docutils literal notranslate"><span class="pre">WDM_transform.window_TD</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.window_FD"><code class="docutils literal notranslate"><span class="pre">WDM_transform.window_FD</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.cached_Gnm_basis"><code class="docutils literal notranslate"><span class="pre">WDM_transform.cached_Gnm_basis</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.cached_gnm_basis"><code class="docutils literal notranslate"><span class="pre">WDM_transform.cached_gnm_basis</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.jax_dtype"><code class="docutils literal notranslate"><span class="pre">WDM_transform.jax_dtype</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.jax_dtype_int"><code class="docutils literal notranslate"><span class="pre">WDM_transform.jax_dtype_int</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm"><code class="docutils literal notranslate"><span class="pre">WDM_transform.Gnm()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm_basis"><code class="docutils literal notranslate"><span class="pre">WDM_transform.Gnm_basis()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_frequency_domain_window"><code class="docutils literal notranslate"><span class="pre">WDM_transform.build_frequency_domain_window()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window"><code class="docutils literal notranslate"><span class="pre">WDM_transform.build_time_domain_window()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.check_indices"><code class="docutils literal notranslate"><span class="pre">WDM_transform.check_indices()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dwt"><code class="docutils literal notranslate"><span class="pre">WDM_transform.dwt()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_exact"><code class="docutils literal notranslate"><span class="pre">WDM_transform.forward_transform_exact()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_fft"><code class="docutils literal notranslate"><span class="pre">WDM_transform.forward_transform_fft()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_short_fft"><code class="docutils literal notranslate"><span class="pre">WDM_transform.forward_transform_short_fft()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated"><code class="docutils literal notranslate"><span class="pre">WDM_transform.forward_transform_truncated()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.frequency_domain_plot"><code class="docutils literal notranslate"><span class="pre">WDM_transform.frequency_domain_plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm"><code class="docutils literal notranslate"><span class="pre">WDM_transform.gnm()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm_basis"><code class="docutils literal notranslate"><span class="pre">WDM_transform.gnm_basis()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.idwt"><code class="docutils literal notranslate"><span class="pre">WDM_transform.idwt()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform"><code class="docutils literal notranslate"><span class="pre">WDM_transform.inverse_transform()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_old"><code class="docutils literal notranslate"><span class="pre">WDM_transform.inverse_transform_old()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.pad_signal"><code class="docutils literal notranslate"><span class="pre">WDM_transform.pad_signal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_domain_plot"><code class="docutils literal notranslate"><span class="pre">WDM_transform.time_domain_plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_frequency_plot"><code class="docutils literal notranslate"><span class="pre">WDM_transform.time_frequency_plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.validate_parameters"><code class="docutils literal notranslate"><span class="pre">WDM_transform.validate_parameters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.wavelet_central_time_frequency"><code class="docutils literal notranslate"><span class="pre">WDM_transform.wavelet_central_time_frequency()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.wavelet_central_time_frequency_compiled"><code class="docutils literal notranslate"><span class="pre">WDM_transform.wavelet_central_time_frequency_compiled()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.windowed_fft"><code class="docutils literal notranslate"><span class="pre">WDM_transform.windowed_fft()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="WDM.code.utils.html">WDM.code.utils package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="WDM.code.utils.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="WDM.code.utils.html#module-WDM.code.utils.Meyer">WDM.code.utils.Meyer module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.Meyer.Meyer"><code class="docutils literal notranslate"><span class="pre">Meyer()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.Meyer.nu_d"><code class="docutils literal notranslate"><span class="pre">nu_d()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="WDM.code.utils.html#module-WDM.code.utils.utils">WDM.code.utils.utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.C_nm"><code class="docutils literal notranslate"><span class="pre">C_nm()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.next_multiple"><code class="docutils literal notranslate"><span class="pre">next_multiple()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.overlapping_windows"><code class="docutils literal notranslate"><span class="pre">overlapping_windows()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="WDM.html" class="btn btn-neutral float-left" title="WDM package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="WDM.code.discrete_wavelet_transform.html" class="btn btn-neutral float-right" title="WDM.code.discrete_wavelet_transform package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Christopher J. Moore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

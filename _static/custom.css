@@ -1,0 +1,11 @@
+/* Align Sphinx math equation numbers to the right */
+div.math {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+div.math > span.eqno {
+  order: 2;
+  margin-left: 1em;
+}

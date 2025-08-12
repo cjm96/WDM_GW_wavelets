@@ -1,0 +1,310 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getting Started &mdash; WDM 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/nbsphinx-code-cells.css?v=2aa19091" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=86424434" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Examples" href="examples.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            WDM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="theory.html">Mathematical Background</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">WDM</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="examples.html">Examples</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Getting Started</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">WDM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="examples.html">Examples</a></li>
+      <li class="breadcrumb-item active">Getting Started</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/getting_started.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="Getting-Started">
+<h1>Getting Started<a class="headerlink" href="#Getting-Started" title="Link to this heading"></a></h1>
+<p>To run this notebook you will first need to download the GW data,</p>
+<p><code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">download_SXSwaveform_data.py</span></code></p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[56]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
+import matplotlib.pyplot as plt
+import WDM
+from WDM.code.utils.utils import next_multiple
+</pre></div>
+</div>
+</div>
+<p>Here’s an example GW waveform. We also compute the frequency of the signal as a function of time.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[57]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>data = np.loadtxt(&quot;../data/waveform_SXS:BBH:0305_Reh22.txt&quot;)
+
+time = data[0]
+re_strain = data[1]
+im_strain = data[2]
+
+frequency = np.diff(-np.unwrap(np.atan2(im_strain, re_strain)), prepend=0) / np.diff(time, prepend=0) / (2*np.pi)
+
+fig, axes = plt.subplots(nrows=2, sharex=True)
+axes[0].plot(time, re_strain)
+axes[0].set_xlabel(&#39;Time&#39;)
+axes[0].set_ylabel(&#39;Strain&#39;)
+axes[0].grid()
+axes[1].plot(time[100:-200], frequency[100:-200], &#39;k-&#39;)
+axes[1].set_xlabel(&#39;Time&#39;)
+axes[1].set_ylabel(&#39;Frequency&#39;)
+axes[1].grid()
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/getting_started_3_0.png" src="_images/getting_started_3_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[58]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>current_length = len(time)
+
+print(f&quot;Current length of time series: {current_length}&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Current length of time series: 7688
+</pre></div></div>
+</div>
+<p>Let’s take a wavelet transform of this using <span class="math notranslate nohighlight">\(N_f=512\)</span> frequency slices. The <code class="docutils literal notranslate"><span class="pre">wdm</span></code> object will handle the wavelet transform. We need to pad the signal so that it’s length is an even multiple of this number</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[59]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>dt = np.mean(np.diff(time))
+
+Nf = 512
+
+N = next_multiple(current_length, 2*Nf)
+
+wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8, calc_m0=True)
+
+re_strain_padded, mask = wdm.pad_signal(re_strain)
+
+print(f&quot;Padded length of time series: {N}&quot;)
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Padded length of time series: 8192
+</pre></div></div>
+</div>
+<p>Take the forward discrete wavelet transform (dwt). This transforms from the time domain to the time-frequency domain.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[69]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w = wdm.dwt(re_strain_padded)
+<br/><br/></pre></div>
+</div>
+</div>
+<p>We can plot these coefficients in the time-frequency plane. The black line shows the frequency obtained directly from the NR waveform. Note, this doesn’t look as beautifully smooth as the oversampled periodograms we are used to looking at, but this is what we want for data analysis.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[62]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = wdm.time_frequency_plot(w, part=&#39;abs&#39;, scale=&#39;linear&#39;)
+ax.set_ylim(0,0.1)
+ax.plot(time[100:-200], frequency[100:-200], color=&#39;k&#39;, lw=2)
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">AttributeError</span>                            Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[62]</span><span class="ansi-green-fg">, line 1</span>
+<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">1</span> fig, ax = <span class="ansi-yellow-bg">wdm</span><span class="ansi-yellow-bg">.</span><span class="ansi-yellow-bg">time_frequency_plot</span><span class="ansi-yellow-bg">(</span><span class="ansi-yellow-bg">w</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">part</span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-fg ansi-yellow-bg">abs</span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-bg">,</span><span class="ansi-yellow-bg"> </span><span class="ansi-yellow-bg">scale</span><span class="ansi-yellow-bg">=</span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-fg ansi-yellow-bg">linear</span><span class="ansi-yellow-fg ansi-yellow-bg">&#39;</span><span class="ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">      2</span> ax.set_ylim(<span class="ansi-green-fg">0</span>,<span class="ansi-green-fg">0.1</span>)
+<span class="ansi-green-fg">      3</span> ax.plot(time[<span class="ansi-green-fg">100</span>:-<span class="ansi-green-fg">200</span>], frequency[<span class="ansi-green-fg">100</span>:-<span class="ansi-green-fg">200</span>], color=<span class="ansi-yellow-fg">&#39;</span><span class="ansi-yellow-fg">k</span><span class="ansi-yellow-fg">&#39;</span>, lw=<span class="ansi-green-fg">2</span>)
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~/Documents/WDM/WDM_GW_wavelets/WDM/code/discrete_wavelet_transform/WDM.py:932</span>, in <span class="ansi-cyan-fg">time_frequency_plot</span><span class="ansi-blue-fg">(self, w, part, scale)</span>
+<span class="ansi-green-fg">    924</span>     x = jax.lax.fori_loop(<span class="ansi-green-fg">0</span>,
+<span class="ansi-green-fg">    925</span>                           <span style="color: rgb(0,135,0)">self</span>.Nf,
+<span class="ansi-green-fg">    926</span>                           <span class="ansi-bold" style="color: rgb(0,135,0)">lambda</span> m, acc: add_one_cell(acc, m),
+<span class="ansi-green-fg">    927</span>                           x)
+<span class="ansi-green-fg">    928</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> x
+<span class="ansi-green-fg">    930</span> x = jax.lax.fori_loop(<span class="ansi-green-fg">0</span>,
+<span class="ansi-green-fg">    931</span>                       <span style="color: rgb(0,135,0)">self</span>.Nt,
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">932</span>                       <span class="ansi-bold" style="color: rgb(0,135,0)">lambda</span> n, acc: add_one_band(acc, n),
+<span class="ansi-green-fg">    933</span>                       x)
+<span class="ansi-green-fg">    935</span> <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> x
+
+<span class="ansi-red-fg">AttributeError</span>: &#39;int&#39; object has no attribute &#39;shape&#39;
+</pre></div></div>
+</div>
+<p>Let’s take an inverse discrete wavelet transform (idwt).</p>
+<p>This transforms back into the time domain. We do this to check we can recover the original signal. We will use the mask to get the output back to the original shape.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>re_strain_recovered = wdm.idwt(w)[mask]
+
+residuals = re_strain_recovered-re_strain
+
+print(f&quot;Max residual: {np.max(np.abs(residuals))}&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Max residual: 0.0010781081917313265
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
+ax.plot(time, re_strain, label=&#39;SXS:BBH:0305&#39;)
+ax.plot(time, re_strain_recovered, label=&#39;recovered&#39;)
+ax.plot(time, residuals, &#39;k:&#39;, label=&#39;residuals&#39;)
+ax.set_xlabel(&#39;Time (s)&#39;)
+ax.set_ylabel(&#39;Strain&#39;)
+ax.legend()
+ax.grid()
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/getting_started_13_0.png" src="_images/getting_started_13_0.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="examples.html" class="btn btn-neutral float-left" title="Examples" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Christopher J. Moore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

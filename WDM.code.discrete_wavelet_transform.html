@@ -1,0 +1,960 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WDM.code.discrete_wavelet_transform package &mdash; WDM 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=86424434" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="WDM.code.utils package" href="WDM.code.utils.html" />
+    <link rel="prev" title="WDM.code package" href="WDM.code.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            WDM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="theory.html">Mathematical Background</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">WDM</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="WDM.html">WDM package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="WDM.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="WDM.code.html">WDM.code package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">WDM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">WDM</a></li>
+          <li class="breadcrumb-item"><a href="WDM.html">WDM package</a></li>
+          <li class="breadcrumb-item"><a href="WDM.code.html">WDM.code package</a></li>
+      <li class="breadcrumb-item active">WDM.code.discrete_wavelet_transform package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/WDM.code.discrete_wavelet_transform.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="wdm-code-discrete-wavelet-transform-package">
+<h1>WDM.code.discrete_wavelet_transform package<a class="headerlink" href="#wdm-code-discrete-wavelet-transform-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-WDM.code.discrete_wavelet_transform.WDM">
+<span id="wdm-code-discrete-wavelet-transform-wdm-module"></span><h2>WDM.code.discrete_wavelet_transform.WDM module<a class="headerlink" href="#module-WDM.code.discrete_wavelet_transform.WDM" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.</span></span><span class="sig-name descname"><span class="pre">WDM_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Nf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">A_frac</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calc_m0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class implements the WDM discrete wavelet transform.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dt">
+<span class="sig-name descname"><span class="pre">dt</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dt" title="Link to this definition"></a></dt>
+<dd><p>The cadence, or time step, of the time series, <span class="math notranslate nohighlight">\(\delta t\)</span>.
+Equal to inverse of the sampling frequency.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Nf">
+<span class="sig-name descname"><span class="pre">Nf</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Nf" title="Link to this definition"></a></dt>
+<dd><p>Number of wavelet frequency bands, <span class="math notranslate nohighlight">\(N_f\)</span>. Must be even.
+This controls the time/frequency resolution of the wavelets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.N">
+<span class="sig-name descname"><span class="pre">N</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.N" title="Link to this definition"></a></dt>
+<dd><p>Length of the input time series, <span class="math notranslate nohighlight">\(N\)</span>. Must be an even multiple of
+<span class="math notranslate nohighlight">\(N_f\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Nt">
+<span class="sig-name descname"><span class="pre">Nt</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Nt" title="Link to this definition"></a></dt>
+<dd><p>Number of wavelet time bands, <span class="math notranslate nohighlight">\(N_t\)</span>. Equal to <span class="math notranslate nohighlight">\(N/N_f\)</span>.
+Must be even.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.q">
+<span class="sig-name descname"><span class="pre">q</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.q" title="Link to this definition"></a></dt>
+<dd><p>Truncation parameter, <span class="math notranslate nohighlight">\(q\)</span>. Formally the time domain wavelets have
+infinite extent but in practice are truncated at <span class="math notranslate nohighlight">\(\pm q \Delta T\)</span>.
+This must be an integer in the range <span class="math notranslate nohighlight">\(1 \leq q \leq N_t/2\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.d">
+<span class="sig-name descname"><span class="pre">d</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.d" title="Link to this definition"></a></dt>
+<dd><p>Steepness parameter for the Meyer window transition.
+Must be a positive integer, <span class="math notranslate nohighlight">\(d\geq 1\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.A_frac">
+<span class="sig-name descname"><span class="pre">A_frac</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.A_frac" title="Link to this definition"></a></dt>
+<dd><p>Fraction of total bandwidth used for the flat-top response region.
+Must be in the range [0, 1].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.B_frac">
+<span class="sig-name descname"><span class="pre">B_frac</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.B_frac" title="Link to this definition"></a></dt>
+<dd><p>Fraction of total bandwidth used for the transition region. This is set
+based on A_frac so <span class="math notranslate nohighlight">\(2A_{\mathrm{frac}}+B_{\mathrm{frac}}=1\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.A">
+<span class="sig-name descname"><span class="pre">A</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.A" title="Link to this definition"></a></dt>
+<dd><p>Half-width of the flat-top response region in angular frequency (radians
+per unit time), <span class="math notranslate nohighlight">\(A\)</span>. Satisfies <span class="math notranslate nohighlight">\(\Delta \Omega = 2A + B\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.B">
+<span class="sig-name descname"><span class="pre">B</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.B" title="Link to this definition"></a></dt>
+<dd><p>Width of the transition region in angular frequency (radians per unit
+time), <span class="math notranslate nohighlight">\(B\)</span>. Satisfies <span class="math notranslate nohighlight">\(\Delta \Omega = 2A + B\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dF">
+<span class="sig-name descname"><span class="pre">dF</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dF" title="Link to this definition"></a></dt>
+<dd><p>Frequency resolution of the wavelets, or the total wavelet
+frequency bandwidth <span class="math notranslate nohighlight">\(\Delta F = \frac{\Delta \Omega}{2 \pi}\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dT">
+<span class="sig-name descname"><span class="pre">dT</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dT" title="Link to this definition"></a></dt>
+<dd><p>Time resolution of the wavelets. Related to the frequency
+resolution by <span class="math notranslate nohighlight">\(\Delta F \Delta T = \frac{1}{2}\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dOmega">
+<span class="sig-name descname"><span class="pre">dOmega</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dOmega" title="Link to this definition"></a></dt>
+<dd><p>Angular Frequency resolution of the wavelets (radians per unit time), or
+total wavelet angular frequency bandwidth, <span class="math notranslate nohighlight">\(\Delta \Omega = 2A+B\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.T">
+<span class="sig-name descname"><span class="pre">T</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.T" title="Link to this definition"></a></dt>
+<dd><p>Total duration of the time series. Related to <span class="math notranslate nohighlight">\(N\)</span> and
+<span class="math notranslate nohighlight">\(\delta t\)</span> by <span class="math notranslate nohighlight">\(T = N \delta t\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.df">
+<span class="sig-name descname"><span class="pre">df</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.df" title="Link to this definition"></a></dt>
+<dd><p>The frequency resolution of the time series, <span class="math notranslate nohighlight">\(\delta f = 1/T\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.f_s">
+<span class="sig-name descname"><span class="pre">f_s</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.f_s" title="Link to this definition"></a></dt>
+<dd><p>Sampling frequency of the time series, <span class="math notranslate nohighlight">\(f_s = \frac{1}{2 dt}\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.f_Ny">
+<span class="sig-name descname"><span class="pre">f_Ny</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.f_Ny" title="Link to this definition"></a></dt>
+<dd><p>Nyquist frequency (i.e. maximum frequency) of the time series,
+<span class="math notranslate nohighlight">\(f_{\rm Ny} = \frac{1}{2 dt}\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.K">
+<span class="sig-name descname"><span class="pre">K</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.K" title="Link to this definition"></a></dt>
+<dd><p>Window length in samples, <span class="math notranslate nohighlight">\(K = 2 q N_f\)</span>. By definition,
+this is always an even integer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.times">
+<span class="sig-name descname"><span class="pre">times</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.times" title="Link to this definition"></a></dt>
+<dd><p>The sample times of the time series, <span class="math notranslate nohighlight">\(t_k = k \delta t\)</span> for
+<span class="math notranslate nohighlight">\(k\in\{0,1,\ldtots,N-1\}\)</span>. Array shape=(N,).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.freqs">
+<span class="sig-name descname"><span class="pre">freqs</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.freqs" title="Link to this definition"></a></dt>
+<dd><p>The sample frequencies of the time series, <span class="math notranslate nohighlight">\(f_k = k \delta f\)</span> for
+<span class="math notranslate nohighlight">\(k\in\{-N/2,N/2+1,\ldtots,N/2-1\}\)</span>. Array shape=(N,).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Cnm">
+<span class="sig-name descname"><span class="pre">Cnm</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Cnm" title="Link to this definition"></a></dt>
+<dd><p>Coefficients <span class="math notranslate nohighlight">\(C_{nm}\)</span> used for the wavelet transform. Equal to 1
+if <span class="math notranslate nohighlight">\(n+m\)</span> is even or <span class="math notranslate nohighlight">\(i\)</span> if it is odd.
+Array shape=(N_t, N_f).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.calc_m0">
+<span class="sig-name descname"><span class="pre">calc_m0</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.calc_m0" title="Link to this definition"></a></dt>
+<dd><p>If this is set to False (default value) then the wavelet coefficients
+with <span class="math notranslate nohighlight">\(m=0\)</span> are handled INCORRECTLY. This is faster. If these
+coefficients are needed the initialise the class with <cite>calc_m0=True</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.window_TD">
+<span class="sig-name descname"><span class="pre">window_TD</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.window_TD" title="Link to this definition"></a></dt>
+<dd><p>The time-domain Meyer window function, <span class="math notranslate nohighlight">\(\phi(t)\)</span>.
+Array shape=(N,).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.window_FD">
+<span class="sig-name descname"><span class="pre">window_FD</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.window_FD" title="Link to this definition"></a></dt>
+<dd><p>The frequency-domain Meyer window function, <span class="math notranslate nohighlight">\(\tilde{\Phi}(f)\)</span>.
+Array shape=(N,), dtype=complex.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.cached_Gnm_basis">
+<span class="sig-name descname"><span class="pre">cached_Gnm_basis</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.cached_Gnm_basis" title="Link to this definition"></a></dt>
+<dd><p>The frequency-domain wavelet basis <span class="math notranslate nohighlight">\(\tilde{G}_{nm}(f)\)</span>.
+Array shape=(N, Nt, Nf).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.cached_gnm_basis">
+<span class="sig-name descname"><span class="pre">cached_gnm_basis</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.cached_gnm_basis" title="Link to this definition"></a></dt>
+<dd><p>The time-domain wavelet basis <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span>.
+Array shape=(N, Nt, Nf).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.jax_dtype">
+<span class="sig-name descname"><span class="pre">jax_dtype</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.jax_dtype" title="Link to this definition"></a></dt>
+<dd><p>Use jax.config.update(“jax_enable_x64”, True).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.float64</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.jax_dtype_int">
+<span class="sig-name descname"><span class="pre">jax_dtype_int</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.jax_dtype_int" title="Link to this definition"></a></dt>
+<dd><p>Use jax.config.update(“jax_enable_x64”, True).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.int64</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm">
+<span class="sig-name descname"><span class="pre">Gnm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.Gnm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm" title="Link to this definition"></a></dt>
+<dd><p>Compute the frequency-domain representation of the wavelets,
+<span class="math notranslate nohighlight">\(\tilde{G}_{nm}(f)\)</span>.</p>
+<p>This method computes the frequency-domain wavelet for a single choice
+of <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span> using the expressions below. If you instead
+want to compute the full wavelet basis for all <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span>
+efficiently, use the <cite>Gnm_basis</cite> method.</p>
+<p>This method is slow.</p>
+<p>For <span class="math notranslate nohighlight">\(m&gt;0\)</span>, the wavelet is given by</p>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-0">
+<span class="eqno">(18)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-0" title="Link to this equation"></a></span>\[\tilde{G}_{nm}(f) = \exp(-2\pi i n f \Delta T)
+        \left( C_{nm}\tilde{\Phi}(2\pi [f-m\Delta F])
+            + C^*_{nm}\tilde{\Phi}(2\pi [f+m\Delta F]) \right) .\]</div>
+<p>For the special case <span class="math notranslate nohighlight">\(m=0\)</span>, the wavelet is given by</p>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-1">
+<span class="eqno">(19)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-1" title="Link to this equation"></a></span>\[\begin{split}\tilde{G}_{nm}(f) = \begin{cases}
+    \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f)
+        &amp; \mathrm{if}\; n&lt;N_t/2 \\
+    \exp(-4\pi i n f \Delta T)
+        \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) +
+            \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right)
+            &amp; \mathrm{if}\; n\geq N_t/2
+\end{cases}\end{split}\]</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n</strong> (<em>int</em>) – Wavelet time index.</p></li>
+<li><p><strong>m</strong> (<em>int</em>) – Wavelet frequency index.</p></li>
+<li><p><strong>freq</strong> (<em>jnp.ndarray</em>) – Frequencies at which to evaluate the wavelet.
+If None, then defaults to self.freqs. Optional</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>Gnm</strong> – Complex array shaped like freq. The frequency-domain wavelet.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm_basis">
+<span class="sig-name descname"><span class="pre">Gnm_basis</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.Gnm_basis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm_basis" title="Link to this definition"></a></dt>
+<dd><p>Efficient computation of frequency-domain wavelet basis
+<span class="math notranslate nohighlight">\(\tilde{G}_{nm}(f)\)</span>. Instead of calling the functions for
+<span class="math notranslate nohighlight">\(\tilde{G}_{nm}(f)\)</span> explicilty as is done in the <cite>Gnm</cite> method,
+this function shifts indices of <cite>window_FD</cite>.</p>
+<p>The result is cached to speed up subsequent calls.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>basis</strong> – Array of shape (N, Nt, Nf). The time-domain wavelet basis.
+The first axis is frequency, the second is the wavelet time index,
+and the third is the wavelet frequency index.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_frequency_domain_window">
+<span class="sig-name descname"><span class="pre">build_frequency_domain_window</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.build_frequency_domain_window"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_frequency_domain_window" title="Link to this definition"></a></dt>
+<dd><p>Construct the frequency-domain window function <span class="math notranslate nohighlight">\(\tilde{\Phi}(f)\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>Phi</strong> – Array of shape (N,). Real-valued time-domain window.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window">
+<span class="sig-name descname"><span class="pre">build_time_domain_window</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.build_time_domain_window"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window" title="Link to this definition"></a></dt>
+<dd><p>Construct the time-domain window function <span class="math notranslate nohighlight">\(\phi(t)\)</span>.</p>
+<p>This method builds the Meyer window in the frequency domain and applies
+an inverse FFT to obtain the corresponding time-domain window.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>phi</strong> – Array of shape (N,). Real-valued time-domain window.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.check_indices">
+<span class="sig-name descname"><span class="pre">check_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.check_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.check_indices" title="Link to this definition"></a></dt>
+<dd><p>Check if the wavelet indices are in the valid range.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n</strong> (<em>jnp.ndarray</em>) – Array of n indices, dtype=int. Wavelet time index.</p></li>
+<li><p><strong>m</strong> (<em>jnp.ndarray</em>) – Array of m indices, dtype=int. Wavelet frequency index.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>check</strong> – True if the indices are all valid, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dwt">
+<span class="sig-name descname"><span class="pre">dwt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.dwt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dwt" title="Link to this definition"></a></dt>
+<dd><p>Forward discrete wavelet transform.</p>
+<p>Calls self.fast_forward_transform.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_exact">
+<span class="sig-name descname"><span class="pre">forward_transform_exact</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.forward_transform_exact"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_exact" title="Link to this definition"></a></dt>
+<dd><p>Perform the forward discrete wavelet transform. Transforms the input
+signal from the time domain into the time-frequency domain.</p>
+<p>This method computes the wavelet coefficients using the exact expression</p>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-2">
+<span class="eqno">(20)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-2" title="Link to this equation"></a></span>\[w_{nm} = \delta t \sum_{k=0}^{N-1} g_{nm}[k] x[k] ,\]</div>
+<p>where the sum is over the whole time-domain signal (no truncation).</p>
+<p>This method is slow but exact.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape shape (N,). Input time-domain signal to be transformed.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>w</strong> – Array shape shape (Nt, Nf).
+WDM time-frequency-domain wavelet coefficients.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_fft">
+<span class="sig-name descname"><span class="pre">forward_transform_fft</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.forward_transform_fft"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_fft" title="Link to this definition"></a></dt>
+<dd><p>Perform the forward discrete wavelet transform. Transforms the input
+signal from the time domain into the time-frequency domain.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape (N,). Input time-domain signal to be transformed.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>w</strong> – WDM time-frequency-domain wavelet coefficients.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray of shape (Nt, Nf)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_short_fft">
+<span class="sig-name descname"><span class="pre">forward_transform_short_fft</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.forward_transform_short_fft"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_short_fft" title="Link to this definition"></a></dt>
+<dd><p>Perform the forward discrete wavelet transform. Transforms the input
+signal from the time domain into the time-frequency domain.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape (N,). Input time-domain signal to be transformed.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>w</strong> – WDM time-frequency-domain wavelet coefficients.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray of shape (Nt, Nf)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated">
+<span class="sig-name descname"><span class="pre">forward_transform_truncated</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.forward_transform_truncated"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated" title="Link to this definition"></a></dt>
+<dd><p>Perform the forward discrete wavelet transform. Transforms the input
+signal from the time domain into the time-frequency domain.</p>
+<p>This method computes the wavelet coefficients using the truncated
+expressions</p>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-3">
+<span class="eqno">(21)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-3" title="Link to this equation"></a></span>\[w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
+                        g_{nm}[k + 2 n N_f] x[k + 2 n N_f] .\]</div>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-4">
+<span class="eqno">(22)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-4" title="Link to this equation"></a></span>\[w_{nm} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
+                        g_{nm}[k + n N_f] x[k + n N_f] ,\]</div>
+<p>where the sum is over the truncated window of length <span class="math notranslate nohighlight">\(K=2qN_f\)</span>.</p>
+<p>In the above expressions, indices out of bounds of the array are
+to be understood as wrapping around circularly.</p>
+<p>This method is slow.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape (N,). Input time-domain signal to be transformed.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>w</strong> – Array shape (Nt, Nf).
+WDM time-frequency-domain wavelet coefficients.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>This method is slow. It is only intended to be used for testing and
+debugging purposes.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.frequency_domain_plot">
+<span class="sig-name descname"><span class="pre">frequency_domain_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.frequency_domain_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.frequency_domain_plot" title="Link to this definition"></a></dt>
+<dd><p>Plot the frequency-domain signal.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape (N,). Input time-domain signal to be plotted.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>fig</strong> (<em>matplotlib.figure.Figure</em>) – The matplotlib Figure object.</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.axes.Axes</em>) – The matplotlib Axes object where the wavelets were plotted.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>This function does not call <cite>plt.show()</cite>. The user is responsible
+for displaying or saving the plot.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm">
+<span class="sig-name descname"><span class="pre">gnm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.gnm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm" title="Link to this definition"></a></dt>
+<dd><p>Compute the time-domain representation of the wavelets,
+<span class="math notranslate nohighlight">\(g_{nm}(t)\)</span>.</p>
+<p>This method computes the frequency-domain wavelets for a single choice
+of <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span> and performs and inverse Fourier transform.
+If you instead want to compute the full wavelet basis for all <span class="math notranslate nohighlight">\(n\)</span>
+and <span class="math notranslate nohighlight">\(m\)</span> efficiently, use the <cite>gnm_basis</cite> method.</p>
+<p>This method is slow.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n</strong> (<em>int</em>) – Wavelet time index.</p></li>
+<li><p><strong>m</strong> (<em>int</em>) – Wavelet frequency index.</p></li>
+<li><p><strong>time</strong> (<em>jnp.ndarray</em>) – Times at which to evaluate the wavelet.
+If None, then defaults to the self.times. Optional</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>gnm</strong> – Array shape (N,). The time-domain wavelet.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm_basis">
+<span class="sig-name descname"><span class="pre">gnm_basis</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.gnm_basis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm_basis" title="Link to this definition"></a></dt>
+<dd><p>Efficient computation of time-domain wavelet basis <span class="math notranslate nohighlight">\(g_{nm}(f)\)</span>.
+Instead of calling the functions for <span class="math notranslate nohighlight">\(\tilde{G}_{nm}(f)\)</span> and
+performing an inverse Fourier transform, as is done in the <cite>gnm</cite> method,
+this function shifts indices of <cite>window_TD</cite>.</p>
+<p>The result is cached to speed up subsequent calls.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>basis</strong> – Array of shape (N, Nt, Nf). The time-domain wavelet basis.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.idwt">
+<span class="sig-name descname"><span class="pre">idwt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.idwt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.idwt" title="Link to this definition"></a></dt>
+<dd><p>Inverse discrete wavelet transform.</p>
+<p>Calls self.inverse_transform.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform">
+<span class="sig-name descname"><span class="pre">inverse_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.inverse_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform" title="Link to this definition"></a></dt>
+<dd><p>Perform the inverse discrete wavelet transform. Transforms the wavelet
+coefficients from the time-frequency domain into the time domain.</p>
+<p>This method computes the wavelet coefficients using the expression</p>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-5">
+<span class="eqno">(23)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-5" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>w</strong> (<em>jnp.ndarray</em>) – Array shape (Nt, Nf).
+WDM time-frequency-domain wavelet coefficients.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>x</strong> – Array shape (N,). The time-domain signal.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_old">
+<span class="sig-name descname"><span class="pre">inverse_transform_old</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.inverse_transform_old"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_old" title="Link to this definition"></a></dt>
+<dd><p>Perform the inverse discrete wavelet transform. Transforms the wavelet
+coefficients from the time-frequency domain into the time domain.</p>
+<p>This method computes the wavelet coefficients using the expression</p>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-6">
+<span class="eqno">(24)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-6" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
+<p>This method computes all the basis vectors <span class="math notranslate nohighlight">\(g_{nm}[k]\)</span> together
+using the method <cite>gnm_basis</cite> and then sums them up. This is quite fast
+but uses O(N^2) memory. A more memory-efficient implementation is
+provided in the method <cite>inverse_transform</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>w</strong> (<em>jnp.ndarray</em>) – Array shape (Nt, Nf).
+WDM time-frequency-domain wavelet coefficients.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>x</strong> – Array shape (N,). The time-domain signal.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.pad_signal">
+<span class="sig-name descname"><span class="pre">pad_signal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">where</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'end'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.pad_signal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.pad_signal" title="Link to this definition"></a></dt>
+<dd><p>The transform method requires the input time series signal to have a
+specific length <span class="math notranslate nohighlight">\(N\)</span>. This method can be used to zero-pad any
+signal to the desired length.</p>
+<p>This function also returns a Boolean mask that can be used later to
+recover arrays of the original length.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>jnp.ndarray</em>) – Input signal to be padded.</p></li>
+<li><p><strong>where</strong> (<em>str</em>) – Where to add the padding. Options are ‘end’, ‘start’, or ‘equal’
+which puts the zero padding at the end of the signal, the start of
+the signal, or equally at both ends respectively. Optional.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>x_padded</strong> (<em>jnp.ndarray</em>) – Padded signal to length N, with zeros added at the end.</p></li>
+<li><p><strong>mask</strong> (<em>jnp.ndarray</em>) – Boolean mask indicating the valid part of the padded signal.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The Boolean mask can be used to get back to the original signal; i.e.
+<cite>x_padded[mask]</cite> will recover the original signal, <cite>x</cite>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_domain_plot">
+<span class="sig-name descname"><span class="pre">time_domain_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.time_domain_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_domain_plot" title="Link to this definition"></a></dt>
+<dd><p>Plot the time-domain signal.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape (N,). Input time-domain signal to be plotted.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>fig</strong> (<em>matplotlib.figure.Figure</em>) – The matplotlib Figure object.</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.axes.Axes</em>) – The matplotlib Axes object where the wavelets were plotted.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>This function does not call <cite>plt.show()</cite>. The user is responsible
+for displaying or saving the plot.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_frequency_plot">
+<span class="sig-name descname"><span class="pre">time_frequency_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'abs'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'linear'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.time_frequency_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_frequency_plot" title="Link to this definition"></a></dt>
+<dd><p>Plot the time-frequency coefficients of the WDM transform.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>w</strong> (<em>jnp.ndarray</em><em> of </em><em>shape</em><em> (</em><em>Nt</em><em>, </em><em>Nf</em><em>)</em>) – WDM time-frequency coefficients to be plotted.</p></li>
+<li><p><strong>part</strong> (<em>str</em>) – Part of the coefficients to plot. Options are ‘abs’ for magnitude,
+‘real’, or ‘imag’. Default is ‘abs’. Optional.</p></li>
+<li><p><strong>scale</strong> (<em>str</em>) – Scale of the colour axis of the plot. Passed to matplotlib.
+Options are ‘linear’ or ‘log’. Default is ‘linear’. Logarithmic
+scale should only be used with part=’abs’ otherwise problems with
+negative values will occur. Optional.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>fig</strong> (<em>matplotlib.figure.Figure</em>) – The matplotlib Figure object.</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.axes.Axes</em>) – The matplotlib Axes object where the wavelets were plotted.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>This function does not call <cite>plt.show()</cite>. The user is responsible
+for displaying or saving the plot.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.validate_parameters">
+<span class="sig-name descname"><span class="pre">validate_parameters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.validate_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.validate_parameters" title="Link to this definition"></a></dt>
+<dd><p>Validate the parameters provided to the WDM_transform __init__ method.
+Raises an AssertionError if any parameters are invalid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.wavelet_central_time_frequency">
+<span class="sig-name descname"><span class="pre">wavelet_central_time_frequency</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Array</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.wavelet_central_time_frequency"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.wavelet_central_time_frequency" title="Link to this definition"></a></dt>
+<dd><p>Compute the central time <span class="math notranslate nohighlight">\(t_{nm}= n \Delta t\)</span> and the central
+frequency <span class="math notranslate nohighlight">\(f_{nm} = m \Delta f\)</span> of the wavelet <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span>.</p>
+<p>The case <span class="math notranslate nohighlight">\(m=0\)</span> is special and is handled separately using</p>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-7">
+<span class="eqno">(25)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-7" title="Link to this equation"></a></span>\[t_{n0} = (2n\,\mathrm{mod}\,N_t) \Delta t ,\]</div>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-8">
+<span class="eqno">(26)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-8" title="Link to this equation"></a></span>\[\begin{split}f_{n0} = \begin{cases} 0 &amp; \mathrm{if}\; n&lt;N_t/2 \\
+        f_{\mathrm{Ny}} &amp; \mathrm{if}\; n\geq N_t/2 \end{cases} .\end{split}\]</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n</strong> (<em>jnp.ndarray</em>) – Wavelet time index, dtype=int, shape=(num_n,).</p></li>
+<li><p><strong>m</strong> (<em>jnp.ndarray</em>) – Wavelet frequency index, dtype=int, shape=(num_m,).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>t_nm</strong> (<em>jnp.ndarray</em>) – Array of times, shape=(num_n, num_m). The wavelet central times.</p></li>
+<li><p><strong>f_nm</strong> (<em>jnp.ndarray</em>) – Array of frequencies, shape=(num_n, num_m). The wavelet central
+frequencies.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.wavelet_central_time_frequency_compiled">
+<span class="sig-name descname"><span class="pre">wavelet_central_time_frequency_compiled</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Array</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.wavelet_central_time_frequency_compiled"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.wavelet_central_time_frequency_compiled" title="Link to this definition"></a></dt>
+<dd><p>Compiled part of wavelet_central_time_frequency method.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.windowed_fft">
+<span class="sig-name descname"><span class="pre">windowed_fft</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.windowed_fft"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.windowed_fft" title="Link to this definition"></a></dt>
+<dd><p>The windowed short FFT of the input.</p>
+<p>The input time series is split into <span class="math notranslate nohighlight">\(N_t\)</span> overlapping segments
+each of length <span class="math notranslate nohighlight">\(K\)</span> and with a hop interval of <span class="math notranslate nohighlight">\(N_f\)</span> between
+their centres. Each of these segments is then windowed and transformed</p>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-9">
+<span class="eqno">(27)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-9" title="Link to this equation"></a></span>\[X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k]\]</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape (N,). Input signal to be transformed.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>windowed_fft</strong> – Array shape shape (Nt, K). Windowed FFT of the input signal.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="WDM.code.html" class="btn btn-neutral float-left" title="WDM.code package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="WDM.code.utils.html" class="btn btn-neutral float-right" title="WDM.code.utils package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Christopher J. Moore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
