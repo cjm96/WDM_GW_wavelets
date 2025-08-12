@@ -4,7 +4,6 @@ import jax.numpy as jnp
 import WDM
 
 
-
 def test_padding():
     r"""
     Test the padding function in the WDM class.
@@ -113,7 +112,7 @@ def test_exact_transform():
 
     x_ = wdm.inverse_transform(w)
 
-    assert np.allclose(x, x_, rtol=1.0e-2, atol=1.0e-2), \
+    assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
         "Inverse transform did not recover original signal."
     
 
@@ -138,7 +137,7 @@ def test_inverse_transforms():
     x = wdm.inverse_transform_old(w)
     x_ = wdm.inverse_transform(w)
 
-    assert np.allclose(x, x_, rtol=1.0e-2, atol=1.0e-2), \
+    assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
         "Inverse transforms don't agree."
 
 
@@ -162,7 +161,7 @@ def test_truncated_transform():
 
     w_ = wdm.forward_transform_truncated(x)
 
-    assert np.allclose(w, w_, rtol=1.0e-2, atol=1.0e-2), \
+    assert np.allclose(w, w_, rtol=1.0e-3, atol=1.0e-3), \
         "Truncated transform did not agree with the exact transform."
     
 
@@ -186,7 +185,7 @@ def test_short_fft_transform():
 
     w_ = wdm.forward_transform_short_fft(x)
 
-    assert np.allclose(w, w_, rtol=1.0e-2, atol=1.0e-2), \
+    assert np.allclose(w, w_, rtol=1.0e-3, atol=1.0e-3), \
         "Truncated transform did not agree with the exact transform."
     
     

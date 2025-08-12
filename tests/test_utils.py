@@ -23,7 +23,10 @@ def test_nu_d():
 
     assert y.shape == x.shape, \
         "nu_d should return an array of the same shape as input x"
-
+    
+    assert np.allclose(y[0], 0) and np.allclose(y[-1], 1), \
+        "should have nu_d(0)=0 and nu_d(1)=1."
+    
 
 def test_Meyer():
     r"""

@@ -72,6 +72,7 @@ class WDM_transform:
     freqs : jnp.ndarray
         The sample frequencies of the time series, :math:`f_k = k \delta f` for 
         :math:`k\in\{-N/2,N/2+1,\ldtots,N/2-1\}`. Array shape=(N,).
+        Note, the zero-frequency component is in the center of the spectrum.
     Cnm : jnp.ndarray 
         Coefficients :math:`C_{nm}` used for the wavelet transform. Equal to 1 
         if :math:`n+m` is even or :math:`i` if it is odd. 
@@ -118,19 +119,15 @@ class WDM_transform:
         N : int
             Length of the input time series. Must be an even multiple of Nf.
         q : int
-            Truncation parameter (default: 16). This must be an integer in the 
-            range :math:`1 \leq q \leq N_t/2`. Optional.
-        A_frac : float
-            Fraction of bandwidth used for flat-top response (default: 0.25). 
-            Optional.
+            Truncation parameter. Integer :math:`1 \leq q \leq N_t/2`. Optional.
         d : int
-            Steepness parameter for the window transition (default: 4).
-            Optional.
+            Steepness parameter for the transition. Optional.
+        A_frac : float
+            Bandwidth fraction of flat-top response. Optional.
         calc_m0 : bool
-            If this is set to False then the all wavelet calculations for 
-            :math:`m=0` will be handled incorrectly. This comes with some
-            performance benefits. If it is set to True, then the calculations
-            will be done correctly, but may be slower. Optional.
+            If False, then the wavelet calculations for the :math:`m=0` temrs 
+            will be wrong; this has performance benefits. If True, then all 
+            calculations will be correct, but this may be slower. Optional.
 
         Returns
         -------
@@ -212,10 +209,12 @@ class WDM_transform:
         r"""
         Construct the frequency-domain window function :math:`\tilde{\Phi}(f)`.
 
+        Note, the zero-frequency component is in the center of the spectrum. 
+
         Returns
         -------
         Phi : jnp.ndarray 
-            Array of shape (N,). Real-valued time-domain window. 
+            Array of shape (N,). Complex-valued frequency-domain window. 
         """
         Phi = Meyer(2.*jnp.pi*self.freqs, self.d, self.A, self.B)
         return jnp.sqrt(2.*jnp.pi) * Phi
@@ -238,7 +237,10 @@ class WDM_transform:
     @partial(jax.jit, static_argnums=0)
     def check_indices(self, n: jnp.ndarray, m: jnp.ndarray) -> bool:
         r"""
-        Check if the wavelet indices are in the valid range.
+        Check if the wavelet indices are in the valid range. 
+        
+        The `n` indices must satisfy :math:`0 \leq n < N_t` and the `m` indices 
+        must satisfy :math:`0 \leq m < N_f`.
 
         Parameters
         ----------
@@ -250,7 +252,7 @@ class WDM_transform:
         Returns
         -------
         check : bool
-            True if the indices are all valid, False otherwise.
+            True if the all indices are valid, otherwise False.
         """
         n = jnp.asarray(n, self.jax_dtype_int)
         m = jnp.asarray(m, self.jax_dtype_int)
@@ -307,6 +309,21 @@ class WDM_transform:
                                                                 jnp.ndarray]:
         """
         Compiled part of wavelet_central_time_frequency method.
+
+        Parameters
+        ----------
+        n : jnp.ndarray
+            Wavelet time index, dtype=int, shape=(num_n,). 
+        m : jnp.ndarray
+            Wavelet frequency index, dtype=int, shape=(num_m,). 
+
+        Returns
+        -------
+        t_nm : jnp.ndarray
+            Array of times, shape=(num_n, num_m). The wavelet central times.
+        f_nm : jnp.ndarray
+            Array of frequencies, shape=(num_n, num_m). The wavelet central 
+            frequencies.
         """
         n = jnp.asarray(n, self.jax_dtype_int)  
         m = jnp.asarray(m, self.jax_dtype_int) 
@@ -338,8 +355,6 @@ class WDM_transform:
         want to compute the full wavelet basis for all :math:`n` and :math:`m`
         efficiently, use the `Gnm_basis` method.
 
-        This method is slow.
-        
         For :math:`m>0`, the wavelet is given by
 
         .. math::
@@ -483,8 +498,6 @@ class WDM_transform:
         If you instead want to compute the full wavelet basis for all :math:`n` 
         and :math:`m` efficiently, use the `gnm_basis` method.
 
-        This method is slow.
-
         Parameters
         ----------
         n : int
@@ -571,7 +584,7 @@ class WDM_transform:
                 def temp_func(n):
                     return jnp.where(n % 2 == 0, 
                                 (-1)**(n*self.Nf) * \
-                                    jnp.cos(jnp.pi*self.Nf*k_vals/self.Nf) * \
+                                    jnp.cos(jnp.pi*k_vals) * \
                                     self.window_TD[(k_vals-2*n*self.Nf)%self.N], 
                                     (-1)**k_vals * \
                                     self.window_TD[(k_vals-2*n*self.Nf)%self.N])
@@ -922,7 +935,7 @@ class WDM_transform:
                 x = x + w[n, m] * wavelet
                 return x
             
-            x = jax.lax.fori_loop(0, 
+            x = jax.lax.fori_loop(int(not self.calc_m0), # start at m=0 or 1 
                                   self.Nf, 
                                   lambda m, acc: add_one_cell(acc, m), 
                                   x)
@@ -984,7 +997,7 @@ class WDM_transform:
 
         Calls self.fast_forward_transform.
         """
-        return self.forward_transform_fft(x)
+        return self.forward_transform_short_fft(x)
     
     def idwt(self, w: jnp.ndarray) -> jnp.ndarray:
         r"""
