@@ -5,10 +5,10 @@ Examples
 Examples
 
 
-
-.. contents::
+. contents::
    :local:
 
+.. toctree::
+   :maxdepth: 1
 
-Getting Started
----------------
+   getting_started.ipynb

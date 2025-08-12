@@ -240,8 +240,6 @@ class WDM_transform:
         r"""
         Check if the wavelet indices are in the valid range.
 
-        The arrays `n` and `m` must have the same shape.
-
         Parameters
         ----------
         n : jnp.ndarray
@@ -254,18 +252,16 @@ class WDM_transform:
         check : bool
             True if the indices are all valid, False otherwise.
         """
-        return (n >= 0) & (n < self.Nt) & (m >= 0) & (m < self.Nf)
-        #n = jnp.asarray(n, self.jax_dtype_int)
-        #m = jnp.asarray(m, self.jax_dtype_int)
+        n = jnp.asarray(n, self.jax_dtype_int)
+        m = jnp.asarray(m, self.jax_dtype_int)
 
-        #n_test = jnp.logical_and(n >= 0, n < self.Nt)
-        #m_test = jnp.logical_and(m >= 0, m < self.Nf)
+        n_test = jnp.all(jnp.logical_and(n>=0, n<self.Nt))
+        m_test = jnp.all(jnp.logical_and(m>=0, m<self.Nf))
 
-        #check = jnp.all(jnp.logical_and(n_test, m_test))
+        check = jnp.logical_and(n_test, m_test)
 
-        #return check
+        return check
 
-    @partial(jax.jit, static_argnums=0)
     def wavelet_central_time_frequency(self, 
                                        n: jnp.ndarray, 
                                        m: jnp.ndarray) -> Tuple[jnp.ndarray, 
@@ -285,39 +281,46 @@ class WDM_transform:
             f_{n0} = \begin{cases} 0 & \mathrm{if}\; n<N_t/2 \\ 
                     f_{\mathrm{Ny}} & \mathrm{if}\; n\geq N_t/2 \end{cases} . 
 
-        The arrays `n` and `m` must have the same shape, (n,).
-
         Parameters
         ----------
         n : jnp.ndarray
-            Array of n indices, dtype=int, shape=(n,). Wavelet time index.
+            Wavelet time index, dtype=int, shape=(num_n,). 
         m : jnp.ndarray
-            Array of m indices, dtype=int, shape=(n,). Wavelet frequency index.
+            Wavelet frequency index, dtype=int, shape=(num_m,). 
 
         Returns
         -------
-        t_nm : float
-            Array of times, shape=(n,). The wavelet central times.
-        f_nm : float
-            Array of frequencies, shape=(n,). The wavelet central 
+        t_nm : jnp.ndarray
+            Array of times, shape=(num_n, num_m). The wavelet central times.
+        f_nm : jnp.ndarray
+            Array of frequencies, shape=(num_n, num_m). The wavelet central 
             frequencies.
         """
-        assert self.check_indices(n, m), f"Invalid indices"
+        assert self.check_indices(n, m), f"Invalid indices: {n=} {m=}"
 
+        return self.wavelet_central_time_frequency_compiled(n, m)
+
+    @partial(jax.jit, static_argnums=0)
+    def wavelet_central_time_frequency_compiled(self, 
+                                       n: jnp.ndarray, 
+                                       m: jnp.ndarray) -> Tuple[jnp.ndarray, 
+                                                                jnp.ndarray]:
+        """
+        Compiled part of wavelet_central_time_frequency method.
+        """
         n = jnp.asarray(n, self.jax_dtype_int)
         m = jnp.asarray(m, self.jax_dtype_int)
 
-        m_pos = m > 0
+        mzero = jnp.zeros((len(n), len(m)), dtype=jnp.bool)
+        mzero = mzero.at[:,m==0].set(True)
 
-        # time
-        t_when_mpos = n * self.dT
-        t_when_m0   = (jnp.mod(2 * n, self.Nt)) * self.dT
-        t_nm = jnp.where(m_pos, t_when_mpos, t_when_m0)
+        t_nm = jnp.where(mzero, 
+                         2*n[:,jnp.newaxis]*self.dT, 
+                         n[:,jnp.newaxis]*self.dT)
 
-        # frequency
-        f_when_mpos = m * self.dF
-        f_when_m0   = jnp.where(n < (self.Nt // 2), 0.0, self.f_Ny)
-        f_nm = jnp.where(m_pos, f_when_mpos, f_when_m0)
+        f_nm = jnp.where(mzero, 
+                         jnp.where(n[:,jnp.newaxis]<self.Nt//2, 0., self.f_Ny), 
+                         m[jnp.newaxis,:]*self.dF)
 
         return t_nm, f_nm
 
@@ -372,7 +375,7 @@ class WDM_transform:
         Gnm : jnp.ndarray
             Complex array shaped like freq. The frequency-domain wavelet.
         """
-        assert self.check_indices(n, m), f"Invalid indices"
+        assert self.check_indices(n, m), f"Invalid indices: {n=} {m=}"
 
         if freq is None:
             freq = self.freqs
@@ -496,6 +499,8 @@ class WDM_transform:
         gnm : jnp.ndarray 
             Array shape (N,). The time-domain wavelet.
         """
+        assert self.check_indices(n, m), f"Invalid indices: {n=} {m=}"
+
         if time is None:
             time = self.times
         else:

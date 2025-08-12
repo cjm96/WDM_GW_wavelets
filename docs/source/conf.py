@@ -10,6 +10,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
     "sphinx.ext.napoleon",
+    "nbsphinx",
 ]
 
 math_number_all = True
