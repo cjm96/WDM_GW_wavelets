@@ -90,7 +90,7 @@
 <p>To run this notebook you will first need to download the GW data,</p>
 <p><code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">download_SXSwaveform_data.py</span></code></p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
@@ -103,7 +103,7 @@ from WDM.code.plotting.plotting import time_frequency_plot
 </div>
 <p>Here’s an example GW waveform. We also compute the frequency of the signal as a function of time.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>data = np.loadtxt(&quot;../data/waveform_SXS:BBH:0305_Reh22.txt&quot;)
@@ -135,7 +135,7 @@ plt.show()
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>current_length = len(time)
@@ -154,7 +154,7 @@ Current length of time series: 7688
 </div>
 <p>Let’s take a wavelet transform of this using <span class="math notranslate nohighlight">\(N_f=512\)</span> frequency slices. The <code class="docutils literal notranslate"><span class="pre">wdm</span></code> object will handle the wavelet transform. We need to pad the signal so that it’s length is an even multiple of this number</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>dt = np.mean(np.diff(time))
@@ -179,12 +179,34 @@ print(f&quot;Padded length of time series: {N}&quot;)
 Padded length of time series: 8192
 </pre></div></div>
 </div>
-<p>Take the forward discrete wavelet transform (dwt). This transforms from the time domain to the time-frequency domain.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<p>We can print the wdm object to see some key information about the wavelets we are using.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w = wdm.forward_transform_short_fft(re_strain_padded)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>print(wdm)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+WDM_transform(Nf=512, N=8192, q=8, d=4, A_frac=0.25, calc_m0=True)
+self.Nt = 16 time cells
+self.Nf = 512 frequency cells
+self.dT = 256.0 time resolution
+self.dF = 0.001953125 frequency resolution
+self.K = 8192 window length
+</pre></div></div>
+</div>
+<p>Take the forward discrete wavelet transform (dwt). This transforms from the time domain to the time-frequency domain.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w = wdm.dwt(re_strain_padded)
 </pre></div>
 </div>
 </div>
@@ -204,7 +226,7 @@ plt.show()
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="_images/getting_started_10_0.png" src="_images/getting_started_10_0.png" />
+<img alt="_images/getting_started_12_0.png" src="_images/getting_started_12_0.png" />
 </div>
 </div>
 <p>Let’s take an inverse discrete wavelet transform (idwt).</p>
@@ -249,7 +271,7 @@ plt.show()
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="_images/getting_started_13_0.png" src="_images/getting_started_13_0.png" />
+<img alt="_images/getting_started_15_0.png" src="_images/getting_started_15_0.png" />
 </div>
 </div>
 <div class="nbinput nblast docutils container">

@@ -273,7 +273,7 @@ plt.show()
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-/var/folders/qj/mhy_bkdx1n7dy8knwlxg3fqw0000gn/T/ipykernel_66307/751887108.py:2: RuntimeWarning: divide by zero encountered in log10
+/var/folders/qj/mhy_bkdx1n7dy8knwlxg3fqw0000gn/T/ipykernel_71150/751887108.py:2: RuntimeWarning: divide by zero encountered in log10
   ax.imshow(np.log10(S.T), extent=[0., num_perseg/f_samp, 0., 0.5*f_samp], aspect=&#39;auto&#39;)
 </pre></div></div>
 </div>
@@ -326,7 +326,7 @@ np.int64(18)
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = WDM.code.plotting.plotting.time_frequency_plot(wdm, whitened, scale=&#39;log&#39;)
@@ -343,7 +343,7 @@ plt.show()
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>whitened_TD = wdm.inverse_transform(whitened)
@@ -351,7 +351,7 @@ plt.show()
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>plt.plot(wdm.times, whitened_TD)
@@ -373,6 +373,41 @@ plt.show()
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
 </pre></div>
 </div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>wdm.window_TD
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Array([3.04828884, 3.04826555, 3.04819569, ..., 3.04807926, 3.04819569,
+       3.04826555], dtype=float64)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>wdm.gnm(n=0, m=0)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Array([3.04828884, 3.04826555, 3.04819569, ..., 3.04807926, 3.04819569,
+       3.04826555], dtype=float64)
+</pre></div></div>
 </div>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:

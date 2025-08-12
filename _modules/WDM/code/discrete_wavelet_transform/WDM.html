@@ -149,6 +149,7 @@
 <span class="sd">    freqs : jnp.ndarray</span>
 <span class="sd">        The sample frequencies of the time series, :math:`f_k = k \delta f` for </span>
 <span class="sd">        :math:`k\in\{-N/2,N/2+1,\ldtots,N/2-1\}`. Array shape=(N,).</span>
+<span class="sd">        Note, the zero-frequency component is in the center of the spectrum.</span>
 <span class="sd">    Cnm : jnp.ndarray </span>
 <span class="sd">        Coefficients :math:`C_{nm}` used for the wavelet transform. Equal to 1 </span>
 <span class="sd">        if :math:`n+m` is even or :math:`i` if it is odd. </span>
@@ -195,19 +196,15 @@
 <span class="sd">        N : int</span>
 <span class="sd">            Length of the input time series. Must be an even multiple of Nf.</span>
 <span class="sd">        q : int</span>
-<span class="sd">            Truncation parameter (default: 16). This must be an integer in the </span>
-<span class="sd">            range :math:`1 \leq q \leq N_t/2`. Optional.</span>
-<span class="sd">        A_frac : float</span>
-<span class="sd">            Fraction of bandwidth used for flat-top response (default: 0.25). </span>
-<span class="sd">            Optional.</span>
+<span class="sd">            Truncation parameter. Integer :math:`1 \leq q \leq N_t/2`. Optional.</span>
 <span class="sd">        d : int</span>
-<span class="sd">            Steepness parameter for the window transition (default: 4).</span>
-<span class="sd">            Optional.</span>
+<span class="sd">            Steepness parameter for the transition. Optional.</span>
+<span class="sd">        A_frac : float</span>
+<span class="sd">            Bandwidth fraction of flat-top response. Optional.</span>
 <span class="sd">        calc_m0 : bool</span>
-<span class="sd">            If this is set to False then the all wavelet calculations for </span>
-<span class="sd">            :math:`m=0` will be handled incorrectly. This comes with some</span>
-<span class="sd">            performance benefits. If it is set to True, then the calculations</span>
-<span class="sd">            will be done correctly, but may be slower. Optional.</span>
+<span class="sd">            If False, then the wavelet calculations for the :math:`m=0` temrs </span>
+<span class="sd">            will be wrong; this has performance benefits. If True, then all </span>
+<span class="sd">            calculations will be correct, but this may be slower. Optional.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -294,10 +291,12 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Construct the frequency-domain window function :math:`\tilde{\Phi}(f)`.</span>
 
+<span class="sd">        Note, the zero-frequency component is in the center of the spectrum. </span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        Phi : jnp.ndarray </span>
-<span class="sd">            Array of shape (N,). Real-valued time-domain window. </span>
+<span class="sd">            Array of shape (N,). Complex-valued frequency-domain window. </span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">Phi</span> <span class="o">=</span> <span class="n">Meyer</span><span class="p">(</span><span class="mf">2.</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">freqs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">d</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">A</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">B</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">*</span> <span class="n">Phi</span></div>
@@ -326,7 +325,10 @@
     <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">check_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Check if the wavelet indices are in the valid range.</span>
+<span class="sd">        Check if the wavelet indices are in the valid range. </span>
+<span class="sd">        </span>
+<span class="sd">        The `n` indices must satisfy :math:`0 \leq n &lt; N_t` and the `m` indices </span>
+<span class="sd">        must satisfy :math:`0 \leq m &lt; N_f`.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -338,7 +340,7 @@
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        check : bool</span>
-<span class="sd">            True if the indices are all valid, False otherwise.</span>
+<span class="sd">            True if the all indices are valid, otherwise False.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">n</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">jax_dtype_int</span><span class="p">)</span>
         <span class="n">m</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">jax_dtype_int</span><span class="p">)</span>
@@ -401,6 +403,21 @@
                                                                 <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compiled part of wavelet_central_time_frequency method.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        n : jnp.ndarray</span>
+<span class="sd">            Wavelet time index, dtype=int, shape=(num_n,). </span>
+<span class="sd">        m : jnp.ndarray</span>
+<span class="sd">            Wavelet frequency index, dtype=int, shape=(num_m,). </span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        t_nm : jnp.ndarray</span>
+<span class="sd">            Array of times, shape=(num_n, num_m). The wavelet central times.</span>
+<span class="sd">        f_nm : jnp.ndarray</span>
+<span class="sd">            Array of frequencies, shape=(num_n, num_m). The wavelet central </span>
+<span class="sd">            frequencies.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">n</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">jax_dtype_int</span><span class="p">)</span>  
         <span class="n">m</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">jax_dtype_int</span><span class="p">)</span> 
@@ -435,8 +452,6 @@
 <span class="sd">        want to compute the full wavelet basis for all :math:`n` and :math:`m`</span>
 <span class="sd">        efficiently, use the `Gnm_basis` method.</span>
 
-<span class="sd">        This method is slow.</span>
-<span class="sd">        </span>
 <span class="sd">        For :math:`m&gt;0`, the wavelet is given by</span>
 
 <span class="sd">        .. math::</span>
@@ -586,8 +601,6 @@
 <span class="sd">        If you instead want to compute the full wavelet basis for all :math:`n` </span>
 <span class="sd">        and :math:`m` efficiently, use the `gnm_basis` method.</span>
 
-<span class="sd">        This method is slow.</span>
-
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        n : int</span>
@@ -677,7 +690,7 @@
                 <span class="k">def</span><span class="w"> </span><span class="nf">temp_func</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
                     <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">n</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> 
                                 <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span> <span class="o">*</span> \
-                                    <span class="n">jnp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="o">*</span><span class="n">k_vals</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span> <span class="o">*</span> \
+                                    <span class="n">jnp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">k_vals</span><span class="p">)</span> <span class="o">*</span> \
                                     <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[(</span><span class="n">k_vals</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">],</span> 
                                     <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="n">k_vals</span> <span class="o">*</span> \
                                     <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[(</span><span class="n">k_vals</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">])</span>
@@ -1049,7 +1062,7 @@
                 <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">w</span><span class="p">[</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">]</span> <span class="o">*</span> <span class="n">wavelet</span>
                 <span class="k">return</span> <span class="n">x</span>
             
-            <span class="n">x</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">fori_loop</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> 
+            <span class="n">x</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">fori_loop</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_m0</span><span class="p">),</span> <span class="c1"># start at m=0 or 1 </span>
                                   <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">,</span> 
                                   <span class="k">lambda</span> <span class="n">m</span><span class="p">,</span> <span class="n">acc</span><span class="p">:</span> <span class="n">add_one_cell</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">m</span><span class="p">),</span> 
                                   <span class="n">x</span><span class="p">)</span>
@@ -1117,7 +1130,7 @@
 
 <span class="sd">        Calls self.fast_forward_transform.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward_transform_fft</span><span class="p">(</span><span class="n">x</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">x</span><span class="p">)</span></div>
 
     
 <div class="viewcode-block" id="WDM_transform.idwt">

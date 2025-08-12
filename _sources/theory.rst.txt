@@ -71,7 +71,7 @@ The discretely sampled time series :math:`x[k]=x(t_k)` is indexed by :math:`k\in
 and evaluated at the sample times :math:`t_k=k\delta t`, where :math:`\delta t` is the cadence.
 The total duration of the time series is :math:`T=N\delta t`, 
 and the Nyquist frequency is :math:`f_{\rm Ny}=\frac{1}{2\delta t}`.
-We will insist that :math:`N` is even.
+We will insist that :math:`N` is even (if it isn't then the time series can be padded to the required length).
 
 The WDM wavelet transformation represents the time series using :math:`N_f` frequency slices of with :math:`\Delta F`
 and :math:`N_t` time slices of width :math:`\Delta T`; 
@@ -89,15 +89,32 @@ Together, these tiles uniformly cover the time–frequency plane.
 We will insist that :math:`N_t` and :math:`N_f` are both even.
 
 The WDM wavelets :math:`g_{nm}(t)` are constructed from the Meyer window function :math:`\phi`. 
-In the frequency-domain they are defined as
+The indices :math:`n` and :math:`m` label the time and frequency slices respectively.
+In the times-domain the basis wavelets are defined as
+
+.. math::
+
+   g_{nm}(t) = \begin{cases}
+        \phi(t-2n\Delta t) & m=0 \\
+        \begin{cases}
+            \sqrt{2} (-1)^{mn} \cos(\pi mk/N_f) \phi(t-n\Delta t) & \mathrm{if}\;n+m\;\mathrm{even}\\
+            \sqrt{2} \sin(\pi mk/N_f) \phi(t-n\Delta t) & \mathrm{if}\;n+m\;\mathrm{odd}
+        \end{cases} & 0<m<N_f \\
+        \begin{cases}
+            \sqrt{2} (-1)^{mn} (-1)^k \phi(t-2n\Delta t) & \mathrm{if}\;n\;\mathrm{even}\\
+            \sqrt{2} (-1)^k \phi(t-2n\Delta t) & \mathrm{if}\;n\;\mathrm{odd}
+        \end{cases} & m=N_f \\
+        \end{cases} .
+
+In the frequency-domain the basis wavelets are defined as
 
 .. math::
 
     \tilde{G}_{nm}(f) = \begin{cases}
-        \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f) & m=0 \\
-        \exp(-2\pi i n f \Delta T) \left( C_{nm}\tilde{\Phi}(2\pi [f-m\Delta F])
+        \sqrt{2\pi} \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f) & m=0 \\
+        \sqrt{2\pi} \exp(-2\pi i n f \Delta T) \left( C_{nm}\tilde{\Phi}(2\pi [f-m\Delta F])
         +C^*_{nm}\tilde{\Phi}(2\pi [f+m\Delta F]) \right) & 0<m<N_f \\
-        \exp(-4\pi i n f \Delta T) \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) + 
+        \sqrt{2\pi} \exp(-4\pi i n f \Delta T) \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) + 
         \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right) & m=N_f \\
     \end{cases} ,
 
@@ -126,7 +143,7 @@ The central time and frequency of the wavelet :math:`g_{nm}(t)` are given by
 
 .. math::
 
-   t_{nm} = \begin{cases} ( 2n \,\mathrm{mod} \, N_t ) \Delta T & \mathrm{if}\;m=0 \\
+   t_{nm} = \begin{cases} 2 n \Delta T & \mathrm{if}\;m=0 \\
                      n \Delta T & \mathrm{if}\;m>0 \end{cases} \,,
 
 .. math::
@@ -175,17 +192,17 @@ The WDM wavelets have the following orthonomality property,
    \delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .
 
 The frequency-domain WDM wavelets :math:`\tilde{G}_{nm}(f)` are implemented in 
-:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm`.
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm` or 
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm_basis`.
 
 The time-domain WDM wavelets :math:`g_{nm}(t)` are implemented in 
-:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm`.
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm` or 
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm_basis`.
 
 
 
 The Discrete WDM Wavelet Transform
 ----------------------------------
-
-This section relates to the example notebook `./examples/motivating_the_discrete_wavelet_transform.ipynb`.
 
 This section defines the discrete WDM wavelet transform, present its exact formulation, and describe a 
 computationally efficient implementation suitable for practical use.
