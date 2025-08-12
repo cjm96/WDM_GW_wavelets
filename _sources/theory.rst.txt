@@ -24,33 +24,6 @@ in Coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
 
 
 
-Normalised Incomplete Beta Function
------------------------------------
-
-The WDM wavelets use the normalised incomplete beta function, :math:`\nu_d(x)`,
-
-.. math::
-
-   \nu_d(x) = \frac{ \int_0^x \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }
-                         { \int_0^1 \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} } ,
-                         \quad \mathrm{for}\; 0\leq x\leq 1.
-
-This acts as a smooth transition function (or compact sigmoid-like function) from 0 to 1.
-The parameter :math:`d` controls the steepness of the transition; see :numref:`fig-norm_incomplete_beta`.
-
-The function :math:`\nu_d(x)` is implemented in :func:`WDM.code.utils.Meyer.nu_d`.
-
-.. _fig-norm_incomplete_beta:
-
-.. figure:: ../figures/norm_incomplete_beta.png
-   :alt: norm_incomplete_beta
-   :align: center
-   :width: 70%
-
-   The normalised incomplete beta function :math:`\nu_d(x)` for several values of :math:`d`.
-
-
-
 Meyer Window
 ------------
 
@@ -66,11 +39,11 @@ defined in the frequency domain by
         0 & \text{if } |\omega| > A + B
     \end{cases} ,
 
-where :math:`\omega=2\pi f`, and :math:`B` are two positive angular frequency parameters that control the shape of the window.
+where :math:`\omega=2\pi f`, and where :math:`A` and :math:`B` are two positive angular frequency parameters that control the shape of the window.
 They satisfy :math:`2A + B = \Delta\Omega`, where :math:`\Delta\Omega` is the total wavelet bandwidth.
 The parameter :math:`A` is the half-width of the flat-top response region while :math:`B` is the width of the transition region;
 see :numref:`fig-Meyer_window`.
-Unless otherwise stated, we use the default values :math:`A=\Delta \Omega/4`, :math:`B=\Delta \Omega/2`, and :math:`d=4`.
+Unless otherwise stated, the default values :math:`A=\Delta \Omega/4`, :math:`B=\Delta \Omega/2`, and :math:`d=4` will be used here.
 
 The function :math:`\tilde{\Phi}(\omega)` is implemented in :func:`WDM.code.utils.Meyer.Meyer`.
 
@@ -89,8 +62,6 @@ The function :math:`\tilde{\Phi}(\omega)` is implemented in :func:`WDM.code.util
 
 WDM Wavelets
 ------------
-
-This section relates to the example notebook `./examples/plotting_the_mother_wavelets.ipynb`.
 
 Henceforth, we will work with frequency :math:`f` rather than angular frequency :math:`\omega=2\pi f`. 
 This fits with the rest of the GW data analysis community which tends to work with frequency.
@@ -201,7 +172,7 @@ The WDM wavelets have the following orthonomality property,
 
 .. math::
 
-   2 \pi \delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .
+   \delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .
 
 The frequency-domain WDM wavelets :math:`\tilde{G}_{nm}(f)` are implemented in 
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm`.
@@ -350,20 +321,20 @@ Glossary
 
 - :math:`t`: Time (e.g. seconds).
 - :math:`f`: Frequency (e.g. Hertz).
-- :math:`\omega`: Angular frequency (e.g. radians/second). Defined as :math:`\omega=2\pi f`.
-- :math:`\delta t`: Time series cadence (seconds). Named ``dt`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
-- :math:`f_{\rm Ny}`: Nyquist frequency, or the maximum frequency (Hertz). Defined as :math:`f_{\rm Ny}=\frac{1}{2 \delta t}`. Named ``f_Ny`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
-- :math:`A`: With of flat-top response in the Meyer window (radians/second). Named ``A`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
-- :math:`B`: With of transition region in the Meyer window (radians/second). Named ``B`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
-- :math:`\Delta \Omega`: Angular frequency resolution of the wavelets (radians/second). Satisfies :math:`\Delta \Omega = 2A + B`. Named ``dOmega`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
-- :math:`\Delta F`: Frequency resolution of the wavelets (Hertz). Satisfies :math:`\Delta F = \frac{\Delta \Omega}{2\pi}`. Named ``dF`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
-- :math:`\Delta T`: Time resolution of the wavelets (seconds). Satisfies :math:`\Delta T \Delta F= \frac{1}{2}`. Named ``dT`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
+- :math:`\omega`: Angular frequency (radians per unit time). Defined as :math:`\omega=2\pi f`.
+- :math:`\delta t`: Time series cadence (time units). Named ``dt`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
+- :math:`f_{\rm Ny}`: Nyquist frequency, or the maximum frequency (frequency units). Defined as :math:`f_{\rm Ny}=\frac{1}{2 \delta t}`. Named ``f_Ny`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
+- :math:`A`: With of flat-top response in the Meyer window (radians per unit time). Named ``A`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
+- :math:`B`: With of transition region in the Meyer window (radians per unit time). Named ``B`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
+- :math:`\Delta \Omega`: Angular frequency resolution of the wavelets (radians per unit time). Satisfies :math:`\Delta \Omega = 2A + B`. Named ``dOmega`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
+- :math:`\Delta F`: Frequency resolution of the wavelets (frequency units). Satisfies :math:`\Delta F = \frac{\Delta \Omega}{2\pi}`. Named ``dF`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
+- :math:`\Delta T`: Time resolution of the wavelets (time units). Satisfies :math:`\Delta T \Delta F= \frac{1}{2}`. Named ``dT`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
 - :math:`d`: Steepness parameter for the Meyer window. Named ``d`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
 - :math:`q`: Truncation parameter for the Meyer window. Named ``q`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
-- :math:`N_f`: Number of frequency bands for the wavelets. Named ``N_f`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
-- :math:`N_t`: Number of time bands for the wavelets, must be even. Named ``N_t`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
+- :math:`N_f`: Number of frequency bands for the wavelets. Named ``Nf`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
+- :math:`N_t`: Number of time bands for the wavelets, must be even. Named ``Nt`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`. 
 - :math:`N`: Number of points in the time series. Satisfies :math:`N = N_t N_f`. Named ``N`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`.
-- :math:`T`: Duration of the time series (seconds). Satisfies :math:`T = N \delta t`. Named ``T`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`.
+- :math:`T`: Duration of the time series (time units). Satisfies :math:`T = N \delta t`. Named ``T`` in :func:`WDM_transform <WDM.code.discrete_wavelet_transform.WDM.WDM_transform>`.
 - :math:`n`: Time index for the wavelets. In the range :math:`n\in\{0,1,\ldots, N_t-1\}`.
 - :math:`m`: Frequency index for the wavelets. In the range :math:`m\in\{0,1,\ldots, N_f\}`.
 - :math:`x[k]`: Time series data, where :math:`k\in\{0,1,\ldots,N-1\}` indexes the time.
@@ -389,3 +360,33 @@ References
 
 .. [4] S. Klimenko *et al.*, *Method for detection and reconstruction of gravitational wave transients with networks of advanced detectors*, Physical Review D 93, 042004, 2016.
        `arXiv:1511.05999 <https://arxiv.org/abs/1511.05999>`_
+
+
+
+Appendices
+----------
+
+Normalised Incomplete Beta Function
+===================================
+
+The WDM wavelets use the normalised incomplete beta function, :math:`\nu_d(x)`,
+
+.. math::
+
+   \nu_d(x) = \frac{ \int_0^x \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }
+                         { \int_0^1 \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} } ,
+                         \quad \mathrm{for}\; 0\leq x\leq 1.
+
+This acts as a smooth transition function (or compact sigmoid-like function) from 0 to 1.
+The parameter :math:`d` controls the steepness of the transition; see :numref:`fig-norm_incomplete_beta`.
+
+The function :math:`\nu_d(x)` is implemented in :func:`WDM.code.utils.Meyer.nu_d`.
+
+.. _fig-norm_incomplete_beta:
+
+.. figure:: ../figures/norm_incomplete_beta.png
+   :alt: norm_incomplete_beta
+   :align: center
+   :width: 70%
+
+   The normalised incomplete beta function :math:`\nu_d(x)` for several values of :math:`d`.

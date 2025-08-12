@@ -651,27 +651,6 @@ debugging purposes.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.frequency_domain_plot">
-<span class="sig-name descname"><span class="pre">frequency_domain_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.frequency_domain_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.frequency_domain_plot" title="Link to this definition"></a></dt>
-<dd><p>Plot the frequency-domain signal.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape (N,). Input time-domain signal to be plotted.</p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><ul class="simple">
-<li><p><strong>fig</strong> (<em>matplotlib.figure.Figure</em>) – The matplotlib Figure object.</p></li>
-<li><p><strong>ax</strong> (<em>matplotlib.axes.Axes</em>) – The matplotlib Axes object where the wavelets were plotted.</p></li>
-</ul>
-</p>
-</dd>
-</dl>
-<p class="rubric">Notes</p>
-<p>This function does not call <cite>plt.show()</cite>. The user is responsible
-for displaying or saving the plot.</p>
-</dd></dl>
-
-<dl class="py method">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm">
 <span class="sig-name descname"><span class="pre">gnm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.gnm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm" title="Link to this definition"></a></dt>
 <dd><p>Compute the time-domain representation of the wavelets,
@@ -800,56 +779,6 @@ the signal, or equally at both ends respectively. Optional.</p></li>
 <p class="rubric">Notes</p>
 <p>The Boolean mask can be used to get back to the original signal; i.e.
 <cite>x_padded[mask]</cite> will recover the original signal, <cite>x</cite>.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_domain_plot">
-<span class="sig-name descname"><span class="pre">time_domain_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.time_domain_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_domain_plot" title="Link to this definition"></a></dt>
-<dd><p>Plot the time-domain signal.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape (N,). Input time-domain signal to be plotted.</p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><ul class="simple">
-<li><p><strong>fig</strong> (<em>matplotlib.figure.Figure</em>) – The matplotlib Figure object.</p></li>
-<li><p><strong>ax</strong> (<em>matplotlib.axes.Axes</em>) – The matplotlib Axes object where the wavelets were plotted.</p></li>
-</ul>
-</p>
-</dd>
-</dl>
-<p class="rubric">Notes</p>
-<p>This function does not call <cite>plt.show()</cite>. The user is responsible
-for displaying or saving the plot.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_frequency_plot">
-<span class="sig-name descname"><span class="pre">time_frequency_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">part</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'abs'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'linear'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.time_frequency_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_frequency_plot" title="Link to this definition"></a></dt>
-<dd><p>Plot the time-frequency coefficients of the WDM transform.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>w</strong> (<em>jnp.ndarray</em><em> of </em><em>shape</em><em> (</em><em>Nt</em><em>, </em><em>Nf</em><em>)</em>) – WDM time-frequency coefficients to be plotted.</p></li>
-<li><p><strong>part</strong> (<em>str</em>) – Part of the coefficients to plot. Options are ‘abs’ for magnitude,
-‘real’, or ‘imag’. Default is ‘abs’. Optional.</p></li>
-<li><p><strong>scale</strong> (<em>str</em>) – Scale of the colour axis of the plot. Passed to matplotlib.
-Options are ‘linear’ or ‘log’. Default is ‘linear’. Logarithmic
-scale should only be used with part=’abs’ otherwise problems with
-negative values will occur. Optional.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><ul class="simple">
-<li><p><strong>fig</strong> (<em>matplotlib.figure.Figure</em>) – The matplotlib Figure object.</p></li>
-<li><p><strong>ax</strong> (<em>matplotlib.axes.Axes</em>) – The matplotlib Axes object where the wavelets were plotted.</p></li>
-</ul>
-</p>
-</dd>
-</dl>
-<p class="rubric">Notes</p>
-<p>This function does not call <cite>plt.show()</cite>. The user is responsible
-for displaying or saving the plot.</p>
 </dd></dl>
 
 <dl class="py method">

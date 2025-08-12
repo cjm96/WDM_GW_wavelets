@@ -1,0 +1,650 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visualising the WDM wavelets &mdash; WDM 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/nbsphinx-code-cells.css?v=2aa19091" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=86424434" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Filtering, whitening and glitch removal" href="filtering_and_glitch_removal.html" />
+    <link rel="prev" title="Getting Started" href="getting_started.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            WDM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="theory.html">Mathematical Background</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">WDM</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="examples.html">Examples</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Visualising the WDM wavelets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="filtering_and_glitch_removal.html">Filtering, whitening and glitch removal</a></li>
+<li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">WDM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="examples.html">Examples</a></li>
+      <li class="breadcrumb-item active">Visualising the WDM wavelets</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/plotting_the_mother_wavelet.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="Visualising-the-WDM-wavelets">
+<h1>Visualising the WDM wavelets<a class="headerlink" href="#Visualising-the-WDM-wavelets" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
+
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
+import matplotlib.patches as patches
+
+import WDM
+</pre></div>
+</div>
+</div>
+<p>The definition of the Meyer wavelet involves the regularized incomplete beta function.</p>
+<div class="math notranslate nohighlight" id="equation-plotting-the-mother-wavelet-0">
+<span class="eqno">(30)<a class="headerlink" href="#equation-plotting-the-mother-wavelet-0" title="Link to this equation"></a></span>\[\nu_d(x) = \frac{ \int_0^x \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }
+                       { \int_0^1 \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} } .\]</div>
+<p>This acts like a transition function (or a compact sigmoid-like function) with the output smoothly increasing from 0 to 1 as the input increases from 0 to 1. The parameter <span class="math notranslate nohighlight">\(d\)</span>, called the steepness parameter, controls smoothness of the transition.</p>
+<p>Here is a plot of the function <span class="math notranslate nohighlight">\(\nu_d(x)\)</span> for several example values of <span class="math notranslate nohighlight">\(d\)</span>.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
+fig.suptitle(&quot;Regularised Incomplete Beta Function&quot;)
+
+d_values = [1, 4, 16]
+
+x = np.linspace(0, 1, 1000)
+for d in d_values:
+    ax.plot(x, WDM.code.utils.Meyer.nu_d(x, d), label=f&quot;{d = }&quot;)
+
+ax.set_xlabel(r&quot;$x$&quot;)
+ax.set_ylabel(r&quot;$\nu_d(x)$&quot;)
+
+ax.set_xlim(0, 1)
+ax.set_ylim(0, 1)
+
+ax.legend(loc=&#39;upper left&#39;)
+plt.grid()
+plt.show()
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/plotting_the_mother_wavelet_3_0.png" src="_images/plotting_the_mother_wavelet_3_0.png" />
+</div>
+</div>
+<p>The WDM wavelets are built from the following Meyer window function. This is defined in the frequency-domain as</p>
+<div class="math notranslate nohighlight" id="equation-plotting-the-mother-wavelet-1">
+<span class="eqno">(31)<a class="headerlink" href="#equation-plotting-the-mother-wavelet-1" title="Link to this equation"></a></span>\[\begin{split}\Phi(\omega) =
+           \begin{cases}
+           \frac{1}{\sqrt{\Delta \Omega}}, &amp; |\omega| &lt; A \\
+           \frac{1}{\sqrt{\Delta \Omega}} \cos\left( \frac{\pi}{2}
+               \nu_d\left( \frac{|\omega| - A}{B} \right) \right),
+               &amp; A \leq |\omega| \leq A + B \\
+           0, &amp; |\omega| &gt; A+B
+           \end{cases} .\end{split}\]</div>
+<p>Here is a nice plot of the Meyer window in both time- and frequency-domain representations. In order to make this plot nice a smooth, the wavelet is oversampled.</p>
+<p>Note that the wavelet is well localised (compact support) in frequency but less so in time.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>T = 500.
+times = np.linspace(-T, T, 10000)
+dt = np.mean(np.diff(times))
+
+A, B = 0.25, 0.5
+dOmega = 2 * A + B
+dF = dOmega / (2*np.pi)
+dT = 1 / (2*dF)
+
+freqs = np.fft.fftfreq(len(times), d=dt)
+
+ls = [&#39;-&#39;, &#39;--&#39;, &#39;-.&#39;]
+col = [&#39;C0&#39;, &#39;C1&#39;, &#39;C2&#39;]
+
+fig, axes = plt.subplots(nrows=2)
+fig.suptitle(&quot;Meyer Window Function&quot;)
+
+d_values = [1, 4, 16]
+
+for i, d in enumerate(d_values):
+    Phi = WDM.code.utils.Meyer.Meyer(2*np.pi*freqs, d=d, A=A, B=B)
+    Phi_centered = Phi * np.exp(-2j*np.pi*freqs*T)
+    phi = np.fft.ifft(Phi_centered).real / dt
+
+    omega = 2 * np.pi * np.fft.fftshift(freqs)
+    axes[0].plot(omega/dOmega, np.fft.fftshift(Phi), ls=ls[i], c=col[i])
+    axes[1].plot(times/dT, phi, label=f&quot;{d = }&quot;, ls=ls[i], c=col[i])
+
+axes[0].set_xlabel(r&quot;$\omega/\Delta\Omega$&quot;)
+axes[0].set_ylabel(r&quot;$\tilde{\Phi}(\omega)$&quot;)
+
+axes[0].set_xlim(-1., 1.)
+axes[0].set_ylim(0., 1.05)
+
+axes[1].set_xlabel(r&quot;$t/\Delta T$&quot;)
+axes[1].set_ylabel(r&quot;$\phi(t)$&quot;)
+
+axes[1].set_xlim(-16, 16)
+axes[1].set_ylim(-0.05, 0.2)
+
+axes[0].grid()
+axes[1].grid()
+
+axes[1].legend(loc=&#39;upper left&#39;)
+
+plt.tight_layout()
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/plotting_the_mother_wavelet_5_0.png" src="_images/plotting_the_mother_wavelet_5_0.png" />
+</div>
+</div>
+<p>The wavelet basis is defined in in the frequency domain in terms of the Meyer wavelet, <span class="math notranslate nohighlight">\(\tilde{G}_{nm}(\omega)\)</span>.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, Nf=16, N=512)
+
+fig, ax = plt.subplots()
+fig.suptitle(&quot;WDM Wavelet basis&quot;)
+
+mask = (wdm.freqs&gt;=0.)
+for m in range(17):
+    if m==16:
+        ax.plot(wdm.freqs[mask]/wdm.f_Ny, np.abs(wdm.Gnm(n=wdm.Nt-1, m=0)[mask]))
+    else:
+        ax.plot(wdm.freqs[mask]/wdm.f_Ny, np.abs(wdm.Gnm(n=0, m=m)[mask]))
+
+ax.set_xlabel(r&quot;Frequency $f/f_{\rm Ny}$&quot;)
+ax.set_ylabel(r&quot;Amplitude $|\tilde{G}_{nm}(f)|$&quot;)
+
+ax.set_xlim(0, 1)
+ax.set_ylim(0, 6)
+
+plt.grid()
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/plotting_the_mother_wavelet_7_0.png" src="_images/plotting_the_mother_wavelet_7_0.png" />
+</div>
+</div>
+<p>The wavelet basis in the time domain, <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span>.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
+fig.suptitle(&quot;WDM Wavelet basis&quot;)
+
+ls = [&#39;-&#39;, &#39;--&#39;, &#39;-.&#39;]
+col = [&#39;C0&#39;, &#39;C1&#39;, &#39;C2&#39;]
+
+for i, (n, m) in enumerate(zip([8, 16, 24], [1, 2, 3])):
+    ax.plot(wdm.times, wdm.gnm(n=n, m=m),
+            label=f&quot;(n,m)=({n},{m})&quot;, c=col[i], ls=ls[i])
+
+ax.set_xlabel(r&quot;Time $t$&quot;)
+ax.set_ylabel(r&quot;Wavelet $g_{nm}(t)$&quot;)
+
+ax.set_xlim(0, 512)
+ax.set_xticks([i*64 for i in range(9)])
+ax.set_ylim(-0.3, 0.4)
+
+ax.legend(loc=&#39;upper left&#39;, ncol=3)
+plt.grid()
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/plotting_the_mother_wavelet_9_0.png" src="_images/plotting_the_mother_wavelet_9_0.png" />
+</div>
+</div>
+<p>Here is nice visualisation of the wavelet basis in both time and frequency domains.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>n_vals = [8, 16, 24]
+m_vals = [1, 4, 7]
+
+ls = [&#39;-&#39;, &#39;--&#39;, &#39;-.&#39;]
+col = [&#39;C0&#39;, &#39;C1&#39;, &#39;C2&#39;, &#39;k&#39;]
+
+fig = plt.figure(figsize=(6, 6))
+gs = gridspec.GridSpec(2, 3, width_ratios=[3, 0.1, 1], height_ratios=[1, 3])
+
+# Time-domain wavelet (top-left)
+ax_time = fig.add_subplot(gs[0, 0])
+for i, (n, m) in enumerate(zip(n_vals, m_vals)):
+    ax_time.plot(wdm.times, wdm.gnm(n=n, m=m), c=col[i], ls=ls[i])
+ax_time.set_xlim(0, wdm.T)
+ax_time.set_xticks([])
+ax_time.set_yticks([])
+ax_time.set_ylabel(r&quot;$g_{nm}(t)$&quot;)
+
+# Frequency-domain wavelet (bottom-right)
+ax_freq = fig.add_subplot(gs[1, 2])
+for i, (n, m) in enumerate(zip(n_vals, m_vals)):
+    ax_freq.plot(np.abs(np.fft.fft(wdm.gnm(n=n, m=m)))[:wdm.N//2], wdm.freqs[:wdm.N//2],
+                 c=col[i], ls=ls[i])
+ax_freq.set_ylim(0, wdm.f_Ny)
+ax_freq.set_xticks([])
+ax_freq.set_yticks([])
+ax_freq.yaxis.tick_right()
+ax_freq.yaxis.set_label_position(&quot;right&quot;)
+ax_freq.xaxis.set_label_position(&#39;top&#39;)
+ax_freq.set_xlabel(r&quot;$|\tilde{G}_{nm}(f)|$&quot;)
+
+# Time-frequency grid (bottom-left)
+ax_tf = fig.add_subplot(gs[1, 0])
+t_ticks = [(i+0.5)*wdm.dT for i in range(wdm.Nt)]
+f_ticks = [(i+0.5)*wdm.dF for i in range(wdm.Nf)]
+for t in t_ticks:
+    ax_tf.axvline(t, color=&#39;k&#39;, lw=0.5)
+for f in f_ticks:
+    ax_tf.axhline(f, color=&#39;k&#39;, lw=0.5)
+ax_tf.set_xlim(0, wdm.T)
+ax_tf.set_ylim(0, wdm.f_Ny)
+ax_tf.set_xticks(np.linspace(0, wdm.T, 5))
+ax_tf.set_yticks(np.linspace(0, wdm.f_Ny, 5))
+ax_tf.set_xlabel(r&quot;Time $t$ [seconds]&quot;)
+ax_tf.set_ylabel(r&quot;Frequency $f$ [Hertz]&quot;)
+
+def draw_rectangle(n, m, i, ax_tf, text_label=False):
+    eps_x, eps_y = 0., 0.
+
+    assert 0 &lt;= n &lt; wdm.Nt, f&quot;n={n} is out of bounds for Nt={wdm.Nt}&quot;
+    assert 0 &lt;= m &lt; wdm.Nf, f&quot;m={m} is out of bounds for Nf={wdm.Nf}&quot;
+
+    if m&gt;0:
+        if n==0:
+            t0, t1 = 0, t_ticks[0]
+            f0, f1 = f_ticks[m-1], f_ticks[m]
+            rect = patches.Rectangle((t0, f0), t1-t0, f1-f0, linewidth=1,
+                            edgecolor=col[i], facecolor=col[i], alpha=0.9)
+            ax_tf.add_patch(rect)
+            if text_label:
+                ax_tf.text(t1+eps_x, f0+eps_y, r&quot;$(n,m)=(&quot;+str(n)+&quot;,&quot;+str(m)+&quot;)$&quot;,
+                        fontsize=10, color=col[i], rotation=90)
+            t0, t1 = t_ticks[-1], wdm.T
+            rect = patches.Rectangle((t0, f0), t1-t0, f1-f0, linewidth=1,
+                            edgecolor=col[i], facecolor=col[i], alpha=0.9)
+            ax_tf.add_patch(rect)
+        else:
+            t0, t1 = t_ticks[n-1], t_ticks[n]
+            f0, f1 = f_ticks[m-1], f_ticks[m]
+            rect = patches.Rectangle((t0, f0), t1-t0, f1-f0, linewidth=1,
+                            edgecolor=col[i], facecolor=col[i], alpha=0.9)
+            ax_tf.add_patch(rect)
+            if text_label:
+                ax_tf.text(t1+eps_x, f0+eps_y, r&quot;$(n,m)=(&quot;+str(n)+&quot;,&quot;+str(m)+&quot;)$&quot;,
+                            fontsize=10, color=col[i], rotation=90)
+    else:
+        if n==0:
+            t0, t1 = 0, t_ticks[1]
+            f0, f1 = 0., f_ticks[0]
+            rect = patches.Rectangle((t0, f0), t1-t0, f1-f0, linewidth=1,
+                            edgecolor=col[i], facecolor=col[i], alpha=0.9)
+            ax_tf.add_patch(rect)
+            t0, t1 = t_ticks[-1], wdm.T
+            rect = patches.Rectangle((t0, f0), t1-t0, f1-f0, linewidth=1,
+                            edgecolor=col[i], facecolor=col[i], alpha=0.9)
+            ax_tf.add_patch(rect)
+        elif n&lt;wdm.Nt//2:
+            t0, t1 = t_ticks[2*n-1], t_ticks[2*n+1]
+            f0, f1 = 0., f_ticks[0]
+            rect = patches.Rectangle((t0, f0), t1-t0, f1-f0, linewidth=1,
+                            edgecolor=col[i], facecolor=col[i], alpha=0.9)
+            ax_tf.add_patch(rect)
+        elif n==wdm.Nt//2:
+            t0, t1 = 0, t_ticks[1]
+            f0, f1 = f_ticks[-1], wdm.f_Ny
+            rect = patches.Rectangle((t0, f0), t1-t0, f1-f0, linewidth=1,
+                            edgecolor=col[i], facecolor=col[i], alpha=0.9)
+            ax_tf.add_patch(rect)
+            t0, t1 = t_ticks[-1], wdm.T
+            rect = patches.Rectangle((t0, f0), t1-t0, f1-f0, linewidth=1,
+                            edgecolor=col[i], facecolor=col[i], alpha=0.9)
+            ax_tf.add_patch(rect)
+        else:
+            t0, t1 = t_ticks[2*(n-wdm.Nt//2)-1], t_ticks[2*(n-wdm.Nt//2)+1]
+            f0, f1 = f_ticks[-1], wdm.f_Ny
+            rect = patches.Rectangle((t0, f0), t1-t0, f1-f0, linewidth=1,
+                            edgecolor=col[i], facecolor=col[i], alpha=0.9)
+            ax_tf.add_patch(rect)
+
+
+for i, (n, m) in enumerate(zip(n_vals, m_vals)):
+    draw_rectangle(n, m, i, ax_tf, text_label=True)
+
+# Remove middle unused column
+fig.delaxes(fig.add_subplot(gs[0, 1]))
+
+# Tighter layout
+plt.subplots_adjust(wspace=0.05, hspace=0.05, left=0.08, right=0.92, top=0.95, bottom=0.08)
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/plotting_the_mother_wavelet_11_0.png" src="_images/plotting_the_mother_wavelet_11_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>n = 20
+m = 0
+
+fig = plt.figure(figsize=(6, 6))
+gs = gridspec.GridSpec(2, 3, width_ratios=[3, 0.1, 1], height_ratios=[1, 3])
+
+# Time-domain wavelet (top-left)
+ax_time = fig.add_subplot(gs[0, 0])
+ax_time.plot(wdm.times, wdm.gnm(n=n, m=m), &#39;k-&#39;)
+ax_time.set_xlim(0, wdm.T)
+ax_time.set_xticks([])
+ax_time.set_yticks([])
+ax_time.set_ylabel(r&quot;$g_{nm}(t)$&quot;)
+
+# Frequency-domain wavelet (bottom-right)
+ax_freq = fig.add_subplot(gs[1, 2])
+ax_freq.plot(np.abs(np.fft.rfft(wdm.gnm(n=n, m=m)))[:wdm.N//2],
+             wdm.freqs[:wdm.N//2], &#39;k-&#39;)
+ax_freq.set_ylim(0, wdm.f_Ny)
+ax_freq.set_xticks([])
+ax_freq.set_yticks([])
+ax_freq.yaxis.tick_right()
+ax_freq.yaxis.set_label_position(&quot;right&quot;)
+ax_freq.xaxis.set_label_position(&#39;top&#39;)
+ax_freq.set_xlabel(r&quot;$|\tilde{G}_{nm}(f)|$&quot;)
+
+# Time-frequency grid (bottom-left)
+ax_tf = fig.add_subplot(gs[1, 0])
+t_ticks = [(i+0.5)*wdm.dT for i in range(wdm.Nt)]
+f_ticks = [(i+0.5)*wdm.dF for i in range(wdm.Nf)]
+for t in t_ticks:
+    ax_tf.axvline(t, color=&#39;k&#39;, lw=0.5)
+for f in f_ticks:
+    ax_tf.axhline(f, color=&#39;k&#39;, lw=0.5)
+ax_tf.set_xlim(0, wdm.T)
+ax_tf.set_ylim(0, wdm.f_Ny)
+ax_tf.set_xticks(np.linspace(0, wdm.T, 5))
+ax_tf.set_yticks(np.linspace(0, wdm.f_Ny, 5))
+ax_tf.set_xlabel(r&quot;Time $t$ [seconds]&quot;)
+ax_tf.set_ylabel(r&quot;Frequency $f$ [Hertz]&quot;)
+
+draw_rectangle(n, m, 3, ax_tf)
+
+# Remove middle unused column
+fig.delaxes(fig.add_subplot(gs[0, 1]))
+
+# Tighter layout
+plt.subplots_adjust(wspace=0.05, hspace=0.05, left=0.08, right=0.92, top=0.95, bottom=0.08)
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/plotting_the_mother_wavelet_12_0.png" src="_images/plotting_the_mother_wavelet_12_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>&quot;&quot;&quot;
+from PIL import Image
+import io
+
+def frame(n, m):
+
+    fig = plt.figure(figsize=(6, 6))
+    gs = gridspec.GridSpec(2, 3, width_ratios=[3, 0.1, 1], height_ratios=[1, 3])
+
+    # Time-domain wavelet (top-left)
+    ax_time = fig.add_subplot(gs[0, 0])
+    ax_time.plot(wdm.times, wdm.gnm(n=n, m=m), &#39;k-&#39;)
+    ax_time.set_xlim(0, wdm.T)
+    ax_time.set_xticks([])
+    ax_time.set_yticks([])
+    ax_time.set_ylabel(r&quot;$g_{nm}(t)$&quot;)
+
+    # Frequency-domain wavelet (bottom-right)
+    ax_freq = fig.add_subplot(gs[1, 2])
+    ax_freq.plot(np.abs(np.fft.rfft(wdm.gnm(n=n, m=m)))[:wdm.N//2],
+                 wdm.freqs[:wdm.N//2], &#39;k-&#39;)
+    ax_freq.set_ylim(0, wdm.f_Ny)
+    ax_freq.set_xticks([])
+    ax_freq.set_yticks([])
+    ax_freq.yaxis.tick_right()
+    ax_freq.yaxis.set_label_position(&quot;right&quot;)
+    ax_freq.xaxis.set_label_position(&#39;top&#39;)
+    ax_freq.set_xlabel(r&quot;$|\tilde{G}_{nm}(f)|$&quot;)
+
+    # Time-frequency grid (bottom-left)
+    ax_tf = fig.add_subplot(gs[1, 0])
+    t_ticks = [(i+0.5)*wdm.dT for i in range(wdm.Nt)]
+    f_ticks = [(i+0.5)*wdm.dF for i in range(wdm.Nf)]
+    for t in t_ticks:
+        ax_tf.axvline(t, color=&#39;k&#39;, lw=0.5)
+    for f in f_ticks:
+        ax_tf.axhline(f, color=&#39;k&#39;, lw=0.5)
+    ax_tf.set_xlim(0, wdm.T)
+    ax_tf.set_ylim(0, wdm.f_Ny)
+    ax_tf.set_xticks(np.linspace(0, wdm.T, 5))
+    ax_tf.set_yticks(np.linspace(0, wdm.f_Ny, 5))
+    ax_tf.set_xlabel(r&quot;Time $t$ [seconds]&quot;)
+    ax_tf.set_ylabel(r&quot;Frequency $f$ [Hertz]&quot;)
+
+    draw_rectangle(n, m, 3, ax_tf)
+
+    # Remove middle unused column
+    fig.delaxes(fig.add_subplot(gs[0, 1]))
+
+    ax_label = fig.add_subplot(gs[0, 2])
+    ax_label.axis(&quot;off&quot;)  # Turn off axes
+
+    # Add your text — adjust ha/va for alignment, and fontsize as desired
+    ax_label.text(1.0, 1.0, f&quot;n={n}, m={m}&quot;,
+                ha=&#39;right&#39;, va=&#39;top&#39;, transform=ax_label.transAxes,
+                fontsize=12, fontweight=&#39;bold&#39;)
+
+    # Tighter layout
+    plt.subplots_adjust(wspace=0.05, hspace=0.05, left=0.08, right=0.92, top=0.95, bottom=0.08)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format=&#39;png&#39;)
+    plt.close(fig)  # Close to avoid memory issues
+    buf.seek(0)
+
+    frame = Image.open(buf).convert(&#39;RGB&#39;)
+
+    return frame
+
+# List to store frames
+frames = []
+for n in range(wdm.Nt):
+    for m in range(wdm.Nf):
+        frames.append(frame(n, m))
+
+# Save as animated GIF
+frames[0].save(
+    &#39;wavelet_animation.gif&#39;,
+    save_all=True,
+    append_images=frames[1:],
+    duration=200,  # duration per frame in ms
+    loop=0  # 0 = loop forever
+)
+&quot;&quot;&quot;
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;\nfrom PIL import Image\nimport io\n\ndef frame(n, m):\n\n    fig = plt.figure(figsize=(6, 6))\n    gs = gridspec.GridSpec(2, 3, width_ratios=[3, 0.1, 1], height_ratios=[1, 3])\n\n    # Time-domain wavelet (top-left)\n    ax_time = fig.add_subplot(gs[0, 0])\n    ax_time.plot(wdm.times, wdm.gnm(n=n, m=m), \&#39;k-\&#39;)\n    ax_time.set_xlim(0, wdm.T)\n    ax_time.set_xticks([])\n    ax_time.set_yticks([])\n    ax_time.set_ylabel(r&#34;$g_{nm}(t)$&#34;)\n\n    # Frequency-domain wavelet (bottom-right)\n    ax_freq = fig.add_subplot(gs[1, 2])\n    ax_freq.plot(np.abs(np.fft.rfft(wdm.gnm(n=n, m=m)))[:wdm.N//2], \n                 wdm.freqs[:wdm.N//2], \&#39;k-\&#39;)\n    ax_freq.set_ylim(0, wdm.f_Ny)\n    ax_freq.set_xticks([])\n    ax_freq.set_yticks([])\n    ax_freq.yaxis.tick_right()\n    ax_freq.yaxis.set_label_position(&#34;right&#34;)\n    ax_freq.xaxis.set_label_position(\&#39;top\&#39;)\n    ax_freq.set_xlabel(r&#34;$|\tilde{G}_{nm}(f)|$&#34;)\n\n    # Time-frequency grid (bottom-left)\n    ax_tf = fig.add_subplot(gs[1, 0])\n    t_ticks = [(i+0.5)*wdm.dT for i in range(wdm.Nt)]\n    f_ticks = [(i+0.5)*wdm.dF for i in range(wdm.Nf)]\n    for t in t_ticks:\n        ax_tf.axvline(t, color=\&#39;k\&#39;, lw=0.5)\n    for f in f_ticks:\n        ax_tf.axhline(f, color=\&#39;k\&#39;, lw=0.5)\n    ax_tf.set_xlim(0, wdm.T)\n    ax_tf.set_ylim(0, wdm.f_Ny)\n    ax_tf.set_xticks(np.linspace(0, wdm.T, 5))\n    ax_tf.set_yticks(np.linspace(0, wdm.f_Ny, 5))\n    ax_tf.set_xlabel(r&#34;Time $t$ [seconds]&#34;)\n    ax_tf.set_ylabel(r&#34;Frequency $f$ [Hertz]&#34;)\n\n    draw_rectangle(n, m, 3, ax_tf)\n\n    # Remove middle unused column\n    fig.delaxes(fig.add_subplot(gs[0, 1]))\n\n    ax_label = fig.add_subplot(gs[0, 2])\n    ax_label.axis(&#34;off&#34;)  # Turn off axes\n\n    # Add your text — adjust ha/va for alignment, and fontsize as desired\n    ax_label.text(1.0, 1.0, f&#34;n={n}, m={m}&#34;, \n                ha=\&#39;right\&#39;, va=\&#39;top\&#39;, transform=ax_label.transAxes,\n                fontsize=12, fontweight=\&#39;bold\&#39;)\n\n    # Tighter layout\n    plt.subplots_adjust(wspace=0.05, hspace=0.05, left=0.08, right=0.92, top=0.95, bottom=0.08)\n\n    buf = io.BytesIO()\n    fig.savefig(buf, format=\&#39;png\&#39;)\n    plt.close(fig)  # Close to avoid memory issues\n    buf.seek(0)\n\n    frame = Image.open(buf).convert(\&#39;RGB\&#39;)\n\n    return frame\n\n# List to store frames\nframes = []\nfor n in range(wdm.Nt):\n    for m in range(wdm.Nf):\n        frames.append(frame(n, m))\n\n# Save as animated GIF\nframes[0].save(\n    \&#39;wavelet_animation.gif\&#39;,\n    save_all=True,\n    append_images=frames[1:],\n    duration=200,  # duration per frame in ms\n    loop=0  # 0 = loop forever\n)\n&#39;
+</pre></div></div>
+</div>
+<p>Check the orthonormalit property of the wavelets.</p>
+<div class="math notranslate nohighlight" id="equation-plotting-the-mother-wavelet-2">
+<span class="eqno">(32)<a class="headerlink" href="#equation-plotting-the-mother-wavelet-2" title="Link to this equation"></a></span>\[\delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} \\]</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.0, Nf=4, N=16, q=2)
+
+for m in range(wdm.Nf):
+    for n in range(wdm.Nt):
+        for m_ in range(wdm.Nf):
+            for n_ in  range(wdm.Nt):
+                if n == n_ and m == m_:
+                    expected = 1.0
+                else:
+                    expected = 0.0
+                actual = np.sum(
+                                wdm.gnm(n=n, m=m) * wdm.gnm(n=n_, m=m_)
+                            ) * wdm.dt
+                check = np.isclose(actual, expected, rtol=1.0e-5, atol=1.0e-5)
+                assert check, \
+                    f&quot;Failed for (n,m)=({n},{m}), (n&#39;,m&#39;)=({n_},{m_}): &quot; \
+                    f&quot;expected {expected}, got {actual}&quot;
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="getting_started.html" class="btn btn-neutral float-left" title="Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="filtering_and_glitch_removal.html" class="btn btn-neutral float-right" title="Filtering, whitening and glitch removal" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Christopher J. Moore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

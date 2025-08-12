@@ -50,12 +50,15 @@
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Mathematical Background</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#normalised-incomplete-beta-function">Normalised Incomplete Beta Function</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#meyer-window">Meyer Window</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#wdm-wavelets">WDM Wavelets</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#the-discrete-wdm-wavelet-transform">The Discrete WDM Wavelet Transform</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#glossary">Glossary</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#appendices">Appendices</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#normalised-incomplete-beta-function">Normalised Incomplete Beta Function</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">WDM</a></li>
@@ -92,12 +95,16 @@
 <nav class="contents local" id="contents">
 <ul class="simple">
 <li><p><a class="reference internal" href="#introduction" id="id18">Introduction</a></p></li>
-<li><p><a class="reference internal" href="#normalised-incomplete-beta-function" id="id19">Normalised Incomplete Beta Function</a></p></li>
-<li><p><a class="reference internal" href="#meyer-window" id="id20">Meyer Window</a></p></li>
-<li><p><a class="reference internal" href="#wdm-wavelets" id="id21">WDM Wavelets</a></p></li>
-<li><p><a class="reference internal" href="#the-discrete-wdm-wavelet-transform" id="id22">The Discrete WDM Wavelet Transform</a></p></li>
-<li><p><a class="reference internal" href="#glossary" id="id23">Glossary</a></p></li>
-<li><p><a class="reference internal" href="#references" id="id24">References</a></p></li>
+<li><p><a class="reference internal" href="#meyer-window" id="id19">Meyer Window</a></p></li>
+<li><p><a class="reference internal" href="#wdm-wavelets" id="id20">WDM Wavelets</a></p></li>
+<li><p><a class="reference internal" href="#the-discrete-wdm-wavelet-transform" id="id21">The Discrete WDM Wavelet Transform</a></p></li>
+<li><p><a class="reference internal" href="#glossary" id="id22">Glossary</a></p></li>
+<li><p><a class="reference internal" href="#references" id="id23">References</a></p></li>
+<li><p><a class="reference internal" href="#appendices" id="id24">Appendices</a></p>
+<ul>
+<li><p><a class="reference internal" href="#normalised-incomplete-beta-function" id="id25">Normalised Incomplete Beta Function</a></p></li>
+</ul>
+</li>
 </ul>
 </nav>
 <section id="introduction">
@@ -110,54 +117,35 @@ in the frequency domain, and they provide uniform tiling in both time and freque
 The WDM wavelets were first introduced to GW data analysis in Ref. <a class="footnote-reference brackets" href="#id7" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a> (see also Ref. <a class="footnote-reference brackets" href="#id8" id="id2" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a>) and are used
 in Coherent WaveBurst (CWB; Refs. <a class="footnote-reference brackets" href="#id9" id="id3" role="doc-noteref"><span class="fn-bracket">[</span>3<span class="fn-bracket">]</span></a> and <a class="footnote-reference brackets" href="#id10" id="id4" role="doc-noteref"><span class="fn-bracket">[</span>4<span class="fn-bracket">]</span></a>).</p>
 </section>
-<section id="normalised-incomplete-beta-function">
-<h2><a class="toc-backref" href="#id19" role="doc-backlink">Normalised Incomplete Beta Function</a><a class="headerlink" href="#normalised-incomplete-beta-function" title="Link to this heading"></a></h2>
-<p>The WDM wavelets use the normalised incomplete beta function, <span class="math notranslate nohighlight">\(\nu_d(x)\)</span>,</p>
-<div class="math notranslate nohighlight" id="equation-theory-0">
-<span class="eqno">(1)<a class="headerlink" href="#equation-theory-0" title="Link to this equation"></a></span>\[\nu_d(x) = \frac{ \int_0^x \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }
-                      { \int_0^1 \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} } ,
-                      \quad \mathrm{for}\; 0\leq x\leq 1.\]</div>
-<p>This acts as a smooth transition function (or compact sigmoid-like function) from 0 to 1.
-The parameter <span class="math notranslate nohighlight">\(d\)</span> controls the steepness of the transition; see <a class="reference internal" href="#fig-norm-incomplete-beta"><span class="std std-numref">Figure 1</span></a>.</p>
-<p>The function <span class="math notranslate nohighlight">\(\nu_d(x)\)</span> is implemented in <a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.Meyer.nu_d" title="WDM.code.utils.Meyer.nu_d"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.utils.Meyer.nu_d()</span></code></a>.</p>
-<figure class="align-center" id="id11">
-<span id="fig-norm-incomplete-beta"></span><a class="reference internal image-reference" href="_images/norm_incomplete_beta.png"><img alt="norm_incomplete_beta" src="_images/norm_incomplete_beta.png" style="width: 70%;" />
-</a>
-<figcaption>
-<p><span class="caption-number">Figure 1 </span><span class="caption-text">The normalised incomplete beta function <span class="math notranslate nohighlight">\(\nu_d(x)\)</span> for several values of <span class="math notranslate nohighlight">\(d\)</span>.</span><a class="headerlink" href="#id11" title="Link to this image"></a></p>
-</figcaption>
-</figure>
-</section>
 <section id="meyer-window">
-<h2><a class="toc-backref" href="#id20" role="doc-backlink">Meyer Window</a><a class="headerlink" href="#meyer-window" title="Link to this heading"></a></h2>
+<h2><a class="toc-backref" href="#id19" role="doc-backlink">Meyer Window</a><a class="headerlink" href="#meyer-window" title="Link to this heading"></a></h2>
 <p>The WDM wavelet transform is based on the Meyer window function, which is
 defined in the frequency domain by</p>
-<div class="math notranslate nohighlight" id="equation-theory-1">
-<span class="eqno">(2)<a class="headerlink" href="#equation-theory-1" title="Link to this equation"></a></span>\[\begin{split}\tilde{\Phi}(\omega) = \begin{cases}
+<div class="math notranslate nohighlight" id="equation-theory-0">
+<span class="eqno">(1)<a class="headerlink" href="#equation-theory-0" title="Link to this equation"></a></span>\[\begin{split}\tilde{\Phi}(\omega) = \begin{cases}
     \frac{1}{\sqrt{\Delta\Omega}} &amp; \text{if } |\omega| &lt; A, \\
     \frac{1}{\sqrt{\Delta\Omega}} \cos\left(\frac{\pi}{2}\nu_d\left(\frac{|\omega| -
      A}{B}\right)\right) &amp; \text{if } A \leq |\omega| \leq A + B \\
     0 &amp; \text{if } |\omega| &gt; A + B
 \end{cases} ,\end{split}\]</div>
-<p>where <span class="math notranslate nohighlight">\(\omega=2\pi f\)</span>, and <span class="math notranslate nohighlight">\(B\)</span> are two positive angular frequency parameters that control the shape of the window.
+<p>where <span class="math notranslate nohighlight">\(\omega=2\pi f\)</span>, and where <span class="math notranslate nohighlight">\(A\)</span> and <span class="math notranslate nohighlight">\(B\)</span> are two positive angular frequency parameters that control the shape of the window.
 They satisfy <span class="math notranslate nohighlight">\(2A + B = \Delta\Omega\)</span>, where <span class="math notranslate nohighlight">\(\Delta\Omega\)</span> is the total wavelet bandwidth.
 The parameter <span class="math notranslate nohighlight">\(A\)</span> is the half-width of the flat-top response region while <span class="math notranslate nohighlight">\(B\)</span> is the width of the transition region;
-see <a class="reference internal" href="#fig-meyer-window"><span class="std std-numref">Figure 2</span></a>.
-Unless otherwise stated, we use the default values <span class="math notranslate nohighlight">\(A=\Delta \Omega/4\)</span>, <span class="math notranslate nohighlight">\(B=\Delta \Omega/2\)</span>, and <span class="math notranslate nohighlight">\(d=4\)</span>.</p>
+see <a class="reference internal" href="#fig-meyer-window"><span class="std std-numref">Figure 1</span></a>.
+Unless otherwise stated, the default values <span class="math notranslate nohighlight">\(A=\Delta \Omega/4\)</span>, <span class="math notranslate nohighlight">\(B=\Delta \Omega/2\)</span>, and <span class="math notranslate nohighlight">\(d=4\)</span> will be used here.</p>
 <p>The function <span class="math notranslate nohighlight">\(\tilde{\Phi}(\omega)\)</span> is implemented in <a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.Meyer.Meyer" title="WDM.code.utils.Meyer.Meyer"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.utils.Meyer.Meyer()</span></code></a>.</p>
-<figure class="align-center" id="id12">
+<figure class="align-center" id="id11">
 <span id="fig-meyer-window"></span><a class="reference internal image-reference" href="_images/Meyer_window.png"><img alt="Meyer_window" src="_images/Meyer_window.png" style="width: 90%;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Figure 2 </span><span class="caption-text">The Meyer window function <span class="math notranslate nohighlight">\(\tilde{\Phi}(\omega)\)</span> for different values of <span class="math notranslate nohighlight">\(d\)</span>.
+<p><span class="caption-number">Figure 1 </span><span class="caption-text">The Meyer window function <span class="math notranslate nohighlight">\(\tilde{\Phi}(\omega)\)</span> for different values of <span class="math notranslate nohighlight">\(d\)</span>.
 The bottom panel shows the window in the time-domain, <span class="math notranslate nohighlight">\(\phi(t)\)</span>,
-where <span class="math notranslate nohighlight">\(\Delta T = \pi/\Delta \Omega\)</span>. The case <span class="math notranslate nohighlight">\(d=4\)</span> matches Fig.1 of Ref. <a class="footnote-reference brackets" href="#id8" id="id5" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a>.</span><a class="headerlink" href="#id12" title="Link to this image"></a></p>
+where <span class="math notranslate nohighlight">\(\Delta T = \pi/\Delta \Omega\)</span>. The case <span class="math notranslate nohighlight">\(d=4\)</span> matches Fig.1 of Ref. <a class="footnote-reference brackets" href="#id8" id="id5" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a>.</span><a class="headerlink" href="#id11" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 </section>
 <section id="wdm-wavelets">
-<h2><a class="toc-backref" href="#id21" role="doc-backlink">WDM Wavelets</a><a class="headerlink" href="#wdm-wavelets" title="Link to this heading"></a></h2>
-<p>This section relates to the example notebook <cite>./examples/plotting_the_mother_wavelets.ipynb</cite>.</p>
+<h2><a class="toc-backref" href="#id20" role="doc-backlink">WDM Wavelets</a><a class="headerlink" href="#wdm-wavelets" title="Link to this heading"></a></h2>
 <p>Henceforth, we will work with frequency <span class="math notranslate nohighlight">\(f\)</span> rather than angular frequency <span class="math notranslate nohighlight">\(\omega=2\pi f\)</span>.
 This fits with the rest of the GW data analysis community which tends to work with frequency.</p>
 <p>Consider a function of time <span class="math notranslate nohighlight">\(x(t)\)</span>.
@@ -168,17 +156,17 @@ and the Nyquist frequency is <span class="math notranslate nohighlight">\(f_{\rm
 We will insist that <span class="math notranslate nohighlight">\(N\)</span> is even.</p>
 <p>The WDM wavelet transformation represents the time series using <span class="math notranslate nohighlight">\(N_f\)</span> frequency slices of with <span class="math notranslate nohighlight">\(\Delta F\)</span>
 and <span class="math notranslate nohighlight">\(N_t\)</span> time slices of width <span class="math notranslate nohighlight">\(\Delta T\)</span>;</p>
+<div class="math notranslate nohighlight" id="equation-theory-1">
+<span class="eqno">(2)<a class="headerlink" href="#equation-theory-1" title="Link to this equation"></a></span>\[\Delta T = N_f \delta t ,\]</div>
 <div class="math notranslate nohighlight" id="equation-theory-2">
-<span class="eqno">(3)<a class="headerlink" href="#equation-theory-2" title="Link to this equation"></a></span>\[\Delta T = N_f \delta t ,\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-3">
-<span class="eqno">(4)<a class="headerlink" href="#equation-theory-3" title="Link to this equation"></a></span>\[\Delta F = \frac{1}{2 N_f \delta t} = \frac{N_t}{2T} .\]</div>
+<span class="eqno">(3)<a class="headerlink" href="#equation-theory-2" title="Link to this equation"></a></span>\[\Delta F = \frac{1}{2 N_f \delta t} = \frac{N_t}{2T} .\]</div>
 <p>There are <span class="math notranslate nohighlight">\(N=N_t N_f\)</span> cells, each with area <span class="math notranslate nohighlight">\(\Delta T \Delta F = \frac{1}{2}\)</span>.
 Together, these tiles uniformly cover the time–frequency plane.
 We will insist that <span class="math notranslate nohighlight">\(N_t\)</span> and <span class="math notranslate nohighlight">\(N_f\)</span> are both even.</p>
 <p>The WDM wavelets <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span> are constructed from the Meyer window function <span class="math notranslate nohighlight">\(\phi\)</span>.
 In the frequency-domain they are defined as</p>
-<div class="math notranslate nohighlight" id="equation-theory-4">
-<span class="eqno">(5)<a class="headerlink" href="#equation-theory-4" title="Link to this equation"></a></span>\[\begin{split}\tilde{G}_{nm}(f) = \begin{cases}
+<div class="math notranslate nohighlight" id="equation-theory-3">
+<span class="eqno">(4)<a class="headerlink" href="#equation-theory-3" title="Link to this equation"></a></span>\[\begin{split}\tilde{G}_{nm}(f) = \begin{cases}
     \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f) &amp; m=0 \\
     \exp(-2\pi i n f \Delta T) \left( C_{nm}\tilde{\Phi}(2\pi [f-m\Delta F])
     +C^*_{nm}\tilde{\Phi}(2\pi [f+m\Delta F]) \right) &amp; 0&lt;m&lt;N_f \\
@@ -186,14 +174,14 @@ In the frequency-domain they are defined as</p>
     \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right) &amp; m=N_f \\
 \end{cases} ,\end{split}\]</div>
 <p>where the coefficients <span class="math notranslate nohighlight">\(C_{nm}\)</span> are defined to be 1 is if <span class="math notranslate nohighlight">\(n+m\)</span> is even, and <span class="math notranslate nohighlight">\(i\)</span> if <span class="math notranslate nohighlight">\(n+m\)</span> is odd.</p>
-<p>The WDM wavelets are plotted in the frequency domain in <a class="reference internal" href="#fig-wdm-wavelets-fd"><span class="std std-numref">Figure 3</span></a>.</p>
-<figure class="align-center" id="id13">
+<p>The WDM wavelets are plotted in the frequency domain in <a class="reference internal" href="#fig-wdm-wavelets-fd"><span class="std std-numref">Figure 2</span></a>.</p>
+<figure class="align-center" id="id12">
 <span id="fig-wdm-wavelets-fd"></span><a class="reference internal image-reference" href="_images/Gnm_spectra.png"><img alt="Gnm_spectra" src="_images/Gnm_spectra.png" style="width: 70%;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Figure 3 </span><span class="caption-text">The <span class="math notranslate nohighlight">\(d=4\)</span> WDM wavelets <span class="math notranslate nohighlight">\(|\tilde{G}_{nm}(\omega)|\)</span> plotted in the frequency domain for
+<p><span class="caption-number">Figure 2 </span><span class="caption-text">The <span class="math notranslate nohighlight">\(d=4\)</span> WDM wavelets <span class="math notranslate nohighlight">\(|\tilde{G}_{nm}(\omega)|\)</span> plotted in the frequency domain for
 <span class="math notranslate nohighlight">\(m=0, 1, 2,\ldots,N_f\)</span>.
-Wavelets computed using <span class="math notranslate nohighlight">\(N_f=16\)</span> are shown to match Fig.2 of Ref. <a class="footnote-reference brackets" href="#id7" id="id6" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>.</span><a class="headerlink" href="#id13" title="Link to this image"></a></p>
+Wavelets computed using <span class="math notranslate nohighlight">\(N_f=16\)</span> are shown to match Fig.2 of Ref. <a class="footnote-reference brackets" href="#id7" id="id6" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>.</span><a class="headerlink" href="#id12" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <p>As defined, the index <span class="math notranslate nohighlight">\(m\)</span> takes on both values 0 and <span class="math notranslate nohighlight">\(N_f\)</span>.
@@ -201,63 +189,63 @@ However, these two cases can be conveniently grouped together.
 Because of the <span class="math notranslate nohighlight">\(2\Delta T\)</span> time shift, only half of the <span class="math notranslate nohighlight">\(n\)</span> range is needed;
 therefore, we redefine <span class="math notranslate nohighlight">\(G_{n0}(f):=G_{nN_f}(f)\)</span> when <span class="math notranslate nohighlight">\(n&gt;N_t/2\)</span>.
 With this choice, the index ranges <span class="math notranslate nohighlight">\(n\in\{0,1,\ldots,N_t-1\}\)</span> and <span class="math notranslate nohighlight">\(m\in\{0,1,\ldots,N_f-1\}\)</span>
-cover the entire time-frequency plane; see <a class="reference internal" href="#fig-wdm-wavelets-animate"><span class="std std-numref">Figure 6</span></a>.
+cover the entire time-frequency plane; see <a class="reference internal" href="#fig-wdm-wavelets-animate"><span class="std std-numref">Figure 5</span></a>.
 The central time and frequency of the wavelet <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span> are given by</p>
-<div class="math notranslate nohighlight" id="equation-theory-5">
-<span class="eqno">(6)<a class="headerlink" href="#equation-theory-5" title="Link to this equation"></a></span>\[\begin{split}t_{nm} = \begin{cases} ( 2n \,\mathrm{mod} \, N_t ) \Delta T &amp; \mathrm{if}\;m=0 \\
+<div class="math notranslate nohighlight" id="equation-theory-4">
+<span class="eqno">(5)<a class="headerlink" href="#equation-theory-4" title="Link to this equation"></a></span>\[\begin{split}t_{nm} = \begin{cases} ( 2n \,\mathrm{mod} \, N_t ) \Delta T &amp; \mathrm{if}\;m=0 \\
                   n \Delta T &amp; \mathrm{if}\;m&gt;0 \end{cases} \,,\end{split}\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-6">
-<span class="eqno">(7)<a class="headerlink" href="#equation-theory-6" title="Link to this equation"></a></span>\[\begin{split}f_{nm} = \begin{cases} \begin{cases}0&amp;\mathrm{if}\;n&lt;N_t/2\\
+<div class="math notranslate nohighlight" id="equation-theory-5">
+<span class="eqno">(6)<a class="headerlink" href="#equation-theory-5" title="Link to this equation"></a></span>\[\begin{split}f_{nm} = \begin{cases} \begin{cases}0&amp;\mathrm{if}\;n&lt;N_t/2\\
                         f_{\rm Ny}&amp;\mathrm{if}\,n\geq N_t/2\end{cases} &amp; \mathrm{if}\;m=0 \\
                   m \Delta F &amp; \mathrm{if}\;m&gt;0 \end{cases} \,.\end{split}\]</div>
 <p>Examples of the WDM wavelets with <span class="math notranslate nohighlight">\(N=512\)</span>, <span class="math notranslate nohighlight">\(N_f=16\)</span>, and <span class="math notranslate nohighlight">\(\delta t=1\)</span>
-are shown in <a class="reference internal" href="#fig-wdm-wavelets-td"><span class="std std-numref">Figure 4</span></a>, <a class="reference internal" href="#fig-wdm-wavelets-tf"><span class="std std-numref">Figure 5</span></a>, and <a class="reference internal" href="#fig-wdm-wavelets-animate"><span class="std std-numref">Figure 6</span></a>.
+are shown in <a class="reference internal" href="#fig-wdm-wavelets-td"><span class="std std-numref">Figure 3</span></a>, <a class="reference internal" href="#fig-wdm-wavelets-tf"><span class="std std-numref">Figure 4</span></a>, and <a class="reference internal" href="#fig-wdm-wavelets-animate"><span class="std std-numref">Figure 5</span></a>.
 Notice that the WDM wavelets are well localised in frequency but much less so in time.</p>
-<figure class="align-center" id="id14">
+<figure class="align-center" id="id13">
 <span id="fig-wdm-wavelets-td"></span><a class="reference internal image-reference" href="_images/gnm_wavelets.png"><img alt="gnm_wavelets" src="_images/gnm_wavelets.png" style="width: 70%;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Figure 4 </span><span class="caption-text">The time-domain WDM wavelets <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span> for selected values of <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span>.</span><a class="headerlink" href="#id14" title="Link to this image"></a></p>
+<p><span class="caption-number">Figure 3 </span><span class="caption-text">The time-domain WDM wavelets <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span> for selected values of <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span>.</span><a class="headerlink" href="#id13" title="Link to this image"></a></p>
 </figcaption>
 </figure>
-<figure class="align-center" id="id15">
+<figure class="align-center" id="id14">
 <span id="fig-wdm-wavelets-tf"></span><a class="reference internal image-reference" href="_images/wavelets_TF.png"><img alt="wavelets_TF" src="_images/wavelets_TF.png" style="width: 90%;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Figure 5 </span><span class="caption-text">The WDM wavelets plotted in the time (top) and frequency (right) domains for selected values of <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span>.
-The main plot shows a grid of time-frequency shaded to indicate where the wavelets have significant support.</span><a class="headerlink" href="#id15" title="Link to this image"></a></p>
+<p><span class="caption-number">Figure 4 </span><span class="caption-text">The WDM wavelets plotted in the time (top) and frequency (right) domains for selected values of <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span>.
+The main plot shows a grid of time-frequency shaded to indicate where the wavelets have significant support.</span><a class="headerlink" href="#id14" title="Link to this image"></a></p>
 </figcaption>
 </figure>
-<figure class="align-center" id="id16">
+<figure class="align-center" id="id15">
 <span id="fig-wdm-wavelets-animate"></span><a class="reference internal image-reference" href="_images/wavelet_animation.gif"><img alt="wavelet_animation" src="_images/wavelet_animation.gif" style="width: 90%;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Figure 6 </span><span class="caption-text">Animated version of <a class="reference internal" href="#fig-wdm-wavelets-tf"><span class="std std-numref">Figure 5</span></a> looping through all the wavelets.
-Notice in particular the behaviour of the wavelets for <span class="math notranslate nohighlight">\(m=0\)</span>.</span><a class="headerlink" href="#id16" title="Link to this image"></a></p>
+<p><span class="caption-number">Figure 5 </span><span class="caption-text">Animated version of <a class="reference internal" href="#fig-wdm-wavelets-tf"><span class="std std-numref">Figure 4</span></a> looping through all the wavelets.
+Notice in particular the behaviour of the wavelets for <span class="math notranslate nohighlight">\(m=0\)</span>.</span><a class="headerlink" href="#id15" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <p>The WDM wavelets have the following orthonomality property,</p>
-<div class="math notranslate nohighlight" id="equation-theory-7">
-<span class="eqno">(8)<a class="headerlink" href="#equation-theory-7" title="Link to this equation"></a></span>\[2 \pi \delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-6">
+<span class="eqno">(7)<a class="headerlink" href="#equation-theory-6" title="Link to this equation"></a></span>\[\delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .\]</div>
 <p>The frequency-domain WDM wavelets <span class="math notranslate nohighlight">\(\tilde{G}_{nm}(f)\)</span> are implemented in
 <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm()</span></code></a>.</p>
 <p>The time-domain WDM wavelets <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span> are implemented in
 <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm()</span></code></a>.</p>
 </section>
 <section id="the-discrete-wdm-wavelet-transform">
-<h2><a class="toc-backref" href="#id22" role="doc-backlink">The Discrete WDM Wavelet Transform</a><a class="headerlink" href="#the-discrete-wdm-wavelet-transform" title="Link to this heading"></a></h2>
+<h2><a class="toc-backref" href="#id21" role="doc-backlink">The Discrete WDM Wavelet Transform</a><a class="headerlink" href="#the-discrete-wdm-wavelet-transform" title="Link to this heading"></a></h2>
 <p>This section relates to the example notebook <cite>./examples/motivating_the_discrete_wavelet_transform.ipynb</cite>.</p>
 <p>This section defines the discrete WDM wavelet transform, present its exact formulation, and describe a
 computationally efficient implementation suitable for practical use.</p>
 <p>The WDM wavelets form a complete orthonormal basis for discretely sampled time series,</p>
-<div class="math notranslate nohighlight" id="equation-theory-8">
-<span class="eqno">(9)<a class="headerlink" href="#equation-theory-8" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-7">
+<span class="eqno">(8)<a class="headerlink" href="#equation-theory-7" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
 <p>Here, <span class="math notranslate nohighlight">\(x[k]\)</span> is the input time series, <span class="math notranslate nohighlight">\(w_{nm}\)</span> are the wavelet coefficients, and <span class="math notranslate nohighlight">\(g_{nm}[k]\)</span> are the
 WDM wavelet basis function.</p>
 <p>An expression for the wavelet coefficients <span class="math notranslate nohighlight">\(w_{nm}\)</span> can be derived by multiplying both sides of this
 equation by <span class="math notranslate nohighlight">\(g_{n'm'}[k]\)</span>, summing over <span class="math notranslate nohighlight">\(k\)</span>, and using the orthonormality property to obtain</p>
-<div class="math notranslate nohighlight" id="equation-theory-9">
-<span class="eqno">(10)<a class="headerlink" href="#equation-theory-9" title="Link to this equation"></a></span>\[w_{nm} = 2\pi \delta t\sum_{k=0}^{N-1} x[k] g_{nm}[k] .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-8">
+<span class="eqno">(9)<a class="headerlink" href="#equation-theory-8" title="Link to this equation"></a></span>\[w_{nm} = 2\pi \delta t\sum_{k=0}^{N-1} x[k] g_{nm}[k] .\]</div>
 <p>This is the exact expression for the forward wavelet transform which transforms from the time
 to the time-frequency domain.</p>
 <p>This <em>exact</em> wavelet transform is implemented in
@@ -267,25 +255,25 @@ A practical improvement arises from the observation that the WDM are (approximat
 and the sum over <span class="math notranslate nohighlight">\(k\)</span> can be truncated to a window of length <span class="math notranslate nohighlight">\(K=2qN_f\)</span> without significant loss of accuracy.
 The truncation parameter <span class="math notranslate nohighlight">\(1\leq q\leq N_t/2\)</span> is a positive integer that controls the length of the window.
 The truncated wavelet transform is given by</p>
-<div class="math notranslate nohighlight" id="equation-theory-10">
-<span class="eqno">(11)<a class="headerlink" href="#equation-theory-10" title="Link to this equation"></a></span>\[w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
+<div class="math notranslate nohighlight" id="equation-theory-9">
+<span class="eqno">(10)<a class="headerlink" href="#equation-theory-9" title="Link to this equation"></a></span>\[w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
                                  g_{nm}[k + 2 n N_f] x[k + 2 n N_f] ,\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-11">
-<span class="eqno">(12)<a class="headerlink" href="#equation-theory-11" title="Link to this equation"></a></span>\[w_{nm} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
+<div class="math notranslate nohighlight" id="equation-theory-10">
+<span class="eqno">(11)<a class="headerlink" href="#equation-theory-10" title="Link to this equation"></a></span>\[w_{nm} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
                                  g_{nm}[k + n N_f] x[k + n N_f]
                                  \quad \mathrm{for} \; m&gt;0.\]</div>
 <p>This form of the <em>truncated</em> wavelet transform is implemented in
 <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated()</span></code></a>.</p>
-<p>Smaller values of <span class="math notranslate nohighlight">\(q\)</span> yield faster but less accurate results, see <a class="reference internal" href="#fig-trunc-err"><span class="std std-numref">Figure 7</span></a>.</p>
-<figure class="align-center" id="id17">
+<p>Smaller values of <span class="math notranslate nohighlight">\(q\)</span> yield faster but less accurate results, see <a class="reference internal" href="#fig-trunc-err"><span class="std std-numref">Figure 6</span></a>.</p>
+<figure class="align-center" id="id16">
 <span id="fig-trunc-err"></span><a class="reference internal image-reference" href="_images/trunc_err.png"><img alt="trunc_err" src="_images/trunc_err.png" style="width: 70%;" />
 </a>
 <figcaption>
-<p><span class="caption-number">Figure 7 </span><span class="caption-text">The error in the truncated wavelet transform as a function of <span class="math notranslate nohighlight">\(q\)</span>.
+<p><span class="caption-number">Figure 6 </span><span class="caption-text">The error in the truncated wavelet transform as a function of <span class="math notranslate nohighlight">\(q\)</span>.
 The wavelet transform is applied to a white-noise time series with <span class="math notranslate nohighlight">\(\mathrm{rms}=1\)</span>.
 The error is defined as the maximum relative absolute difference between the original signal and
 that reconstructed signals from the truncated wavelet transform.
-For <span class="math notranslate nohighlight">\(q=N_t/2=16\)</span>, there is no truncation and the result agrees with the exact transform.</span><a class="headerlink" href="#id17" title="Link to this image"></a></p>
+For <span class="math notranslate nohighlight">\(q=N_t/2=16\)</span>, there is no truncation and the result agrees with the exact transform.</span><a class="headerlink" href="#id16" title="Link to this image"></a></p>
 </figcaption>
 </figure>
 <p>The truncated wavelet transform can be rewritten in terms of the window function <span class="math notranslate nohighlight">\(\phi[k]\)</span></p>
@@ -297,29 +285,29 @@ For <span class="math notranslate nohighlight">\(q=N_t/2=16\)</span>, there is n
 <p>This window is created using
 <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window()</span></code></a>.</p>
 <p>Using the definition of the WDM wavelets, the truncated wavelet transform can be written as</p>
-<div class="math notranslate nohighlight" id="equation-theory-12">
-<span class="eqno">(13)<a class="headerlink" href="#equation-theory-12" title="Link to this equation"></a></span>\[w_{nm} = 2\sqrt{2}\pi\delta t \mathrm{Re} \sum_{k=-K/2}^{K/2-1}
+<div class="math notranslate nohighlight" id="equation-theory-11">
+<span class="eqno">(12)<a class="headerlink" href="#equation-theory-11" title="Link to this equation"></a></span>\[w_{nm} = 2\sqrt{2}\pi\delta t \mathrm{Re} \sum_{k=-K/2}^{K/2-1}
                          C_{nm} \exp(i\pi km/N_f)
                          x[k+nN_f] \phi[k] \quad \mathrm{for}\; m&gt;0,\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-13">
-<span class="eqno">(14)<a class="headerlink" href="#equation-theory-13" title="Link to this equation"></a></span>\[w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
+<div class="math notranslate nohighlight" id="equation-theory-12">
+<span class="eqno">(13)<a class="headerlink" href="#equation-theory-12" title="Link to this equation"></a></span>\[w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
                          x[k+2nN_f] \phi[k] \quad \mathrm{for}\; n&lt;N_t/2,\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-14">
-<span class="eqno">(15)<a class="headerlink" href="#equation-theory-14" title="Link to this equation"></a></span>\[w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} (-1)^k x[k+2nN_f]
+<div class="math notranslate nohighlight" id="equation-theory-13">
+<span class="eqno">(14)<a class="headerlink" href="#equation-theory-13" title="Link to this equation"></a></span>\[w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} (-1)^k x[k+2nN_f]
                          \phi[k] \quad \mathrm{for}\; n\geq N_t/2.\]</div>
 <p>This form of the <em>truncted, window</em> wavelet transform using <span class="math notranslate nohighlight">\(\phi[k]\)</span> is implemented in
 <code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_window()</span></code>.</p>
 <p>The greatest computational speed up comes from writing the truncated wavelet transform in terms of the
 the windowed Fast Fourier Transform (FFT).
 The windowed FFT is defined as</p>
-<div class="math notranslate nohighlight" id="equation-theory-15">
-<span class="eqno">(16)<a class="headerlink" href="#equation-theory-15" title="Link to this equation"></a></span>\[X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k] ,\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-14">
+<span class="eqno">(15)<a class="headerlink" href="#equation-theory-14" title="Link to this equation"></a></span>\[X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k] ,\]</div>
 <p>where the index <span class="math notranslate nohighlight">\(j\)</span> runs over a range <span class="math notranslate nohighlight">\(K\)</span>.</p>
 <p>The <em>windowed FFT</em> (with these index and sign conventions) is implemented in
 <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.windowed_fft" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.windowed_fft"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.windowed_fft()</span></code></a></p>
 <p>Using the windowed FFT, the truncated wavelet transform can be written as</p>
-<div class="math notranslate nohighlight" id="equation-theory-16">
-<span class="eqno">(17)<a class="headerlink" href="#equation-theory-16" title="Link to this equation"></a></span>\[w_{nm} = 2\pi \sqrt{2} \delta t \mathrm{Re} C_{nm} X_n[mq] , \quad \mathrm{for} \; m&gt;0.\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-15">
+<span class="eqno">(16)<a class="headerlink" href="#equation-theory-15" title="Link to this equation"></a></span>\[w_{nm} = 2\pi \sqrt{2} \delta t \mathrm{Re} C_{nm} X_n[mq] , \quad \mathrm{for} \; m&gt;0.\]</div>
 <p>I.e., the wavelet transform can be computed using the windowed FFT of the time series downsampled to
 every <span class="math notranslate nohighlight">\(q^{\rm th}\)</span> coefficient.</p>
 <p>This expression only holds for <span class="math notranslate nohighlight">\(m&gt;0\)</span>.
@@ -334,24 +322,24 @@ are more compact in the frequency domain than in the time domain.
 It is slightly faster to compute the transform using the FFT of the full original time series.</p>
 </section>
 <section id="glossary">
-<h2><a class="toc-backref" href="#id23" role="doc-backlink">Glossary</a><a class="headerlink" href="#glossary" title="Link to this heading"></a></h2>
+<h2><a class="toc-backref" href="#id22" role="doc-backlink">Glossary</a><a class="headerlink" href="#glossary" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p><span class="math notranslate nohighlight">\(t\)</span>: Time (e.g. seconds).</p></li>
 <li><p><span class="math notranslate nohighlight">\(f\)</span>: Frequency (e.g. Hertz).</p></li>
-<li><p><span class="math notranslate nohighlight">\(\omega\)</span>: Angular frequency (e.g. radians/second). Defined as <span class="math notranslate nohighlight">\(\omega=2\pi f\)</span>.</p></li>
-<li><p><span class="math notranslate nohighlight">\(\delta t\)</span>: Time series cadence (seconds). Named <code class="docutils literal notranslate"><span class="pre">dt</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
-<li><p><span class="math notranslate nohighlight">\(f_{\rm Ny}\)</span>: Nyquist frequency, or the maximum frequency (Hertz). Defined as <span class="math notranslate nohighlight">\(f_{\rm Ny}=\frac{1}{2 \delta t}\)</span>. Named <code class="docutils literal notranslate"><span class="pre">f_Ny</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
-<li><p><span class="math notranslate nohighlight">\(A\)</span>: With of flat-top response in the Meyer window (radians/second). Named <code class="docutils literal notranslate"><span class="pre">A</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
-<li><p><span class="math notranslate nohighlight">\(B\)</span>: With of transition region in the Meyer window (radians/second). Named <code class="docutils literal notranslate"><span class="pre">B</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
-<li><p><span class="math notranslate nohighlight">\(\Delta \Omega\)</span>: Angular frequency resolution of the wavelets (radians/second). Satisfies <span class="math notranslate nohighlight">\(\Delta \Omega = 2A + B\)</span>. Named <code class="docutils literal notranslate"><span class="pre">dOmega</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
-<li><p><span class="math notranslate nohighlight">\(\Delta F\)</span>: Frequency resolution of the wavelets (Hertz). Satisfies <span class="math notranslate nohighlight">\(\Delta F = \frac{\Delta \Omega}{2\pi}\)</span>. Named <code class="docutils literal notranslate"><span class="pre">dF</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
-<li><p><span class="math notranslate nohighlight">\(\Delta T\)</span>: Time resolution of the wavelets (seconds). Satisfies <span class="math notranslate nohighlight">\(\Delta T \Delta F= \frac{1}{2}\)</span>. Named <code class="docutils literal notranslate"><span class="pre">dT</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\omega\)</span>: Angular frequency (radians per unit time). Defined as <span class="math notranslate nohighlight">\(\omega=2\pi f\)</span>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\delta t\)</span>: Time series cadence (time units). Named <code class="docutils literal notranslate"><span class="pre">dt</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(f_{\rm Ny}\)</span>: Nyquist frequency, or the maximum frequency (frequency units). Defined as <span class="math notranslate nohighlight">\(f_{\rm Ny}=\frac{1}{2 \delta t}\)</span>. Named <code class="docutils literal notranslate"><span class="pre">f_Ny</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(A\)</span>: With of flat-top response in the Meyer window (radians per unit time). Named <code class="docutils literal notranslate"><span class="pre">A</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(B\)</span>: With of transition region in the Meyer window (radians per unit time). Named <code class="docutils literal notranslate"><span class="pre">B</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\Delta \Omega\)</span>: Angular frequency resolution of the wavelets (radians per unit time). Satisfies <span class="math notranslate nohighlight">\(\Delta \Omega = 2A + B\)</span>. Named <code class="docutils literal notranslate"><span class="pre">dOmega</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\Delta F\)</span>: Frequency resolution of the wavelets (frequency units). Satisfies <span class="math notranslate nohighlight">\(\Delta F = \frac{\Delta \Omega}{2\pi}\)</span>. Named <code class="docutils literal notranslate"><span class="pre">dF</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\Delta T\)</span>: Time resolution of the wavelets (time units). Satisfies <span class="math notranslate nohighlight">\(\Delta T \Delta F= \frac{1}{2}\)</span>. Named <code class="docutils literal notranslate"><span class="pre">dT</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
 <li><p><span class="math notranslate nohighlight">\(d\)</span>: Steepness parameter for the Meyer window. Named <code class="docutils literal notranslate"><span class="pre">d</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
 <li><p><span class="math notranslate nohighlight">\(q\)</span>: Truncation parameter for the Meyer window. Named <code class="docutils literal notranslate"><span class="pre">q</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
-<li><p><span class="math notranslate nohighlight">\(N_f\)</span>: Number of frequency bands for the wavelets. Named <code class="docutils literal notranslate"><span class="pre">N_f</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
-<li><p><span class="math notranslate nohighlight">\(N_t\)</span>: Number of time bands for the wavelets, must be even. Named <code class="docutils literal notranslate"><span class="pre">N_t</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(N_f\)</span>: Number of frequency bands for the wavelets. Named <code class="docutils literal notranslate"><span class="pre">Nf</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(N_t\)</span>: Number of time bands for the wavelets, must be even. Named <code class="docutils literal notranslate"><span class="pre">Nt</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
 <li><p><span class="math notranslate nohighlight">\(N\)</span>: Number of points in the time series. Satisfies <span class="math notranslate nohighlight">\(N = N_t N_f\)</span>. Named <code class="docutils literal notranslate"><span class="pre">N</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
-<li><p><span class="math notranslate nohighlight">\(T\)</span>: Duration of the time series (seconds). Satisfies <span class="math notranslate nohighlight">\(T = N \delta t\)</span>. Named <code class="docutils literal notranslate"><span class="pre">T</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
+<li><p><span class="math notranslate nohighlight">\(T\)</span>: Duration of the time series (time units). Satisfies <span class="math notranslate nohighlight">\(T = N \delta t\)</span>. Named <code class="docutils literal notranslate"><span class="pre">T</span></code> in <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM_transform</span></code></a>.</p></li>
 <li><p><span class="math notranslate nohighlight">\(n\)</span>: Time index for the wavelets. In the range <span class="math notranslate nohighlight">\(n\in\{0,1,\ldots, N_t-1\}\)</span>.</p></li>
 <li><p><span class="math notranslate nohighlight">\(m\)</span>: Frequency index for the wavelets. In the range <span class="math notranslate nohighlight">\(m\in\{0,1,\ldots, N_f\}\)</span>.</p></li>
 <li><p><span class="math notranslate nohighlight">\(x[k]\)</span>: Time series data, where <span class="math notranslate nohighlight">\(k\in\{0,1,\ldots,N-1\}\)</span> indexes the time.</p></li>
@@ -363,7 +351,7 @@ It is slightly faster to compute the transform using the FFT of the full origina
 </ul>
 </section>
 <section id="references">
-<h2><a class="toc-backref" href="#id24" role="doc-backlink">References</a><a class="headerlink" href="#references" title="Link to this heading"></a></h2>
+<h2><a class="toc-backref" href="#id23" role="doc-backlink">References</a><a class="headerlink" href="#references" title="Link to this heading"></a></h2>
 <aside class="footnote-list brackets">
 <aside class="footnote brackets" id="id7" role="doc-footnote">
 <span class="label"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></span>
@@ -388,6 +376,27 @@ It is slightly faster to compute the transform using the FFT of the full origina
 <a class="reference external" href="https://arxiv.org/abs/1511.05999">arXiv:1511.05999</a></p>
 </aside>
 </aside>
+</section>
+<section id="appendices">
+<h2><a class="toc-backref" href="#id24" role="doc-backlink">Appendices</a><a class="headerlink" href="#appendices" title="Link to this heading"></a></h2>
+<section id="normalised-incomplete-beta-function">
+<h3><a class="toc-backref" href="#id25" role="doc-backlink">Normalised Incomplete Beta Function</a><a class="headerlink" href="#normalised-incomplete-beta-function" title="Link to this heading"></a></h3>
+<p>The WDM wavelets use the normalised incomplete beta function, <span class="math notranslate nohighlight">\(\nu_d(x)\)</span>,</p>
+<div class="math notranslate nohighlight" id="equation-theory-16">
+<span class="eqno">(17)<a class="headerlink" href="#equation-theory-16" title="Link to this equation"></a></span>\[\nu_d(x) = \frac{ \int_0^x \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }
+                      { \int_0^1 \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} } ,
+                      \quad \mathrm{for}\; 0\leq x\leq 1.\]</div>
+<p>This acts as a smooth transition function (or compact sigmoid-like function) from 0 to 1.
+The parameter <span class="math notranslate nohighlight">\(d\)</span> controls the steepness of the transition; see <a class="reference internal" href="#fig-norm-incomplete-beta"><span class="std std-numref">Figure 7</span></a>.</p>
+<p>The function <span class="math notranslate nohighlight">\(\nu_d(x)\)</span> is implemented in <a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.Meyer.nu_d" title="WDM.code.utils.Meyer.nu_d"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.utils.Meyer.nu_d()</span></code></a>.</p>
+<figure class="align-center" id="id17">
+<span id="fig-norm-incomplete-beta"></span><a class="reference internal image-reference" href="_images/norm_incomplete_beta.png"><img alt="norm_incomplete_beta" src="_images/norm_incomplete_beta.png" style="width: 70%;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Figure 7 </span><span class="caption-text">The normalised incomplete beta function <span class="math notranslate nohighlight">\(\nu_d(x)\)</span> for several values of <span class="math notranslate nohighlight">\(d\)</span>.</span><a class="headerlink" href="#id17" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
 </section>
 </section>
 

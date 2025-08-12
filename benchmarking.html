@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Getting Started &mdash; WDM 0.0.1 documentation</title>
+  <title>Benchmarking &mdash; WDM 0.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/nbsphinx-code-cells.css?v=2aa19091" />
@@ -24,8 +24,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Visualising the WDM wavelets" href="plotting_the_mother_wavelet.html" />
-    <link rel="prev" title="Examples" href="examples.html" /> 
+    <link rel="prev" title="Filtering, whitening and glitch removal" href="filtering_and_glitch_removal.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -52,10 +51,10 @@
 <li class="toctree-l1"><a class="reference internal" href="theory.html">Mathematical Background</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">WDM</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="examples.html">Examples</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Getting Started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plotting_the_mother_wavelet.html">Visualising the WDM wavelets</a></li>
 <li class="toctree-l2"><a class="reference internal" href="filtering_and_glitch_removal.html">Filtering, whitening and glitch removal</a></li>
-<li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Benchmarking</a></li>
 </ul>
 </li>
 </ul>
@@ -75,9 +74,9 @@
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="examples.html">Examples</a></li>
-      <li class="breadcrumb-item active">Getting Started</li>
+      <li class="breadcrumb-item active">Benchmarking</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/getting_started.ipynb.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/benchmarking.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -85,90 +84,50 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="Getting-Started">
-<h1>Getting Started<a class="headerlink" href="#Getting-Started" title="Link to this heading"></a></h1>
-<p>To run this notebook you will first need to download the GW data,</p>
-<p><code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">download_SXSwaveform_data.py</span></code></p>
+  <section id="Benchmarking">
+<h1>Benchmarking<a class="headerlink" href="#Benchmarking" title="Link to this heading"></a></h1>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
+
+import time
+
 import matplotlib.pyplot as plt
+
 import WDM
-from WDM.code.utils.utils import next_multiple
-from WDM.code.plotting.plotting import time_frequency_plot
 </pre></div>
 </div>
 </div>
-<p>Here’s an example GW waveform. We also compute the frequency of the signal as a function of time.</p>
-<div class="nbinput docutils container">
+<div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>data = np.loadtxt(&quot;../data/waveform_SXS:BBH:0305_Reh22.txt&quot;)
-
-time = data[0]
-re_strain = data[1]
-im_strain = data[2]
-
-frequency = np.diff(-np.unwrap(np.atan2(im_strain, re_strain)), prepend=0) / np.diff(time, prepend=0) / (2*np.pi)
-
-fig, axes = plt.subplots(nrows=2, sharex=True)
-axes[0].plot(time, re_strain)
-axes[0].set_xlabel(&#39;Time&#39;)
-axes[0].set_ylabel(&#39;Strain&#39;)
-axes[0].grid()
-axes[1].plot(time[100:-200], frequency[100:-200], &#39;k-&#39;)
-axes[1].set_xlabel(&#39;Time&#39;)
-axes[1].set_ylabel(&#39;Frequency&#39;)
-axes[1].grid()
-plt.show()
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1.,
+                                                            Nf=2**10,
+                                                            N=2**15)
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<img alt="_images/getting_started_3_0.png" src="_images/getting_started_3_0.png" />
-</div>
-</div>
-<div class="nbinput docutils container">
+<div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>current_length = len(time)
-
-print(f&quot;Current length of time series: {current_length}&quot;)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>x = np.random.normal(size=wdm.N) # white noise
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Current length of time series: 7688
-</pre></div></div>
-</div>
-<p>Let’s take a wavelet transform of this using <span class="math notranslate nohighlight">\(N_f=512\)</span> frequency slices. The <code class="docutils literal notranslate"><span class="pre">wdm</span></code> object will handle the wavelet transform. We need to pad the signal so that it’s length is an even multiple of this number</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>dt = np.mean(np.diff(time))
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>t0 = time.time()
+w = wdm.forward_transform_exact(x)
+t1 = time.time()
 
-Nf = 512
-
-N = next_multiple(current_length, 2*Nf)
-
-wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8, calc_m0=True)
-
-re_strain_padded, mask = wdm.pad_signal(re_strain)
-
-print(f&quot;Padded length of time series: {N}&quot;)
-<br/></pre></div>
+print(f&quot;Time taken: {t1-t0:.2f}&quot;)
+</pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -176,48 +135,38 @@ print(f&quot;Padded length of time series: {N}&quot;)
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Padded length of time series: 8192
+Time taken: 0.06
 </pre></div></div>
 </div>
-<p>Take the forward discrete wavelet transform (dwt). This transforms from the time domain to the time-frequency domain.</p>
-<div class="nbinput nblast docutils container">
+<div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w = wdm.forward_transform_short_fft(re_strain_padded)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>t0 = time.time()
+w = wdm.forward_transform_short_fft(x)
+t1 = time.time()
+
+print(f&quot;Time taken: {t1-t0:.2f}&quot;)
 </pre></div>
 </div>
 </div>
-<p>We can plot these coefficients in the time-frequency plane. The black line shows the frequency obtained directly from the NR waveform. Note, this doesn’t look as beautifully smooth as the oversampled periodograms we are used to looking at, but this is what we want for data analysis.</p>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Time taken: 0.06
+</pre></div></div>
+</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = time_frequency_plot(wdm, w, part=&#39;abs&#39;, scale=&#39;linear&#39;)
-ax.set_ylim(0,0.1)
-ax.plot(time[100:-200], frequency[100:-200], color=&#39;k&#39;, lw=2)
-plt.show()
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<img alt="_images/getting_started_10_0.png" src="_images/getting_started_10_0.png" />
-</div>
-</div>
-<p>Let’s take an inverse discrete wavelet transform (idwt).</p>
-<p>This transforms back into the time domain. We do this to check we can recover the original signal. We will use the mask to get the output back to the original shape.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>re_strain_recovered = wdm.idwt(w)[mask]
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>t0 = time.time()
+x_ = wdm.inverse_transform_old(w)
+t1 = time.time()
 
-residuals = re_strain_recovered-re_strain
-
-print(f&quot;Max residual: {np.max(np.abs(residuals))}&quot;)
+print(f&quot;Time taken: {t1-t0:.2f}&quot;)
 </pre></div>
 </div>
 </div>
@@ -226,22 +175,18 @@ print(f&quot;Max residual: {np.max(np.abs(residuals))}&quot;)
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Max residual: 3.5312031076983885e-14
+Time taken: 0.09
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
-ax.plot(time, re_strain, label=&#39;SXS:BBH:0305&#39;)
-ax.plot(time, re_strain_recovered, label=&#39;recovered&#39;)
-ax.plot(time, residuals, &#39;k:&#39;, label=&#39;residuals&#39;)
-ax.set_xlabel(&#39;Time (s)&#39;)
-ax.set_ylabel(&#39;Strain&#39;)
-ax.legend()
-ax.grid()
-plt.show()
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>t0 = time.time()
+x_ = wdm.inverse_transform(w)
+t1 = time.time()
+
+print(f&quot;Time taken: {t1-t0:.2f}&quot;)
 </pre></div>
 </div>
 </div>
@@ -249,7 +194,16 @@ plt.show()
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="_images/getting_started_13_0.png" src="_images/getting_started_13_0.png" />
+<div class="highlight"><pre>
+Time taken: 0.16
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
 </div>
 </div>
 <div class="nbinput nblast docutils container">
@@ -266,8 +220,7 @@ plt.show()
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="examples.html" class="btn btn-neutral float-left" title="Examples" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="plotting_the_mother_wavelet.html" class="btn btn-neutral float-right" title="Visualising the WDM wavelets" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="filtering_and_glitch_removal.html" class="btn btn-neutral float-left" title="Filtering, whitening and glitch removal" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>

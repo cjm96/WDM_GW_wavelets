@@ -1,0 +1,418 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Filtering, whitening and glitch removal &mdash; WDM 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/nbsphinx-code-cells.css?v=2aa19091" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=86424434" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Benchmarking" href="benchmarking.html" />
+    <link rel="prev" title="Visualising the WDM wavelets" href="plotting_the_mother_wavelet.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            WDM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="theory.html">Mathematical Background</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">WDM</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="examples.html">Examples</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plotting_the_mother_wavelet.html">Visualising the WDM wavelets</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Filtering, whitening and glitch removal</a></li>
+<li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">WDM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="examples.html">Examples</a></li>
+      <li class="breadcrumb-item active">Filtering, whitening and glitch removal</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/filtering_and_glitch_removal.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="Filtering,-whitening-and-glitch-removal">
+<h1>Filtering, whitening and glitch removal<a class="headerlink" href="#Filtering,-whitening-and-glitch-removal" title="Link to this heading"></a></h1>
+<p>To run this notebook you will need to download the GW data.</p>
+<p><code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">download_GW170817_data.py</span></code></p>
+<p>Use the L1 GW170817 data to demonstrate (i) glitch removal, (ii) bandpass filtering, and (iii) whitening in the wavelet time-frequency domain.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
+
+import matplotlib.pyplot as plt
+
+import WDM
+</pre></div>
+</div>
+</div>
+<p>Load the Livingston data around GW170817.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>path = &quot;../data/L-L1_GWOSC_4KHZ_R1-1187006835-4096.txt&quot;
+
+with open(path, &#39;r&#39;, encoding=&#39;utf-8&#39;) as f:
+    for line in f:
+        if line.startswith(&#39;#&#39;):
+            print(line.rstrip(&#39;\n&#39;))
+        else:
+            break
+
+data = np.loadtxt(path)
+
+f_samp = 4096.0
+
+gps_time = 1187006835.0 + np.arange(data.shape[0]) / f_samp
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+# Gravitational wave strain for GW170817_R1 for L1 (see http://losc.ligo.org)
+# This file has 4096 samples per second
+# starting GPS 1187006835 duration 4096
+</pre></div></div>
+</div>
+<p>Noise Estimatation</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>def overlapping_windows(x, num_perseg, num_overlap):
+    &quot;&quot;&quot;
+    Split input `x` into overlapping windows. Trailing samples that don&#39;t fill
+    a full window are discarded.
+
+    Parameters
+    ----------
+    x : ndarray
+        Input array to split into windows.
+    num_perseg : int
+        Length of each segment.
+    num_overlap : int
+        Number of overlapping samples between segments.
+
+    Returns
+    -------
+    y : ndarray
+        Array of shape (n_windows, num_perseg).
+    &quot;&quot;&quot;
+    x = np.asarray(x)
+    if x.ndim != 1:
+        raise ValueError(&quot;x must be 1D&quot;)
+    if num_perseg &lt;= 0:
+        raise ValueError(&quot;num_perseg must be positive&quot;)
+    if not (0 &lt;= num_overlap &lt; num_perseg):
+        raise ValueError(&quot;num_overlap must satisfy 0 &lt;= overlap &lt; num_perseg&quot;)
+
+    step = num_perseg - num_overlap
+    if x.size &lt; num_perseg:
+        return np.empty((0, num_perseg), dtype=x.dtype)
+
+    return np.lib.stride_tricks.sliding_window_view(x, num_perseg)[::step]
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>num_perseg = 32*int(f_samp)
+num_overlap = num_perseg // 10
+
+overlapping_times = overlapping_windows(gps_time, num_perseg, num_overlap)
+overlapping_data = overlapping_windows(data, num_perseg, num_overlap)
+
+trigger = 1187008882.43
+
+idx = np.argmax(np.any(overlapping_times&gt;trigger, axis=1))
+
+print(f&quot;Splitting data in {overlapping_times.shape[0]} segements with &quot; \
+      f&quot;{num_perseg} samples per segment. &quot; \
+      f&quot;The signal is in segment number {idx}.&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Splitting data in 142 segements with 131072 samples per segment. The signal is in segment number 70.
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=1./f_samp, Nf=256, N=num_perseg)
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>t, f = wdm.wavelet_central_time_frequency(np.arange(wdm.Nt), np.arange(wdm.Nf))
+
+bandpass = np.logical_and(f&gt;20.0, f&lt;1000.0)
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>def test():
+    assert wdm.check_indices(1,1), &quot;a&quot;
+    return 1
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>overlapping_data_TF = np.array([
+                        wdm.forward_transform_short_fft(overlapping_data[i])
+                        for i in range(overlapping_data.shape[0]) ])
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>mask = (np.arange(overlapping_data.shape[0]) != idx)
+
+overlapping_data_off_source_TF = overlapping_data_TF[mask,:,:]
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>S = np.sqrt(np.mean(overlapping_data_off_source_TF**2, axis=0))
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
+ax.imshow(np.log10(S.T), extent=[0., num_perseg/f_samp, 0., 0.5*f_samp], aspect=&#39;auto&#39;)
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/var/folders/qj/mhy_bkdx1n7dy8knwlxg3fqw0000gn/T/ipykernel_66307/751887108.py:2: RuntimeWarning: divide by zero encountered in log10
+  ax.imshow(np.log10(S.T), extent=[0., num_perseg/f_samp, 0., 0.5*f_samp], aspect=&#39;auto&#39;)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/filtering_and_glitch_removal_14_1.png" src="_images/filtering_and_glitch_removal_14_1.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>S[:,0] = 1.0
+
+whitened = overlapping_data_TF[idx,:,:]/S
+
+whitened[~bandpass] = 0.0
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>t_cells, _ = wdm.wavelet_central_time_frequency(np.arange(wdm.Nt), np.ones(wdm.Nf))
+
+glitch = np.logical_and(t_cells&gt;29.8, t_cells&lt;30.9)
+
+whitened[glitch] = 0.0
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><br/><span></span>np.sum(glitch[:,0])
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+np.int64(18)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = WDM.code.plotting.plotting.time_frequency_plot(wdm, whitened, scale=&#39;log&#39;)
+ax.set_ylim(0,500)
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/filtering_and_glitch_removal_18_0.png" src="_images/filtering_and_glitch_removal_18_0.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>whitened_TD = wdm.inverse_transform(whitened)
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>plt.plot(wdm.times, whitened_TD)
+plt.show()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/filtering_and_glitch_removal_20_0.png" src="_images/filtering_and_glitch_removal_20_0.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="plotting_the_mother_wavelet.html" class="btn btn-neutral float-left" title="Visualising the WDM wavelets" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="benchmarking.html" class="btn btn-neutral float-right" title="Benchmarking" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Christopher J. Moore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
