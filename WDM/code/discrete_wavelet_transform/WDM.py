@@ -559,7 +559,7 @@ class WDM_transform:
                                 jnp.sqrt(2.) * (-1)**(n*m) * \
                                     jnp.cos(jnp.pi*m*k_vals/self.Nf) * \
                                      self.window_TD[(k_vals-n*self.Nf)%self.N], 
-                                -jnp.sqrt(2.) * \
+                                jnp.sqrt(2.) * \
                                     jnp.sin(jnp.pi*m*k_vals/self.Nf) * \
                                      self.window_TD[(k_vals-n*self.Nf)%self.N])
 
@@ -571,15 +571,15 @@ class WDM_transform:
             basis = jnp.transpose(basis, (2, 0, 1))
 
             if self.calc_m0:
-                # overwrite m=0 terms for n<Nt/2
+                # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
                 n_vals = jnp.arange(self.Nt//2)
 
-                term = self.window_TD[(k_vals[:,jnp.newaxis]
+                f0_term = self.window_TD[(k_vals[:,jnp.newaxis]
                                     -2*n_vals[jnp.newaxis,:]*self.Nf)%self.N]
 
-                basis = basis.at[:, n_vals, 0].set(term)
+                basis = basis.at[:, n_vals, 0].set(f0_term)
 
-                # overwrite m=0 terms for n>=Nt/2
+                # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
                 n_vals = jnp.arange(self.Nt//2, self.Nt)
 
                 def temp_func(n):
@@ -588,9 +588,9 @@ class WDM_transform:
 
                 f_vmapped = jax.vmap(temp_func)
 
-                term = f_vmapped(n_vals).T
+                fNy_term = f_vmapped(n_vals).T
 
-                basis = basis.at[:, n_vals, 0].set(term)
+                basis = basis.at[:, n_vals, 0].set(fNy_term)
 
             self._cached_gnm_basis = basis
 

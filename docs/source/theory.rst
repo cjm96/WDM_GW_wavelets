@@ -15,12 +15,31 @@ Introduction
 ------------
 
 The Wilson-Daubechies-Meyer (WDM) wavelet basis is widely used for gravitational wave (GW) data analysis.
-While far from being the only available choice, the WDM basis wavelets have properties that make 
-them particularly suitable for this purpose: they are well separated in frequency (in fact, they have
+While far from being the only available choice, the WDM basis wavelets have severa; properties that make 
+them well suited for this purpose: they are well separated in frequency (in fact, they have
 compact support) which helps connect with the rest of GW data analysis which is almost exclusively done 
-in the frequency domain, and they provide uniform tiling in both time and frequency.
-The WDM wavelets were first introduced to GW data analysis in Ref. [1]_ (see also Ref. [2]_) and are used 
+in the frequency domain, and they provide a uniform tiling in both time and frequency.
+The WDM wavelets were first introduced for GW data analysis in Ref. [1]_ (see also Ref. [2]_) and are used 
 in Coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
+
+This document is based heavily on Refs. [1]_ and [2]_ with only a few minor changes in notation and conventions
+The purpose of this document is to provide a complete self-contained description of the WDM wavelet 
+transform to accompany this Jax implementation while spelling out explicitly as many of the details as possible 
+and correcting a few minor typos in the literature.
+
+
+Fourier Transform Conventions
+-----------------------------
+
+Here the following Fourier transform conventions are used:
+
+.. math:: 
+
+   \tilde{X}(f) = \int_{-\infty}^{\infty} \mathrm{d}t\; \exp(-2\pi ift) x(t) ,
+
+.. math:: 
+
+   x(t) = \int_{-\infty}^{\infty} \mathrm{d}f\; \exp(2\pi ift) \tilde{X}(f) .
 
 
 
@@ -39,13 +58,13 @@ defined in the frequency domain by
         0 & \text{if } |\omega| > A + B
     \end{cases} ,
 
-where :math:`\omega=2\pi f`, and where :math:`A` and :math:`B` are two positive angular frequency parameters that control the shape of the window.
+where :math:`\omega=2\pi f`, and where :math:`A` and :math:`B` are two positive angular frequency 
+parameters that control the shape of the window.
 They satisfy :math:`2A + B = \Delta\Omega`, where :math:`\Delta\Omega` is the total wavelet bandwidth.
-The parameter :math:`A` is the half-width of the flat-top response region while :math:`B` is the width of the transition region;
+The parameter :math:`A` is the half-width of the flat-top response region while 
+:math:`B` is the width of the transition region;
 see :numref:`fig-Meyer_window`.
-Unless otherwise stated, the default values :math:`A=\Delta \Omega/4`, :math:`B=\Delta \Omega/2`, and :math:`d=4` will be used here.
-
-The function :math:`\tilde{\Phi}(\omega)` is implemented in :func:`WDM.code.utils.Meyer.Meyer`.
+Note how this wavelet is very well localised in frequency (with compact support) but much less so in time.
 
 .. _fig-Meyer_window:
 
@@ -58,20 +77,41 @@ The function :math:`\tilde{\Phi}(\omega)` is implemented in :func:`WDM.code.util
    The bottom panel shows the window in the time-domain, :math:`\phi(t)`, 
    where :math:`\Delta T = \pi/\Delta \Omega`. The case :math:`d=4` matches Fig.1 of Ref. [2]_.
 
+The Meyer window function has the property that is squared norm integrates to 1.
+To show this, first perform the trivial integral over the flat-top part of the window (line 1), 
+then let :math:`x=(\omega-A)/B` (line 2), then use :math:`\cos^2 \theta = \frac{1+\cos(2\theta)}{2}` (line 3),
+and finally use the symmetry :math:`\cos(\pi \nu_d(1-x))=\cos(\pi (1-\nu_d(x))) = \cos(\pi-\pi\nu_d(x)))= -\cos(\pi \nu_d(x))`
+to set the remaining piece of the integral to zero (line 4):
+
+.. math::
+
+   \begin{align}
+   \int_{-\infty}^{\infty} \mathrm{d}\omega\; |\tilde{\Phi}(\omega)|^2 &= 
+      \frac{2A+2\int_{A}^{A+B} \mathrm{d}\omega\; \cos^2\left(\frac{\pi}{2}\nu_d(\frac{\omega-A}{B})\right)}{2A+B}  , \\
+      &= \frac{2A+2B \int_0^1 \mathrm{d}x\; \cos^2\left(\frac{\pi}{2}\nu_d(x)\right)}{2A+B} , \\
+      &= \frac{2A+2B \left(\frac{B}{2}+\frac{B}{2}\int_0^1\mathrm{d}x\; \cos\left(\pi\nu_d(x)\right)\right)}{2A+B} , \\
+      &= 1.
+   \end{align}
+
+The function :math:`\tilde{\Phi}(\omega)` is implemented in :func:`WDM.code.utils.Meyer.Meyer`.
+
+Unless otherwise stated, the default values :math:`A=\Delta \Omega/4`, :math:`B=\Delta \Omega/2`, and 
+:math:`d=4` will be used throughout the rest of this document.
+
 
 
 WDM Wavelets
 ------------
 
-Henceforth, we will work with frequency :math:`f` rather than angular frequency :math:`\omega=2\pi f`. 
-This fits with the rest of the GW data analysis community which tends to work with frequency.
+Henceforth, we will work with frequency :math:`f` instead of angular frequency :math:`\omega=2\pi f`. 
+This fits with the rest of the GW data analysis community which generally uses :math:`f`.
 
 Consider a function of time :math:`x(t)`. 
 The discretely sampled time series :math:`x[k]=x(t_k)` is indexed by :math:`k\in\{0, 1, \ldots, N-1\}` 
-and evaluated at the sample times :math:`t_k=k\delta t`, where :math:`\delta t` is the cadence.
+and evaluated at the sample times :math:`t_k=k\delta t`, where :math:`\delta t` is the cadence and 
+:math:`f_s = \frac{1}{\delta t}` is the sampling frequency.
 The total duration of the time series is :math:`T=N\delta t`, 
-and the Nyquist frequency is :math:`f_{\rm Ny}=\frac{1}{2\delta t}`.
-We will insist that :math:`N` is even (if it isn't then the time series can be padded to the required length).
+and the maximum Nyquist frequency is :math:`f_{\rm Ny}=\frac{1}{2\delta t}`.
 
 The WDM wavelet transformation represents the time series using :math:`N_f` frequency slices of with :math:`\Delta F`
 and :math:`N_t` time slices of width :math:`\Delta T`; 
@@ -85,12 +125,13 @@ and :math:`N_t` time slices of width :math:`\Delta T`;
    \Delta F = \frac{1}{2 N_f \delta t} = \frac{N_t}{2T} .
 
 There are :math:`N=N_t N_f` cells, each with area :math:`\Delta T \Delta F = \frac{1}{2}`.
-Together, these tiles uniformly cover the time–frequency plane.
-We will insist that :math:`N_t` and :math:`N_f` are both even.
+Together, these cells uniformly tile the time–frequency plane.
+We will insist that :math:`N_t` and :math:`N_f` are both even, which means that :math:`N` is also even;
+although this isn't strictly necessary, it simplifies some formulae and is not a significant limitation in practice.
 
 The WDM wavelets :math:`g_{nm}(t)` are constructed from the Meyer window function :math:`\phi`. 
 The indices :math:`n` and :math:`m` label the time and frequency slices respectively.
-In the time-domain the basis wavelets are defined as
+In the time-domain an orthonormal Wilson wavelet basis (Refs. [5]_ and [6]_) can be defined as
 
 .. math::
 
@@ -107,6 +148,10 @@ In the frequency-domain the basis wavelets are defined as
 
 .. math::
 
+    \tilde{G}_{nm}(f) = \int\mathrm{d}t\; \exp(-2\pi i f t) g_{nm}(t) 
+
+.. math::
+
     \tilde{G}_{nm}(f) = \begin{cases}
         \sqrt{2\pi} \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f) & m=0 \\
         \sqrt{2\pi} \exp(-2\pi i n f \Delta T) \left( C_{nm}\tilde{\Phi}(2\pi [f-m\Delta F])
@@ -115,7 +160,7 @@ In the frequency-domain the basis wavelets are defined as
         \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right) & m=N_f \\
     \end{cases} ,
 
-where the coefficients :math:`C_{nm}` are defined to be 1 is if :math:`n+m` is even, and :math:`i` if :math:`n+m` is odd.
+where the coefficients :math:`C_{nm}` are defined to be 1 if :math:`n+m` is even, and :math:`i` if :math:`n+m` is odd.
 
 The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelets_FD`.
 
@@ -363,7 +408,7 @@ Glossary
 References
 ----------
 
-.. [1] V. Necula, S. Klimenko and G. Mitselmakher, *Transient analysis with fast Wilson-Daubechies time-frequency transform*, Journal of Physics: Conference Series 363 012032, 2012.  
+.. [1] V. Necula, S. Klimenko & G. Mitselmakher, *Transient analysis with fast Wilson-Daubechies time-frequency transform*, Journal of Physics: Conference Series 363 012032, 2012.  
        `DOI 10.1088/1742-6596/363/1/012032 <https://iopscience.iop.org/article/10.1088/1742-6596/363/1/012032>`_
 
 .. [2] N. J. Cornish, *Time-Frequency Analysis of Gravitational Wave Data*, Physical Review D 102 124038, 2020.  
@@ -374,6 +419,12 @@ References
 
 .. [4] S. Klimenko *et al.*, *Method for detection and reconstruction of gravitational wave transients with networks of advanced detectors*, Physical Review D 93, 042004, 2016.
        `arXiv:1511.05999 <https://arxiv.org/abs/1511.05999>`_
+
+.. [5] K. G. Wilson, *Generalized Wannier functions*, preprint, Cornell University.
+       `link <https://>`_
+
+.. [6] I. Daubechies, S. Jaffard & J. L. Journé, *A simple Wilson orthonormal basis with exponential decay*, SIAM Journal on Mathematical Analysis, 22, 2, 554-572, 1991.
+       `DOI 10.1137/0522035 <https://doi.org/10.1137/0522035>`_
 
 
 

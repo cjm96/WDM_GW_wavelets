@@ -44,3 +44,8 @@ def test_Meyer():
 
     assert omega.shape == Phi.shape, \
         "Meyer function should return an array of the same shape as input omega"
+    
+    integral = np.trapezoid(Phi**2, x=omega)    
+
+    assert np.isclose(integral, 1.0, atol=1e-3, rtol=1.0e-3), \
+        "The integral of |Phi(om)|^2 w.r.t om should be 1"
