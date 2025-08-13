@@ -1,6 +1,5 @@
 import numpy as np
 import jax
-import matplotlib.pyplot as plt
 import WDM
 
 
@@ -14,7 +13,7 @@ def test_x64():
 
 def test_nu_d():
     r"""
-    Test utility function in WDM.
+    Test the normalised incomplete beta function.
     """
     d = 4
 
@@ -27,10 +26,16 @@ def test_nu_d():
     assert np.allclose(y[0], 0) and np.allclose(y[-1], 1), \
         "should have nu_d(0)=0 and nu_d(1)=1."
     
+    x = np.array([-0.1, 1.1])
+    y = WDM.code.utils.Meyer.nu_d(x, d)
+
+    assert np.all(np.isnan(y)), \
+        "function should return nan when x is outside [0,1]"
+    
 
 def test_Meyer():
     r"""
-    Test utility function in WDM.
+    Test the Meyer window function in WDM.
     """
     d = 4
     

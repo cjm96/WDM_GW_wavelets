@@ -4,6 +4,7 @@ import jax.numpy as jnp
 from jax.scipy.special import betainc
 
 
+@jax.jit
 def nu_d(x: jnp.ndarray, d: int) -> jnp.ndarray:
     r"""
     This function evaluates the normalised incomplete beta function.
@@ -24,7 +25,7 @@ def nu_d(x: jnp.ndarray, d: int) -> jnp.ndarray:
 
     Returns
     -------
-    nu : jnp.ndarray
+    nu_d : jnp.ndarray
         The normalized beta function :math:`\nu_d(x)`.
 
     Notes
@@ -33,12 +34,13 @@ def nu_d(x: jnp.ndarray, d: int) -> jnp.ndarray:
 
     This function returns nan if :math:`x` is outside the range [0, 1].
     """
-    d = int(d)
+    d = jnp.asarray(d)
     x = jnp.asarray(x)
-    nu = betainc(d, d, x) 
-    return nu
+    nu_d = betainc(d, d, x) 
+    return nu_d
 
 
+@jax.jit
 def Meyer(omega: jnp.ndarray, 
           d: int,
           A: float, 

@@ -60,19 +60,19 @@ class WDM_transform:
     df : float
         The frequency resolution of the time series, :math:`\delta f = 1/T`.
     f_s : float
-        Sampling frequency of the time series, :math:`f_s = \frac{1}{2 dt}`.
+        Sampling frequency of the time series, :math:`f_s = \frac{1}{\delta t}`.
     f_Ny : float
         Nyquist frequency (i.e. maximum frequency) of the time series,
-        :math:`f_{\rm Ny} = \frac{1}{2 dt}`.
+        :math:`f_{\rm Ny} = \frac{1}{2 \delta t}`.
     K : int
         Window length in samples, :math:`K = 2 q N_f`. By definition, 
         this is always an even integer.
     times : jnp.ndarray
         The sample times of the time series, :math:`t_k = k \delta t` for 
-        :math:`k\in\{0,1,\ldtots,N-1\}`. Array shape=(N,).
+        :math:`k\in\{0,1,\ldots,N-1\}`. Array shape=(N,).
     freqs : jnp.ndarray
         The sample frequencies of the time series, :math:`f_k = k \delta f` for 
-        :math:`k\in\{-N/2,N/2+1,\ldtots,N/2-1\}`. Array shape=(N,).
+        :math:`k\in\{-N/2,N/2+1,\ldots,N/2-1\}`. Array shape=(N,).
         Note, the zero-frequency component is in the center of the spectrum.
     Cnm : jnp.ndarray 
         Coefficients :math:`C_{nm}` used for the wavelet transform. Equal to 1 
