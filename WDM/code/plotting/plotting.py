@@ -1,7 +1,10 @@
 import jax
 import jax.numpy as jnp
+
 import matplotlib.pyplot as plt
+
 from WDM.code.discrete_wavelet_transform.WDM import WDM_transform
+
 from typing import Tuple
 
 

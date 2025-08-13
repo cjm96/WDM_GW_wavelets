@@ -1,8 +1,9 @@
 import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
+
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, overlapping_windows
+
 from typing import Tuple
 from functools import partial
 
@@ -59,19 +60,19 @@ class WDM_transform:
     df : float
         The frequency resolution of the time series, :math:`\delta f = 1/T`.
     f_s : float
-        Sampling frequency of the time series, :math:`f_s = \frac{1}{2 dt}`.
+        Sampling frequency of the time series, :math:`f_s = \frac{1}{\delta t}`.
     f_Ny : float
         Nyquist frequency (i.e. maximum frequency) of the time series,
-        :math:`f_{\rm Ny} = \frac{1}{2 dt}`.
+        :math:`f_{\rm Ny} = \frac{1}{2 \delta t}`.
     K : int
         Window length in samples, :math:`K = 2 q N_f`. By definition, 
         this is always an even integer.
     times : jnp.ndarray
         The sample times of the time series, :math:`t_k = k \delta t` for 
-        :math:`k\in\{0,1,\ldtots,N-1\}`. Array shape=(N,).
+        :math:`k\in\{0,1,\ldots,N-1\}`. Array shape=(N,).
     freqs : jnp.ndarray
         The sample frequencies of the time series, :math:`f_k = k \delta f` for 
-        :math:`k\in\{-N/2,N/2+1,\ldtots,N/2-1\}`. Array shape=(N,).
+        :math:`k\in\{-N/2,N/2+1,\ldots,N/2-1\}`. Array shape=(N,).
         Note, the zero-frequency component is in the center of the spectrum.
     Cnm : jnp.ndarray 
         Coefficients :math:`C_{nm}` used for the wavelet transform. Equal to 1 
@@ -276,7 +277,7 @@ class WDM_transform:
 
         .. math::
 
-            t_{n0} = (2n\,\mathrm{mod}\,N_t) \Delta t , 
+            t_{n0} = 2n \Delta t , 
 
         .. math::
 
@@ -359,20 +360,20 @@ class WDM_transform:
 
         .. math::
 
-            \tilde{G}_{nm}(f) = \exp(-2\pi i n f \Delta T) 
-                    \left( C_{nm}\tilde{\Phi}(2\pi [f-m\Delta F])
-                        + C^*_{nm}\tilde{\Phi}(2\pi [f+m\Delta F]) \right) .
+            \tilde{G}_{nm}(f) = \frac{\exp(-2\pi i n f \Delta T)}{\sqrt{2}} 
+                    \left( C_{nm}\tilde{\Phi}(f+m\Delta F)
+                            + C^*_{nm}\tilde{\Phi}(f-m\Delta F) \right) .
 
         For the special case :math:`m=0`, the wavelet is given by
 
         .. math::
 
-            \tilde{G}_{nm}(f) = \begin{cases}
-                \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f) 
+            \tilde{G}_{n0}(f) = \begin{cases} 
+                \exp(-4\pi i n f \Delta T) \tilde{\Phi}(f)
                     & \mathrm{if}\; n<N_t/2 \\
-                \exp(-4\pi i n f \Delta T) 
-                    \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) + 
-                        \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right)
+                \frac{1}{2} \exp(-4\pi i n f \Delta T) \left( 
+                            \tilde{\Phi}(f-f_{\rm Ny}) 
+                                + \tilde{\Phi}(f+f_{\rm Ny}) \right) 
                         & \mathrm{if}\; n\geq N_t/2
             \end{cases}
 
@@ -393,29 +394,27 @@ class WDM_transform:
         """
         assert self.check_indices(n, m), f"Invalid indices: {n=} {m=}"
 
-        if freq is None:
-            freq = self.freqs
-        else:
-            freq = jnp.asarray(freq, dtype=self.jax_dtype)
+        k_vals = jnp.arange(self.N)
 
         if m > 0:
-            Gnm = jnp.sqrt(jnp.pi) * jnp.exp(-1j*n*2.*jnp.pi*freq*self.dT) * ( 
-                    C_nm(n, m) * 
-                    Meyer(2.*jnp.pi*(freq-m*self.dF), self.d, self.A, self.B) +
-                    jnp.conj(C_nm(n, m)) * 
-                    Meyer(2.*jnp.pi*(freq+m*self.dF), self.d, self.A, self.B) )
+            Gnm = (1./jnp.sqrt(2.)) * \
+                        jnp.exp(-1j*n*2.*jnp.pi*self.freqs*self.dT) * (
+                            C_nm(n, m) *  
+                                self.window_FD[(k_vals+m*self.Nt//2)%self.N] + 
+                            jnp.conj(C_nm(n, m)) * 
+                                self.window_FD[(k_vals-m*self.Nt//2)%self.N]
+                            )
 
         else:
             if n < self.Nt // 2:
-                Gnm = jnp.sqrt(2.*jnp.pi) * \
-                        jnp.exp(-1j*n*4.*jnp.pi*freq*self.dT) * \
-                            Meyer(2.*jnp.pi*freq, self.d, self.A, self.B)
+                Gnm = jnp.exp(-1j*n*4.*jnp.pi*self.freqs*self.dT) * \
+                            self.window_FD
 
             else:
-                Gnm = jnp.sqrt(2.*jnp.pi) * \
-                        jnp.exp(-1j*n*4.*jnp.pi*freq*self.dT) * \
-                    (Meyer(2.*jnp.pi*(freq+self.f_Ny), self.d, self.A, self.B) + 
-                     Meyer(2.*jnp.pi*(freq-self.f_Ny), self.d, self.A, self.B) )
+                Gnm = 0.5 * jnp.exp(-1j*n*4.*jnp.pi*self.freqs*self.dT) * \
+                        (self.window_FD[(k_vals+self.N//2)%self.N] + 
+                         self.window_FD[(k_vals-self.N//2)%self.N]) 
+                
 
         return Gnm
     
@@ -454,32 +453,32 @@ class WDM_transform:
                         jnp.exp(-1j*n_vals[jnp.newaxis,:,jnp.newaxis]*\
                                 om[:,jnp.newaxis,jnp.newaxis]*self.dT) * \
                             (self.Cnm[jnp.newaxis,:,:]*\
-                              self.window_FD[shift_do%self.N][:,jnp.newaxis,:]+
+                              self.window_FD[shift_up%self.N][:,jnp.newaxis,:]+
                              jnp.conj(self.Cnm[jnp.newaxis,:,:])*\
-                              self.window_FD[shift_up%self.N][:,jnp.newaxis,:])
+                              self.window_FD[shift_do%self.N][:,jnp.newaxis,:])
             
             if self.calc_m0:
-                # overwrite m=0 terms for n<Nt/2
+                # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
                 n_vals = jnp.arange(self.Nt//2)
 
-                term = jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
+                f0_term = jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
                                 om[:,jnp.newaxis]*self.dT) * \
                                     self.window_FD[:,jnp.newaxis]
 
-                basis = basis.at[:, n_vals, 0].set(term)
+                basis = basis.at[:, n_vals, 0].set(f0_term)
 
-                # overwrite m=0 terms for n>=Nt/2
+                # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
                 n_vals = jnp.arange(self.Nt//2, self.Nt)
 
                 shift_up = (jnp.arange(self.N) + self.N//2) 
                 shift_do = (jnp.arange(self.N) - self.N//2) 
 
-                term = 0.5 * jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
+                fNy_term = 0.5 * jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
                                 om[:,jnp.newaxis]*self.dT) * \
                             (self.window_FD[shift_up%self.N][:,jnp.newaxis] +
                                 self.window_FD[shift_do%self.N][:,jnp.newaxis])
 
-                basis = basis.at[:, n_vals, 0].set(term)
+                basis = basis.at[:, n_vals, 0].set(fNy_term)
 
             self._cached_Gnm_basis = basis
 
@@ -487,8 +486,7 @@ class WDM_transform:
     
     def gnm(self, 
             n: int, 
-            m: int, 
-            time: jnp.ndarray = None) -> jnp.ndarray:
+            m: int) -> jnp.ndarray:
         r"""
         Compute the time-domain representation of the wavelets, 
         :math:`g_{nm}(t)`.
@@ -504,9 +502,6 @@ class WDM_transform:
             Wavelet time index.
         m : int
             Wavelet frequency index.
-        time : jnp.ndarray
-            Times at which to evaluate the wavelet. 
-            If None, then defaults to the self.times. Optional
 
         Returns
         -------
@@ -515,16 +510,7 @@ class WDM_transform:
         """
         assert self.check_indices(n, m), f"Invalid indices: {n=} {m=}"
 
-        if time is None:
-            time = self.times
-        else:
-            time = jnp.asarray(time, dtype=self.jax_dtype)
-
-        dt = jnp.mean(jnp.diff(time))
-
-        freq = jnp.fft.fftshift(jnp.fft.fftfreq(len(time), d=dt))
-
-        Gnm = self.Gnm(n, m, freq=freq)
+        Gnm = self.Gnm(n, m)
 
         gnm = jnp.fft.ifft(jnp.fft.ifftshift(Gnm)).real / self.dt
 
@@ -537,6 +523,29 @@ class WDM_transform:
         Instead of calling the functions for :math:`\tilde{G}_{nm}(f)` and 
         performing an inverse Fourier transform, as is done in the `gnm` method, 
         this function shifts indices of `window_TD`.
+
+        For :math:`m>0`, the wavelet is given by
+
+        .. math::
+
+            g_{nm}(t) = \begin{cases}
+            \sqrt{2} (-1)^{mn} \cos\left(\frac{\pi m t}{\Delta T}\right) 
+                \phi(t-n\Delta T) & \mathrm{if}\;n+m\;\mathrm{even} \\
+            \sqrt{2} \sin\left(\frac{\pi m t}{\Delta T}\right) 
+                \phi(t-n\Delta T) & \mathrm{if}\;n+m\;\mathrm{odd}
+            \end{cases} .
+
+        For the special case :math:`m=0`, the wavelet is given by
+
+        .. math::
+
+            g_{n0}(t) = \begin{cases}
+                    \phi(t-2n\Delta T) & \mathrm{if}\;n<N_t/2 \\
+                    \frac{1}{2} \exp(-4\pi i n f \Delta T) 
+                        \left( \tilde{\Phi}(f-f_{\rm Ny}) 
+                            + \tilde{\Phi}(f+f_{\rm Ny}) \right) 
+                            & \mathrm{if}\; n\geq N_t/2
+                \end{cases}.
         
         The result is cached to speed up subsequent calls.
 
@@ -558,7 +567,7 @@ class WDM_transform:
                                 jnp.sqrt(2.) * (-1)**(n*m) * \
                                     jnp.cos(jnp.pi*m*k_vals/self.Nf) * \
                                      self.window_TD[(k_vals-n*self.Nf)%self.N], 
-                                -jnp.sqrt(2.) * \
+                                jnp.sqrt(2.) * \
                                     jnp.sin(jnp.pi*m*k_vals/self.Nf) * \
                                      self.window_TD[(k_vals-n*self.Nf)%self.N])
 
@@ -570,15 +579,15 @@ class WDM_transform:
             basis = jnp.transpose(basis, (2, 0, 1))
 
             if self.calc_m0:
-                # overwrite m=0 terms for n<Nt/2
+                # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
                 n_vals = jnp.arange(self.Nt//2)
 
-                term = self.window_TD[(k_vals[:,jnp.newaxis]
+                f0_term = self.window_TD[(k_vals[:,jnp.newaxis]
                                     -2*n_vals[jnp.newaxis,:]*self.Nf)%self.N]
 
-                basis = basis.at[:, n_vals, 0].set(term)
+                basis = basis.at[:, n_vals, 0].set(f0_term)
 
-                # overwrite m=0 terms for n>=Nt/2
+                # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
                 n_vals = jnp.arange(self.Nt//2, self.Nt)
 
                 def temp_func(n):
@@ -587,9 +596,9 @@ class WDM_transform:
 
                 f_vmapped = jax.vmap(temp_func)
 
-                term = f_vmapped(n_vals).T
+                fNy_term = f_vmapped(n_vals).T
 
-                basis = basis.at[:, n_vals, 0].set(term)
+                basis = basis.at[:, n_vals, 0].set(fNy_term)
 
             self._cached_gnm_basis = basis
 
@@ -748,8 +757,6 @@ class WDM_transform:
         In the above expressions, indices out of bounds of the array are 
         to be understood as wrapping around circularly.
 
-        This method is slow.
-
         Parameters
         ----------
         x : jnp.ndarray 
@@ -769,20 +776,21 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
         
-        w = jnp.empty((self.Nt, self.Nf), dtype=self.jax_dtype) 
+        w = jnp.zeros((self.Nt, self.Nf), dtype=self.jax_dtype) 
 
         B = self.gnm_basis()
 
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
         for n in range(self.Nt):
-            for m in range(self.Nf):
+            for m in range(not self.calc_m0, self.Nf): # start at m=0 or 1 
                 gnm = B[:, n, m]
                 gnm_x = gnm[(k_vals+(1 if m>0 else 2)*n*self.Nf)%self.N] * \
                             x[(k_vals+(1 if m>0 else 2)*n*self.Nf)%self.N]
                 w = w.at[n, m].set(self.dt*jnp.sum(gnm_x))
 
         return w
+
     
     @partial(jax.jit, static_argnums=0)
     def forward_transform_short_fft(self, x: jnp.ndarray) -> jnp.ndarray:
@@ -914,17 +922,12 @@ class WDM_transform:
                                 jnp.sqrt(2.) * minusone_mn * \
                                     jnp.cos(jnp.pi*m*k_vals/self.Nf) * \
                                         self.window_TD[indices], 
-                                -jnp.sqrt(2.) * \
+                                jnp.sqrt(2.) * \
                                     jnp.sin(jnp.pi*m*k_vals/self.Nf) * \
                                         self.window_TD[indices]),
                             jnp.where(n < self.Nt // 2, 
                                     self.window_TD[indices], 
-                                    jnp.where(n % 2 == 0, 
-                                        minusone_nNf * \
-                                        jnp.cos(jnp.pi*self.Nf*k_vals/self.Nf)*\
-                                        self.window_TD[indices], 
-                                        minusone_k * \
-                                        self.window_TD[indices])
+                                    minusone_k * self.window_TD[indices]
                                 )
                             )
 
@@ -944,21 +947,19 @@ class WDM_transform:
 
         return x
     
-    def inverse_transform_old(self, w : jnp.ndarray) -> jnp.ndarray:
+    def inverse_transform_exact(self, w : jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the inverse discrete wavelet transform. Transforms the wavelet 
         coefficients from the time-frequency domain into the time domain.
 
-        This method computes the wavelet coefficients using the expression
+        This method computes the inverse dwt direcrtly using the expression
 
         .. math::
 
             x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .
 
-        This method computes all the basis vectors :math:`g_{nm}[k]` together
-        using the method `gnm_basis` and then sums them up. This is quite fast
-        but uses O(N^2) memory. A more memory-efficient implementation is 
-        provided in the method `inverse_transform`.
+        This method is slow and very memory inefficient. It is here
+        mainly for testing. Consider using `inverse_transform` instead.
 
         Parameters
         ----------

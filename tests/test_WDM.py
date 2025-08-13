@@ -47,16 +47,22 @@ def test_Gnm():
                                   for n in range(wdm.Nt)]), 
                         (2, 0, 1))
     
+    for n in range(wdm.Nt):
+        for m in range(wdm.Nf):
+            assert jnp.allclose(Gnm_basis[:,n,m], Gnm_basis_slow[:,n,m], 
+                                rtol=1.0e-3, atol=1.0e-3), \
+                f"gnm_basis at n={n}, m={m} does not match the slow method."
+    
     assert jnp.allclose(Gnm_basis, Gnm_basis_slow, rtol=1.0e-3, atol=1.0e-3), \
-        "The two methods for computing Gnm_basis should match."
+        f"The two methods for computing Gnm_basis should match."
     
     # reshape to (N, Nt*Nf) for orthonormality check
-    Gnm_basis = Gnm_basis.reshape(Gnm_basis.shape[0], -1) 
+    Gnm_basis = Gnm_basis.reshape(Gnm_basis.shape[0], -1)
 
     I = jnp.conj(Gnm_basis) @ Gnm_basis.T * wdm.df
 
-    assert jnp.allclose(I, jnp.eye(wdm.N), atol=1e-3, rtol=1e-3), \
-        "The Gnm_basis should be orthonormal."
+    assert jnp.allclose(I.real, jnp.eye(wdm.N), atol=1e-3, rtol=1e-3), \
+        f"The Gnm_basis should be orthonormal."
     
 
 def test_gnm():
@@ -80,16 +86,22 @@ def test_gnm():
                                   for n in range(wdm.Nt)]), 
                         (2, 0, 1))
     
-    assert jnp.allclose(gnm_basis, gnm_basis_slow, rtol=1.0e-3, atol=1.0e-3), \
-        "The two methods for computing gnm_basis should match."
+    for n in range(wdm.Nt):
+        for m in range(wdm.Nf):
+            assert jnp.allclose(gnm_basis[:,n,m], gnm_basis_slow[:,n,m], 
+                                rtol=1.0e-3, atol=1.0e-3), \
+                f"gnm_basis at n={n}, m={m} does not match the slow method."
     
+    assert jnp.allclose(gnm_basis, gnm_basis_slow, rtol=1.0e-3, atol=1.0e-3), \
+        f"The two methods for computing gnm_basis should match."
+
     # reshape to (N, Nt*Nf) for orthonormality check
     gnm_basis = gnm_basis.reshape(gnm_basis.shape[0], -1) 
 
-    I = jnp.conj(gnm_basis) @ gnm_basis.T * wdm.dt
+    I = gnm_basis @ gnm_basis.T * wdm.dt
 
     assert jnp.allclose(I, jnp.eye(wdm.N), atol=1e-3, rtol=1e-3), \
-        "The gnm_basis should be orthonormal."
+        f"The gnm_basis should be orthonormal."
     
 
 def test_exact_transform():
@@ -110,7 +122,7 @@ def test_exact_transform():
 
     w = wdm.forward_transform_exact(x)
 
-    x_ = wdm.inverse_transform(w)
+    x_ = wdm.inverse_transform_exact(w)
 
     assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
         "Inverse transform did not recover original signal."
@@ -134,7 +146,7 @@ def test_inverse_transforms():
 
     w = wdm.forward_transform_exact(x)
 
-    x = wdm.inverse_transform_old(w)
+    x = wdm.inverse_transform_exact(w)
     x_ = wdm.inverse_transform(w)
 
     assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
