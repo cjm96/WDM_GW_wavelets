@@ -165,7 +165,7 @@ Together, these tiles uniformly cover the time–frequency plane.
 We will insist that <span class="math notranslate nohighlight">\(N_t\)</span> and <span class="math notranslate nohighlight">\(N_f\)</span> are both even.</p>
 <p>The WDM wavelets <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span> are constructed from the Meyer window function <span class="math notranslate nohighlight">\(\phi\)</span>.
 The indices <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span> label the time and frequency slices respectively.
-In the times-domain the basis wavelets are defined as</p>
+In the time-domain the basis wavelets are defined as</p>
 <div class="math notranslate nohighlight" id="equation-theory-3">
 <span class="eqno">(4)<a class="headerlink" href="#equation-theory-3" title="Link to this equation"></a></span>\[\begin{split}g_{nm}(t) = \begin{cases}
      \phi(t-2n\Delta t) &amp; m=0 \\
@@ -173,10 +173,7 @@ In the times-domain the basis wavelets are defined as</p>
          \sqrt{2} (-1)^{mn} \cos(\pi mk/N_f) \phi(t-n\Delta t) &amp; \mathrm{if}\;n+m\;\mathrm{even}\\
          \sqrt{2} \sin(\pi mk/N_f) \phi(t-n\Delta t) &amp; \mathrm{if}\;n+m\;\mathrm{odd}
      \end{cases} &amp; 0&lt;m&lt;N_f \\
-     \begin{cases}
-         \sqrt{2} (-1)^{mn} (-1)^k \phi(t-2n\Delta t) &amp; \mathrm{if}\;n\;\mathrm{even}\\
-         \sqrt{2} (-1)^k \phi(t-2n\Delta t) &amp; \mathrm{if}\;n\;\mathrm{odd}
-     \end{cases} &amp; m=N_f \\
+     \sqrt{2} (-1)^{k} \phi(t-2n\Delta t)&amp; m=N_f \\
      \end{cases} .\end{split}\]</div>
 <p>In the frequency-domain the basis wavelets are defined as</p>
 <div class="math notranslate nohighlight" id="equation-theory-4">
