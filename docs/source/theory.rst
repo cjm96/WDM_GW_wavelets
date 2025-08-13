@@ -41,6 +41,8 @@ Here the following Fourier transform conventions are used:
 
    x(t) = \int_{-\infty}^{\infty} \mathrm{d}f\; \exp(2\pi ift) \tilde{X}(f) .
 
+For discretely sampled time series 
+
 
 
 Meyer Window
@@ -51,20 +53,18 @@ defined in the frequency domain by
 
 .. math::
 
-    \tilde{\Phi}(\omega) = \begin{cases}
-        \frac{1}{\sqrt{\Delta\Omega}} & \text{if } |\omega| < A, \\
-        \frac{1}{\sqrt{\Delta\Omega}} \cos\left(\frac{\pi}{2}\nu_d\left(\frac{|\omega| -
+    \tilde{M}(\omega) = \begin{cases}
+        \sqrt{\frac{1}{\Delta\Omega}} & \text{if } |\omega| < A, \\
+        \sqrt{\frac{1}{\Delta\Omega}}  \cos\left(\frac{\pi}{2}\nu_d\left(\frac{|\omega| -
          A}{B}\right)\right) & \text{if } A \leq |\omega| \leq A + B \\
         0 & \text{if } |\omega| > A + B
     \end{cases} ,
 
-where :math:`\omega=2\pi f`, and where :math:`A` and :math:`B` are two positive angular frequency 
-parameters that control the shape of the window.
-They satisfy :math:`2A + B = \Delta\Omega`, where :math:`\Delta\Omega` is the total wavelet bandwidth.
-The parameter :math:`A` is the half-width of the flat-top response region while 
-:math:`B` is the width of the transition region;
-see :numref:`fig-Meyer_window`.
-Note how this wavelet is very well localised in frequency (with compact support) but much less so in time.
+where :math:`A>0` and :math:`B>0` control the shape of the window.
+The parameter :math:`A` is the half-width of the flat-top response region and :math:`B` is the width of the transition region;
+they satisfy :math:`2A + B = \Delta\Omega`, where :math:`\Delta\Omega` is the total wavelet bandwidth.
+See :numref:`fig-Meyer_window`.
+
 
 .. _fig-Meyer_window:
 
@@ -73,12 +73,13 @@ Note how this wavelet is very well localised in frequency (with compact support)
    :align: center
    :width: 90%
 
-   The Meyer window function :math:`\tilde{\Phi}(\omega)` for different values of :math:`d`.
-   The bottom panel shows the window in the time-domain, :math:`\phi(t)`, 
-   where :math:`\Delta T = \pi/\Delta \Omega`. The case :math:`d=4` matches Fig.1 of Ref. [2]_.
+   *Top*: The Meyer window function :math:`\tilde{M}(\omega)` for different values of :math:`d`.
+   *Bottom* the time-domain window :math:`m(t)`, where :math:`\Delta T = \pi/\Delta \Omega`. 
+   The case :math:`d=4` matches Fig.1 of Ref. [2]_.
+   Note how the wavelet is well localised in frequency (with compact support) but much less so in time.
 
-The Meyer window function has the property that is squared norm integrates to 1.
-To show this, first perform the trivial integral over the flat-top part of the window (line 1), 
+The Meyer window function has the property that its square integrates to 1.
+To show this, first integrate over the flat-top part of the window (line 1), 
 then let :math:`x=(\omega-A)/B` (line 2), then use :math:`\cos^2 \theta = \frac{1+\cos(2\theta)}{2}` (line 3),
 and finally use the symmetry :math:`\cos(\pi \nu_d(1-x))=\cos(\pi (1-\nu_d(x))) = \cos(\pi-\pi\nu_d(x)))= -\cos(\pi \nu_d(x))`
 to set the remaining piece of the integral to zero (line 4):
@@ -86,14 +87,33 @@ to set the remaining piece of the integral to zero (line 4):
 .. math::
 
    \begin{align}
-   \int_{-\infty}^{\infty} \mathrm{d}\omega\; |\tilde{\Phi}(\omega)|^2 &= 
+   \int_{-\infty}^{\infty} \mathrm{d}\omega\; |\tilde{M}(\omega)|^2 &= 
       \frac{2A+2\int_{A}^{A+B} \mathrm{d}\omega\; \cos^2\left(\frac{\pi}{2}\nu_d(\frac{\omega-A}{B})\right)}{2A+B}  , \\
       &= \frac{2A+2B \int_0^1 \mathrm{d}x\; \cos^2\left(\frac{\pi}{2}\nu_d(x)\right)}{2A+B} , \\
       &= \frac{2A+2B \left(\frac{B}{2}+\frac{B}{2}\int_0^1\mathrm{d}x\; \cos\left(\pi\nu_d(x)\right)\right)}{2A+B} , \\
       &= 1.
    \end{align}
 
-The function :math:`\tilde{\Phi}(\omega)` is implemented in :func:`WDM.code.utils.Meyer.Meyer`.
+The function :math:`M(\omega)` is implemented in :func:`WDM.code.utils.Meyer.Meyer`.
+
+Henceforth, we will work with frequency :math:`f` instead of angular frequency :math:`\omega=2\pi f`. 
+This fits with the rest of the GW data analysis community which generally uses :math:`f`.
+
+For the wavelet transform, the frequency-domain window function is defined to be 
+
+.. math::
+   
+   \tilde{\Phi}(f) = \sqrt{2\pi} M(2\pi f) ,
+
+and the corresponding time-domain window is 
+
+.. math:: 
+   
+   \phi(t) = \int \mathrm{d}f \; \exp(2\pi i ft) \tilde{\Phi}(f)
+
+These are implemented in 
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_frequency_domain_window` and
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window`.
 
 Unless otherwise stated, the default values :math:`A=\Delta \Omega/4`, :math:`B=\Delta \Omega/2`, and 
 :math:`d=4` will be used throughout the rest of this document.
@@ -103,15 +123,13 @@ Unless otherwise stated, the default values :math:`A=\Delta \Omega/4`, :math:`B=
 WDM Wavelets
 ------------
 
-Henceforth, we will work with frequency :math:`f` instead of angular frequency :math:`\omega=2\pi f`. 
-This fits with the rest of the GW data analysis community which generally uses :math:`f`.
-
 Consider a function of time :math:`x(t)`. 
 The discretely sampled time series :math:`x[k]=x(t_k)` is indexed by :math:`k\in\{0, 1, \ldots, N-1\}` 
 and evaluated at the sample times :math:`t_k=k\delta t`, where :math:`\delta t` is the cadence and 
 :math:`f_s = \frac{1}{\delta t}` is the sampling frequency.
 The total duration of the time series is :math:`T=N\delta t`, 
 and the maximum Nyquist frequency is :math:`f_{\rm Ny}=\frac{1}{2\delta t}`.
+The frequency resolution is :math:`\delta f = \frac{1}{T}`.
 
 The WDM wavelet transformation represents the time series using :math:`N_f` frequency slices of with :math:`\Delta F`
 and :math:`N_t` time slices of width :math:`\Delta T`; 
@@ -136,31 +154,45 @@ In the time-domain an orthonormal Wilson wavelet basis (Refs. [5]_ and [6]_) can
 .. math::
 
    g_{nm}(t) = \begin{cases}
-        \phi(t-2n\Delta t) & m=0 \\
+        \phi(t-2n\Delta T) & \mathrm{if}\;m=0 \\
         \begin{cases}
-            \sqrt{2} (-1)^{mn} \cos(\pi mk/N_f) \phi(t-n\Delta t) & \mathrm{if}\;n+m\;\mathrm{even}\\
-            \sqrt{2} \sin(\pi mk/N_f) \phi(t-n\Delta t) & \mathrm{if}\;n+m\;\mathrm{odd}
-        \end{cases} & 0<m<N_f \\
-        \sqrt{2} (-1)^{k} \phi(t-2n\Delta t)& m=N_f \\
+            \sqrt{2} (-1)^{mn} \cos\left(\frac{\pi m t}{\Delta T}\right) \phi(t-n\Delta T) & \mathrm{if}\;n+m\;\mathrm{even}\\
+            \sqrt{2} \sin\left(\frac{\pi m t}{\Delta T}\right) \phi(t-n\Delta T) & \mathrm{if}\;n+m\;\mathrm{odd}
+        \end{cases} & \mathrm{if}\;m>0 
         \end{cases} .
 
-In the frequency-domain the basis wavelets are defined as
-
-.. math::
-
-    \tilde{G}_{nm}(f) = \int\mathrm{d}t\; \exp(-2\pi i f t) g_{nm}(t) 
+Taking the Fourier transform, it is straightforward to show that the frequency-domain basis wavelets are given by
 
 .. math::
 
     \tilde{G}_{nm}(f) = \begin{cases}
-        \sqrt{2\pi} \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f) & m=0 \\
-        \sqrt{2\pi} \exp(-2\pi i n f \Delta T) \left( C_{nm}\tilde{\Phi}(2\pi [f-m\Delta F])
-        +C^*_{nm}\tilde{\Phi}(2\pi [f+m\Delta F]) \right) & 0<m<N_f \\
-        \sqrt{2\pi} \exp(-4\pi i n f \Delta T) \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) + 
-        \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right) & m=N_f \\
+        \exp(-4\pi i n f \Delta T) \tilde{\Phi}(f) & \mathrm{if}\;m=0 \\
+        \frac{\exp(-2\pi i n f \Delta T)}{\sqrt{2}} \left( C_{nm}\tilde{\Phi}(f+m\Delta F)
+        +C^*_{nm}\tilde{\Phi}(f-m\Delta F) \right) & \mathrm{if}\;m>0 
     \end{cases} ,
 
-where the coefficients :math:`C_{nm}` are defined to be 1 if :math:`n+m` is even, and :math:`i` if :math:`n+m` is odd.
+where 
+
+.. math::
+
+   C_{nm} = \begin{cases} 1 & \mathrm{if}\;n+m\;\mathrm{even} \\ 
+                          i & \mathrm{if}\;n+m\;\mathrm{odd} \end{cases} .
+
+The time index :math:`n\in\{0,1,\ldots,N_t-1\}` covers the whole range of time.
+However, the frequency index in the range :math:`m\in\{0,1,\ldots, N_f\}` (including :math:`N_f`) 
+gives wavelets that remain below the Nyquist frequency (see :numref:`fig-WDM_wavelets_FD`). 
+The case :math:`m=N_f` is handled as a special case using the following formulae;
+
+.. math::
+
+   g_{nN_f}(t) = 2\cos(2\pi f_{\rm Ny}[t-2n\Delta T]) \phi(t-2n\Delta T),
+
+.. math::
+
+   \tilde{G}_{nN_f}(f) = \exp(-4\pi i n f \Delta T) \left( \tilde{\Phi}(f-f_{\rm Ny}) + \tilde{\Phi}(f+f_{\rm Ny}) \right) .
+
+Notice that for most of the wavelets the index :math:`n` shifts the wavelets by integer multiples of :math:`\Delta T` in time.
+However, for :math:`m=0` and :math:`m=N_f` it shifts them by integer multiples of :math:`2\Delta T`.
 
 The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelets_FD`.
 
@@ -193,6 +225,9 @@ The central time and frequency of the wavelet :math:`g_{nm}(t)` are given by
    f_{nm} = \begin{cases} \begin{cases}0&\mathrm{if}\;n<N_t/2\\
                            f_{\rm Ny}&\mathrm{if}\,n\geq N_t/2\end{cases} & \mathrm{if}\;m=0 \\
                      m \Delta F & \mathrm{if}\;m>0 \end{cases} \,.
+
+These expressions are implemented in 
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.wavelet_central_time_frequency`. 
 
 Examples of the WDM wavelets with :math:`N=512`, :math:`N_f=16`, and :math:`\delta t=1`
 are shown in :numref:`fig-WDM_wavelets_TD`, :numref:`fig-WDM_wavelets_TF`, and :numref:`fig-WDM_wavelets_animate`.
@@ -227,11 +262,15 @@ Notice that the WDM wavelets are well localised in frequency but much less so in
    Animated version of :numref:`fig-WDM_wavelets_TF` looping through all the wavelets. 
    Notice in particular the behaviour of the wavelets for :math:`m=0`.
 
-The WDM wavelets have the following orthonomality property,
+The discretely sampled WDM wavelets have the following orthonomality properties:
 
 .. math::
 
    \delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .
+
+.. math::
+
+   \delta f \sum_{k=-N/2}^{N/2-1} \tilde{G}_{nm}[k] \tilde{G}^*_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .
 
 The frequency-domain WDM wavelets :math:`\tilde{G}_{nm}(f)` are implemented in 
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm` or 
@@ -243,8 +282,8 @@ The time-domain WDM wavelets :math:`g_{nm}(t)` are implemented in
 
 
 
-The Discrete WDM Wavelet Transform
-----------------------------------
+The Discrete Wavelet Transform
+------------------------------
 
 This section defines the discrete WDM wavelet transform, present its exact formulation, and describe a 
 computationally efficient implementation suitable for practical use.
@@ -372,6 +411,17 @@ This windowed FFT form of the truncated wavelet transform is much more efficient
 However, a small further improvement is possible by using the fact that the WDM wavelets 
 are more compact in the frequency domain than in the time domain.
 It is slightly faster to compute the transform using the FFT of the full original time series. 
+
+
+
+Units 
+-----
+
+The time-domain wavelets have dimension :math:`\big[g_{nm}\big]=\sqrt{1/\mathrm{time}}` and 
+the frequency-domain wavelets have dimension :math:`\big[\tilde{G}_{nm}\big]=\sqrt{\mathrm{time}}`.
+
+If the time series :math:`x(t_k)=x[k]` has dimension :math:`\big[x\big]=\alpha` 
+then the wavelet coefficients have dimension :math:`\big[w_{nm}\big]=\alpha\sqrt{\mathrm{time}}`.
 
 
  

@@ -277,7 +277,7 @@ class WDM_transform:
 
         .. math::
 
-            t_{n0} = (2n\,\mathrm{mod}\,N_t) \Delta t , 
+            t_{n0} = 2n \Delta t , 
 
         .. math::
 
@@ -399,24 +399,25 @@ class WDM_transform:
         else:
             freq = jnp.asarray(freq, dtype=self.jax_dtype)
 
+        k_vals = jnp.arange(self.N)
+
         if m > 0:
-            Gnm = jnp.sqrt(jnp.pi) * jnp.exp(-1j*n*2.*jnp.pi*freq*self.dT) * ( 
-                    C_nm(n, m) * 
-                    Meyer(2.*jnp.pi*(freq-m*self.dF), self.d, self.A, self.B) +
-                    jnp.conj(C_nm(n, m)) * 
-                    Meyer(2.*jnp.pi*(freq+m*self.dF), self.d, self.A, self.B) )
+            Gnm = (1./jnp.sqrt(2.)) * jnp.exp(-1j*n*2.*jnp.pi*freq*self.dT) * (
+                            C_nm(n, m) *  
+                                self.window_FD[(k_vals+m*self.Nt//2)%self.N] + 
+                            jnp.conj(C_nm(n, m)) * 
+                                self.window_FD[(k_vals-m*self.Nt//2)%self.N]
+                            )
 
         else:
             if n < self.Nt // 2:
-                Gnm = jnp.sqrt(2.*jnp.pi) * \
-                        jnp.exp(-1j*n*4.*jnp.pi*freq*self.dT) * \
-                            Meyer(2.*jnp.pi*freq, self.d, self.A, self.B)
+                Gnm = jnp.exp(-1j*n*4.*jnp.pi*freq*self.dT) * \
+                            self.window_FD
 
             else:
-                Gnm = jnp.sqrt(2.*jnp.pi) * \
-                        jnp.exp(-1j*n*4.*jnp.pi*freq*self.dT) * \
-                    (Meyer(2.*jnp.pi*(freq+self.f_Ny), self.d, self.A, self.B) + 
-                     Meyer(2.*jnp.pi*(freq-self.f_Ny), self.d, self.A, self.B) )
+                Gnm = jnp.exp(-1j*n*4.*jnp.pi*freq*self.dT) * \
+                        (self.window_FD[k_vals-self.N//2] + \
+                         self.window_FD[k_vals+self.N//2])
 
         return Gnm
     
@@ -583,7 +584,7 @@ class WDM_transform:
                 n_vals = jnp.arange(self.Nt//2, self.Nt)
 
                 def temp_func(n):
-                    return (-1)**(k_vals) * \
+                    return 2*(-1)**(k_vals) * \
                             self.window_TD[(k_vals-2*n*self.Nf)%self.N]
 
                 f_vmapped = jax.vmap(temp_func)
