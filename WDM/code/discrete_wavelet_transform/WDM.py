@@ -1,8 +1,9 @@
 import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
+
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, overlapping_windows
+
 from typing import Tuple
 from functools import partial
 
