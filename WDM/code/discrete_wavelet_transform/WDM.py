@@ -582,12 +582,8 @@ class WDM_transform:
                 n_vals = jnp.arange(self.Nt//2, self.Nt)
 
                 def temp_func(n):
-                    return jnp.where(n % 2 == 0, 
-                                (-1)**(n*self.Nf) * \
-                                    jnp.cos(jnp.pi*k_vals) * \
-                                    self.window_TD[(k_vals-2*n*self.Nf)%self.N], 
-                                    (-1)**k_vals * \
-                                    self.window_TD[(k_vals-2*n*self.Nf)%self.N])
+                    return (-1)**(k_vals) * \
+                            self.window_TD[(k_vals-2*n*self.Nf)%self.N]
 
                 f_vmapped = jax.vmap(temp_func)
 

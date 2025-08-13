@@ -90,7 +90,7 @@ We will insist that :math:`N_t` and :math:`N_f` are both even.
 
 The WDM wavelets :math:`g_{nm}(t)` are constructed from the Meyer window function :math:`\phi`. 
 The indices :math:`n` and :math:`m` label the time and frequency slices respectively.
-In the times-domain the basis wavelets are defined as
+In the time-domain the basis wavelets are defined as
 
 .. math::
 
@@ -100,10 +100,7 @@ In the times-domain the basis wavelets are defined as
             \sqrt{2} (-1)^{mn} \cos(\pi mk/N_f) \phi(t-n\Delta t) & \mathrm{if}\;n+m\;\mathrm{even}\\
             \sqrt{2} \sin(\pi mk/N_f) \phi(t-n\Delta t) & \mathrm{if}\;n+m\;\mathrm{odd}
         \end{cases} & 0<m<N_f \\
-        \begin{cases}
-            \sqrt{2} (-1)^{mn} (-1)^k \phi(t-2n\Delta t) & \mathrm{if}\;n\;\mathrm{even}\\
-            \sqrt{2} (-1)^k \phi(t-2n\Delta t) & \mathrm{if}\;n\;\mathrm{odd}
-        \end{cases} & m=N_f \\
+        \sqrt{2} (-1)^{k} \phi(t-2n\Delta t)& m=N_f \\
         \end{cases} .
 
 In the frequency-domain the basis wavelets are defined as
