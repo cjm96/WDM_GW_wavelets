@@ -284,7 +284,7 @@ total wavelet angular frequency bandwidth, <span class="math notranslate nohighl
 <dl class="py attribute">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.f_s">
 <span class="sig-name descname"><span class="pre">f_s</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.f_s" title="Link to this definition"></a></dt>
-<dd><p>Sampling frequency of the time series, <span class="math notranslate nohighlight">\(f_s = \frac{1}{2 dt}\)</span>.</p>
+<dd><p>Sampling frequency of the time series, <span class="math notranslate nohighlight">\(f_s = \frac{1}{\delta t}\)</span>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>float</p>
@@ -296,7 +296,7 @@ total wavelet angular frequency bandwidth, <span class="math notranslate nohighl
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.f_Ny">
 <span class="sig-name descname"><span class="pre">f_Ny</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.f_Ny" title="Link to this definition"></a></dt>
 <dd><p>Nyquist frequency (i.e. maximum frequency) of the time series,
-<span class="math notranslate nohighlight">\(f_{\rm Ny} = \frac{1}{2 dt}\)</span>.</p>
+<span class="math notranslate nohighlight">\(f_{\rm Ny} = \frac{1}{2 \delta t}\)</span>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>float</p>
@@ -320,7 +320,7 @@ this is always an even integer.</p>
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.times">
 <span class="sig-name descname"><span class="pre">times</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.times" title="Link to this definition"></a></dt>
 <dd><p>The sample times of the time series, <span class="math notranslate nohighlight">\(t_k = k \delta t\)</span> for
-<span class="math notranslate nohighlight">\(k\in\{0,1,\ldtots,N-1\}\)</span>. Array shape=(N,).</p>
+<span class="math notranslate nohighlight">\(k\in\{0,1,\ldots,N-1\}\)</span>. Array shape=(N,).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>jnp.ndarray</p>
@@ -332,7 +332,7 @@ this is always an even integer.</p>
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.freqs">
 <span class="sig-name descname"><span class="pre">freqs</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.freqs" title="Link to this definition"></a></dt>
 <dd><p>The sample frequencies of the time series, <span class="math notranslate nohighlight">\(f_k = k \delta f\)</span> for
-<span class="math notranslate nohighlight">\(k\in\{-N/2,N/2+1,\ldtots,N/2-1\}\)</span>. Array shape=(N,).
+<span class="math notranslate nohighlight">\(k\in\{-N/2,N/2+1,\ldots,N/2-1\}\)</span>. Array shape=(N,).
 Note, the zero-frequency component is in the center of the spectrum.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type<span class="colon">:</span></dt>
@@ -448,17 +448,17 @@ want to compute the full wavelet basis for all <span class="math notranslate noh
 efficiently, use the <cite>Gnm_basis</cite> method.</p>
 <p>For <span class="math notranslate nohighlight">\(m&gt;0\)</span>, the wavelet is given by</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-0">
-<span class="eqno">(19)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-0" title="Link to this equation"></a></span>\[\tilde{G}_{nm}(f) = \exp(-2\pi i n f \Delta T)
-        \left( C_{nm}\tilde{\Phi}(2\pi [f-m\Delta F])
-            + C^*_{nm}\tilde{\Phi}(2\pi [f+m\Delta F]) \right) .\]</div>
+<span class="eqno">(28)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-0" title="Link to this equation"></a></span>\[\tilde{G}_{nm}(f) = \frac{\exp(-2\pi i n f \Delta T)}{\sqrt{2}}
+        \left( C_{nm}\tilde{\Phi}(f+m\Delta F)
+                + C^*_{nm}\tilde{\Phi}(f-m\Delta F) \right) .\]</div>
 <p>For the special case <span class="math notranslate nohighlight">\(m=0\)</span>, the wavelet is given by</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-1">
-<span class="eqno">(20)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-1" title="Link to this equation"></a></span>\[\begin{split}\tilde{G}_{nm}(f) = \begin{cases}
-    \exp(-4\pi i n f \Delta T) \tilde{\Phi}(2\pi f)
+<span class="eqno">(29)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-1" title="Link to this equation"></a></span>\[\begin{split}\tilde{G}_{n0}(f) = \begin{cases}
+    \exp(-4\pi i n f \Delta T) \tilde{\Phi}(f)
         &amp; \mathrm{if}\; n&lt;N_t/2 \\
-    \exp(-4\pi i n f \Delta T)
-        \left( \tilde{\Phi}(2\pi [f+N_f\Delta F]) +
-            \tilde{\Phi}(2\pi [f-N_f\Delta F]) \right)
+    \frac{1}{2} \exp(-4\pi i n f \Delta T) \left(
+                \tilde{\Phi}(f-f_{\rm Ny})
+                    + \tilde{\Phi}(f+f_{\rm Ny}) \right)
             &amp; \mathrm{if}\; n\geq N_t/2
 \end{cases}\end{split}\]</div>
 <dl class="field-list simple">
@@ -566,7 +566,7 @@ must satisfy <span class="math notranslate nohighlight">\(0 \leq m &lt; N_f\)</s
 signal from the time domain into the time-frequency domain.</p>
 <p>This method computes the wavelet coefficients using the exact expression</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-2">
-<span class="eqno">(21)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-2" title="Link to this equation"></a></span>\[w_{nm} = \delta t \sum_{k=0}^{N-1} g_{nm}[k] x[k] ,\]</div>
+<span class="eqno">(30)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-2" title="Link to this equation"></a></span>\[w_{nm} = \delta t \sum_{k=0}^{N-1} g_{nm}[k] x[k] ,\]</div>
 <p>where the sum is over the whole time-domain signal (no truncation).</p>
 <p>This method is slow but exact.</p>
 <dl class="field-list simple">
@@ -627,15 +627,14 @@ signal from the time domain into the time-frequency domain.</p>
 <p>This method computes the wavelet coefficients using the truncated
 expressions</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-3">
-<span class="eqno">(22)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-3" title="Link to this equation"></a></span>\[w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
+<span class="eqno">(31)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-3" title="Link to this equation"></a></span>\[w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
                         g_{nm}[k + 2 n N_f] x[k + 2 n N_f] .\]</div>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-4">
-<span class="eqno">(23)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-4" title="Link to this equation"></a></span>\[w_{nm} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
+<span class="eqno">(32)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-4" title="Link to this equation"></a></span>\[w_{nm} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1}
                         g_{nm}[k + n N_f] x[k + n N_f] ,\]</div>
 <p>where the sum is over the truncated window of length <span class="math notranslate nohighlight">\(K=2qN_f\)</span>.</p>
 <p>In the above expressions, indices out of bounds of the array are
 to be understood as wrapping around circularly.</p>
-<p>This method is slow.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape (N,). Input time-domain signal to be transformed.</p>
@@ -655,7 +654,7 @@ debugging purposes.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm">
-<span class="sig-name descname"><span class="pre">gnm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.gnm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">gnm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.gnm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm" title="Link to this definition"></a></dt>
 <dd><p>Compute the time-domain representation of the wavelets,
 <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span>.</p>
 <p>This method computes the frequency-domain wavelets for a single choice
@@ -667,8 +666,6 @@ and <span class="math notranslate nohighlight">\(m\)</span> efficiently, use the
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>n</strong> (<em>int</em>) – Wavelet time index.</p></li>
 <li><p><strong>m</strong> (<em>int</em>) – Wavelet frequency index.</p></li>
-<li><p><strong>time</strong> (<em>jnp.ndarray</em>) – Times at which to evaluate the wavelet.
-If None, then defaults to the self.times. Optional</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -687,6 +684,23 @@ If None, then defaults to the self.times. Optional</p></li>
 Instead of calling the functions for <span class="math notranslate nohighlight">\(\tilde{G}_{nm}(f)\)</span> and
 performing an inverse Fourier transform, as is done in the <cite>gnm</cite> method,
 this function shifts indices of <cite>window_TD</cite>.</p>
+<p>For <span class="math notranslate nohighlight">\(m&gt;0\)</span>, the wavelet is given by</p>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-5">
+<span class="eqno">(33)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-5" title="Link to this equation"></a></span>\[\begin{split}g_{nm}(t) = \begin{cases}
+\sqrt{2} (-1)^{mn} \cos\left(\frac{\pi m t}{\Delta T}\right)
+    \phi(t-n\Delta T) &amp; \mathrm{if}\;n+m\;\mathrm{even} \\
+\sqrt{2} \sin\left(\frac{\pi m t}{\Delta T}\right)
+    \phi(t-n\Delta T) &amp; \mathrm{if}\;n+m\;\mathrm{odd}
+\end{cases} .\end{split}\]</div>
+<p>For the special case <span class="math notranslate nohighlight">\(m=0\)</span>, the wavelet is given by</p>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-6">
+<span class="eqno">(34)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-6" title="Link to this equation"></a></span>\[\begin{split}g_{n0}(t) = \begin{cases}
+        \phi(t-2n\Delta T) &amp; \mathrm{if}\;n&lt;N_t/2 \\
+        \frac{1}{2} \exp(-4\pi i n f \Delta T)
+            \left( \tilde{\Phi}(f-f_{\rm Ny})
+                + \tilde{\Phi}(f+f_{\rm Ny}) \right)
+                &amp; \mathrm{if}\; n\geq N_t/2
+    \end{cases}.\end{split}\]</div>
 <p>The result is cached to speed up subsequent calls.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -711,8 +725,8 @@ this function shifts indices of <cite>window_TD</cite>.</p>
 <dd><p>Perform the inverse discrete wavelet transform. Transforms the wavelet
 coefficients from the time-frequency domain into the time domain.</p>
 <p>This method computes the wavelet coefficients using the expression</p>
-<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-5">
-<span class="eqno">(24)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-5" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-7">
+<span class="eqno">(35)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-7" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>w</strong> (<em>jnp.ndarray</em>) – Array shape (Nt, Nf).
@@ -728,17 +742,15 @@ WDM time-frequency-domain wavelet coefficients.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_old">
-<span class="sig-name descname"><span class="pre">inverse_transform_old</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.inverse_transform_old"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_old" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_exact">
+<span class="sig-name descname"><span class="pre">inverse_transform_exact</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.inverse_transform_exact"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_exact" title="Link to this definition"></a></dt>
 <dd><p>Perform the inverse discrete wavelet transform. Transforms the wavelet
 coefficients from the time-frequency domain into the time domain.</p>
-<p>This method computes the wavelet coefficients using the expression</p>
-<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-6">
-<span class="eqno">(25)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-6" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
-<p>This method computes all the basis vectors <span class="math notranslate nohighlight">\(g_{nm}[k]\)</span> together
-using the method <cite>gnm_basis</cite> and then sums them up. This is quite fast
-but uses O(N^2) memory. A more memory-efficient implementation is
-provided in the method <cite>inverse_transform</cite>.</p>
+<p>This method computes the inverse dwt direcrtly using the expression</p>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-8">
+<span class="eqno">(36)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-8" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
+<p>This method is slow and very memory inefficient. It is here
+mainly for testing. Consider using <cite>inverse_transform</cite> instead.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>w</strong> (<em>jnp.ndarray</em>) – Array shape (Nt, Nf).
@@ -801,10 +813,10 @@ Raises an AssertionError if any parameters are invalid.</p>
 <dd><p>Compute the central time <span class="math notranslate nohighlight">\(t_{nm}= n \Delta t\)</span> and the central
 frequency <span class="math notranslate nohighlight">\(f_{nm} = m \Delta f\)</span> of the wavelet <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span>.</p>
 <p>The case <span class="math notranslate nohighlight">\(m=0\)</span> is special and is handled separately using</p>
-<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-7">
-<span class="eqno">(26)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-7" title="Link to this equation"></a></span>\[t_{n0} = (2n\,\mathrm{mod}\,N_t) \Delta t ,\]</div>
-<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-8">
-<span class="eqno">(27)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-8" title="Link to this equation"></a></span>\[\begin{split}f_{n0} = \begin{cases} 0 &amp; \mathrm{if}\; n&lt;N_t/2 \\
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-9">
+<span class="eqno">(37)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-9" title="Link to this equation"></a></span>\[t_{n0} = 2n \Delta t ,\]</div>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-10">
+<span class="eqno">(38)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-10" title="Link to this equation"></a></span>\[\begin{split}f_{n0} = \begin{cases} 0 &amp; \mathrm{if}\; n&lt;N_t/2 \\
         f_{\mathrm{Ny}} &amp; \mathrm{if}\; n\geq N_t/2 \end{cases} .\end{split}\]</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -853,8 +865,8 @@ frequencies.</p></li>
 <p>The input time series is split into <span class="math notranslate nohighlight">\(N_t\)</span> overlapping segments
 each of length <span class="math notranslate nohighlight">\(K\)</span> and with a hop interval of <span class="math notranslate nohighlight">\(N_f\)</span> between
 their centres. Each of these segments is then windowed and transformed</p>
-<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-9">
-<span class="eqno">(28)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-9" title="Link to this equation"></a></span>\[X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k]\]</div>
+<div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-11">
+<span class="eqno">(39)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-11" title="Link to this equation"></a></span>\[X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k]\]</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape (N,). Input signal to be transformed.</p>

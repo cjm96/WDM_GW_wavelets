@@ -75,11 +75,13 @@
   <h1>Source code for WDM.code.utils.Meyer</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">jax.scipy.special</span><span class="w"> </span><span class="kn">import</span> <span class="n">betainc</span>
 
 
 <div class="viewcode-block" id="nu_d">
 <a class="viewcode-back" href="../../../../WDM.code.utils.html#WDM.code.utils.Meyer.nu_d">[docs]</a>
+<span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">nu_d</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">d</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This function evaluates the normalised incomplete beta function.</span>
@@ -100,7 +102,7 @@
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
-<span class="sd">    nu : jnp.ndarray</span>
+<span class="sd">    nu_d : jnp.ndarray</span>
 <span class="sd">        The normalized beta function :math:`\nu_d(x)`.</span>
 
 <span class="sd">    Notes</span>
@@ -109,15 +111,16 @@
 
 <span class="sd">    This function returns nan if :math:`x` is outside the range [0, 1].</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">d</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
     <span class="n">x</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-    <span class="n">nu</span> <span class="o">=</span> <span class="n">betainc</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> 
-    <span class="k">return</span> <span class="n">nu</span></div>
+    <span class="n">nu_d</span> <span class="o">=</span> <span class="n">betainc</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> 
+    <span class="k">return</span> <span class="n">nu_d</span></div>
 
 
 
 <div class="viewcode-block" id="Meyer">
 <a class="viewcode-back" href="../../../../WDM.code.utils.html#WDM.code.utils.Meyer.Meyer">[docs]</a>
+<span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">Meyer</span><span class="p">(</span><span class="n">omega</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> 
           <span class="n">d</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
           <span class="n">A</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> 
