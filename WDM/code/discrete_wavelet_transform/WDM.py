@@ -76,8 +76,7 @@ class WDM_transform:
         Note, the zero-frequency component is in the center of the spectrum.
     Cnm : jnp.ndarray 
         Coefficients :math:`C_{nm}` used for the wavelet transform. Equal to 1 
-        if :math:`n+m` is even or :math:`i` if it is odd. 
-        Array shape=(N_t, N_f).
+        if :math:`n+m` is even or :math:`i` if it's odd. Array shape=(N_t, N_f).
     calc_m0 : bool
         If this is set to False (default value) then the wavelet coefficients
         with :math:`m=0` are handled INCORRECTLY. This is faster. If these 

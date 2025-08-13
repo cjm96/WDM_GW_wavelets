@@ -16,23 +16,9 @@ To install the package, clone the repository and use pip. Run the following in t
 pip install -e .
 ```
 
-In Python you should then be able to `import WDM`. Try running the example notebook `getting_started.ipynb`.
+In Python you should then be able to `import WDM`. 
+Try running the example notebook `getting_started.ipynb`.
 
-
-# Testing
-
-To check that everything is working as expected you can run the unit tests. 
-You will first need to ensure you have `pytest` installed; this can be done by installing with the dev extras.
-
-```bash
-pip install .[dev]
-```
-
-You will then be able to run all the tests. (Make sure you are in the directory cotaining the pyproject.toml file.)
-
-```bash
-python -m pytest
-```
 
 
 # Documentation
@@ -68,6 +54,27 @@ sphinx-build ./source ./build
 make clean
 make html
 ```
+
+
+# Testing
+
+To check that everything is working as expected you can run the unit tests. 
+You will first need to ensure you have `pytest` installed; this can be done by installing with the dev extras.
+
+```bash
+pip install .[dev]
+```
+
+You will then be able to run all the tests. (Make sure you are in the directory cotaining the pyproject.toml file.)
+
+```bash
+python -m pytest
+```
+
+
+# Authors
+
+Christopher J. Moore
 
 
 # To Do List
