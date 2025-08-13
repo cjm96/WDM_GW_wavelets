@@ -22,9 +22,9 @@ in the frequency domain, and they provide a uniform tiling in both time and freq
 The WDM wavelets were first introduced for GW data analysis in Ref. [1]_ (see also Ref. [2]_) and are used 
 in Coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
 
-This document is based heavily on Refs. [1]_ and [2]_ with only a few minor changes in notation and conventions
+This documentation is based on Refs. [1]_ and [2]_ with only a few minor changes in notation and conventions
 The purpose of this document is to provide a complete self-contained description of the WDM wavelet 
-transform to accompany this Jax implementation while spelling out explicitly as many of the details as possible 
+transform to accompany this Jax implementation and spelling out explicitly as many of the details as possible 
 and correcting a few minor typos in the literature.
 
 
@@ -40,9 +40,6 @@ Here the following Fourier transform conventions are used:
 .. math:: 
 
    x(t) = \int_{-\infty}^{\infty} \mathrm{d}f\; \exp(2\pi ift) \tilde{X}(f) .
-
-For discretely sampled time series 
-
 
 
 Meyer Window
@@ -94,7 +91,7 @@ to set the remaining piece of the integral to zero (line 4):
       &= 1.
    \end{align}
 
-The function :math:`M(\omega)` is implemented in :func:`WDM.code.utils.Meyer.Meyer`.
+The Meyer function :math:`M(\omega)` is implemented in :func:`WDM.code.utils.Meyer.Meyer`.
 
 Henceforth, we will work with frequency :math:`f` instead of angular frequency :math:`\omega=2\pi f`. 
 This fits with the rest of the GW data analysis community which generally uses :math:`f`.
@@ -111,7 +108,7 @@ and the corresponding time-domain window is
    
    \phi(t) = \int \mathrm{d}f \; \exp(2\pi i ft) \tilde{\Phi}(f)
 
-These are implemented in 
+These window functions are implemented in 
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_frequency_domain_window` and
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window`.
 
@@ -143,9 +140,9 @@ and :math:`N_t` time slices of width :math:`\Delta T`;
    \Delta F = \frac{1}{2 N_f \delta t} = \frac{N_t}{2T} .
 
 There are :math:`N=N_t N_f` cells, each with area :math:`\Delta T \Delta F = \frac{1}{2}`.
-Together, these cells uniformly tile the time–frequency plane.
-We will insist that :math:`N_t` and :math:`N_f` are both even, which means that :math:`N` is also even;
-although this isn't strictly necessary, it simplifies some formulae and is not a significant limitation in practice.
+These cells uniformly tile the time–frequency plane.
+**We insist that both** :math:`N_t` **and** :math:`N_f` **are even.** This implies that :math:`N` is also even.
+Although not necessary, this simplifies some formulae and is not a significant limitation in practice.
 
 The WDM wavelets :math:`g_{nm}(t)` are constructed from the Meyer window function :math:`\phi`. 
 The indices :math:`n` and :math:`m` label the time and frequency slices respectively.
@@ -178,18 +175,20 @@ where
    C_{nm} = \begin{cases} 1 & \mathrm{if}\;n+m\;\mathrm{even} \\ 
                           i & \mathrm{if}\;n+m\;\mathrm{odd} \end{cases} .
 
-The time index :math:`n\in\{0,1,\ldots,N_t-1\}` covers the whole range of time.
-However, the frequency index in the range :math:`m\in\{0,1,\ldots, N_f\}` (including :math:`N_f`) 
-gives wavelets that remain below the Nyquist frequency (see :numref:`fig-WDM_wavelets_FD`). 
+If the the time index is allowed to vary in the range :math:`n\in\{0,1,\ldots,N_t-1\}` then the wavelet 
+basis covers the full range of the time series.
+However, in order to cover the full frequency range (up to the Nyquist frequency) the frequency index
+must be allowed to vary in the range :math:`m\in\{0,1,\ldots, N_f\}` (including :math:`N_f`).
+The :math:`m=N_f` wavelets have support below the Nyquist frequency; see :numref:`fig-WDM_wavelets_FD`. 
 The case :math:`m=N_f` is handled as a special case using the following formulae;
 
 .. math::
 
-   g_{nN_f}(t) = 2\cos(2\pi f_{\rm Ny}[t-2n\Delta T]) \phi(t-2n\Delta T),
+   g_{nN_f}(t) = \cos(2\pi f_{\rm Ny}[t-2n\Delta T]) \phi(t-2n\Delta T),
 
 .. math::
 
-   \tilde{G}_{nN_f}(f) = \exp(-4\pi i n f \Delta T) \left( \tilde{\Phi}(f-f_{\rm Ny}) + \tilde{\Phi}(f+f_{\rm Ny}) \right) .
+   \tilde{G}_{nN_f}(f) = \frac{1}{2} \exp(-4\pi i n f \Delta T) \left( \tilde{\Phi}(f-f_{\rm Ny}) + \tilde{\Phi}(f+f_{\rm Ny}) \right) .
 
 Notice that for most of the wavelets the index :math:`n` shifts the wavelets by integer multiples of :math:`\Delta T` in time.
 However, for :math:`m=0` and :math:`m=N_f` it shifts them by integer multiples of :math:`2\Delta T`.
@@ -209,7 +208,7 @@ The WDM wavelets are plotted in the frequency domain in :numref:`fig-WDM_wavelet
 
 As defined, the index :math:`m` takes on both values 0 and :math:`N_f`.
 However, these two cases can be conveniently grouped together.
-Because of the :math:`2\Delta T` time shift, only half of the :math:`n` range is needed;
+Because of the :math:`2\Delta T` time shift, only half of the :math:`n` range is needed for these :math:`m` indices;
 therefore, we redefine :math:`G_{n0}(f):=G_{nN_f}(f)` when :math:`n>N_t/2`.
 With this choice, the index ranges :math:`n\in\{0,1,\ldots,N_t-1\}` and :math:`m\in\{0,1,\ldots,N_f-1\}`
 cover the entire time-frequency plane; see :numref:`fig-WDM_wavelets_animate`.
@@ -249,8 +248,8 @@ Notice that the WDM wavelets are well localised in frequency but much less so in
    :align: center
    :width: 90%
 
-   The WDM wavelets plotted in the time (top) and frequency (right) domains for selected values of :math:`n` and :math:`m`.
-   The main plot shows a grid of time-frequency shaded to indicate where the wavelets have significant support.
+   The WDM wavelets plotted in both time (top) and frequency (right) domain for selected :math:`n` and :math:`m`.
+   The main plot shows a time-frequency grid shaded to indicate where the wavelets have support.
 
 .. _fig-WDM_wavelets_animate:
 
@@ -262,7 +261,7 @@ Notice that the WDM wavelets are well localised in frequency but much less so in
    Animated version of :numref:`fig-WDM_wavelets_TF` looping through all the wavelets. 
    Notice in particular the behaviour of the wavelets for :math:`m=0`.
 
-The discretely sampled WDM wavelets have the following orthonomality properties:
+The discretely sampled WDM wavelets have the following orthonormality properties:
 
 .. math::
 
