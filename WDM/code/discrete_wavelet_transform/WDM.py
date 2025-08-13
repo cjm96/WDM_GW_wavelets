@@ -757,8 +757,6 @@ class WDM_transform:
         In the above expressions, indices out of bounds of the array are 
         to be understood as wrapping around circularly.
 
-        This method is slow.
-
         Parameters
         ----------
         x : jnp.ndarray 
@@ -778,20 +776,21 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
         
-        w = jnp.empty((self.Nt, self.Nf), dtype=self.jax_dtype) 
+        w = jnp.zeros((self.Nt, self.Nf), dtype=self.jax_dtype) 
 
         B = self.gnm_basis()
 
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
         for n in range(self.Nt):
-            for m in range(self.Nf):
+            for m in range(not self.calc_m0, self.Nf): # start at m=0 or 1 
                 gnm = B[:, n, m]
                 gnm_x = gnm[(k_vals+(1 if m>0 else 2)*n*self.Nf)%self.N] * \
                             x[(k_vals+(1 if m>0 else 2)*n*self.Nf)%self.N]
                 w = w.at[n, m].set(self.dt*jnp.sum(gnm_x))
 
         return w
+
     
     @partial(jax.jit, static_argnums=0)
     def forward_transform_short_fft(self, x: jnp.ndarray) -> jnp.ndarray:
@@ -923,17 +922,12 @@ class WDM_transform:
                                 jnp.sqrt(2.) * minusone_mn * \
                                     jnp.cos(jnp.pi*m*k_vals/self.Nf) * \
                                         self.window_TD[indices], 
-                                -jnp.sqrt(2.) * \
+                                jnp.sqrt(2.) * \
                                     jnp.sin(jnp.pi*m*k_vals/self.Nf) * \
                                         self.window_TD[indices]),
                             jnp.where(n < self.Nt // 2, 
                                     self.window_TD[indices], 
-                                    jnp.where(n % 2 == 0, 
-                                        minusone_nNf * \
-                                        jnp.cos(jnp.pi*self.Nf*k_vals/self.Nf)*\
-                                        self.window_TD[indices], 
-                                        minusone_k * \
-                                        self.window_TD[indices])
+                                    minusone_k * self.window_TD[indices]
                                 )
                             )
 
@@ -953,21 +947,19 @@ class WDM_transform:
 
         return x
     
-    def inverse_transform_old(self, w : jnp.ndarray) -> jnp.ndarray:
+    def inverse_transform_exact(self, w : jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the inverse discrete wavelet transform. Transforms the wavelet 
         coefficients from the time-frequency domain into the time domain.
 
-        This method computes the wavelet coefficients using the expression
+        This method computes the inverse dwt direcrtly using the expression
 
         .. math::
 
             x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .
 
-        This method computes all the basis vectors :math:`g_{nm}[k]` together
-        using the method `gnm_basis` and then sums them up. This is quite fast
-        but uses O(N^2) memory. A more memory-efficient implementation is 
-        provided in the method `inverse_transform`.
+        This method is slow and very memory inefficient. It is here
+        mainly for testing. Consider using `inverse_transform` instead.
 
         Parameters
         ----------

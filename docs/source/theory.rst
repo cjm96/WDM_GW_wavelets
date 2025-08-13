@@ -22,7 +22,7 @@ in the frequency domain, and they provide a uniform tiling in both time and freq
 The WDM wavelets were first introduced for GW data analysis in Ref. [1]_ (see also Ref. [2]_) and are used 
 in Coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
 
-This documentation is based on Refs. [1]_ and [2]_ with only a few minor changes in notation and conventions
+This documentation is based on Refs. [1]_ and [2]_ with only a few minor changes in notation and conventions.
 The purpose of this document is to provide a complete self-contained description of the WDM wavelet 
 transform to accompany this Jax implementation and spelling out explicitly as many of the details as possible 
 and correcting a few minor typos in the literature.
@@ -284,9 +284,6 @@ The time-domain WDM wavelets :math:`g_{nm}(t)` are implemented in
 The Discrete Wavelet Transform
 ------------------------------
 
-This section defines the discrete WDM wavelet transform, present its exact formulation, and describe a 
-computationally efficient implementation suitable for practical use.
-
 The WDM wavelets form a complete orthonormal basis for discretely sampled time series,
 
 .. math::
@@ -297,21 +294,22 @@ Here, :math:`x[k]` is the input time series, :math:`w_{nm}` are the wavelet coef
 WDM wavelet basis function.
 
 An expression for the wavelet coefficients :math:`w_{nm}` can be derived by multiplying both sides of this
-equation by :math:`g_{n'm'}[k]`, summing over :math:`k`, and using the orthonormality property to obtain
+equation by :math:`\delta t g_{n'm'}[k]`, summing over :math:`k`, and using the above orthonormality property to obtain
 
 .. math::
 
-   w_{nm} = 2\pi \delta t\sum_{k=0}^{N-1} x[k] g_{nm}[k] .
+   w_{nm} = \delta t\sum_{k=0}^{N-1} x[k] g_{nm}[k] .
 
-This is the exact expression for the forward wavelet transform which transforms from the time 
+This is the exact expression for the forward wavelet transform which transforms from the time domains
 to the time-frequency domain. 
 
 This *exact* wavelet transform is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_exact`.
 
 The exact form of the wavelet transform described above is slow to implement.
-A practical improvement arises from the observation that the WDM are (approximately) localised in time
-and the sum over :math:`k` can be truncated to a window of length :math:`K=2qN_f` without significant loss of accuracy.
+A small improvement comes from noticing that the WDM are (approximately) localised in time
+and therefore we don't need to sum over all values of :math:`k`.
+The sum can be truncated to a window of length :math:`K=2qN_f` without significant loss of accuracy.
 The truncation parameter :math:`1\leq q\leq N_t/2` is a positive integer that controls the length of the window.
 The truncated wavelet transform is given by
 
@@ -329,20 +327,8 @@ The truncated wavelet transform is given by
 This form of the *truncated* wavelet transform is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated`.
 
-Smaller values of :math:`q` yield faster but less accurate results, see :numref:`fig-trunc_err`.
-
-.. _fig-trunc_err:
-
-.. figure:: ../figures/trunc_err.png
-   :alt: trunc_err
-   :align: center
-   :width: 70%
-
-   The error in the truncated wavelet transform as a function of :math:`q`.
-   The wavelet transform is applied to a white-noise time series with :math:`\mathrm{rms}=1`.
-   The error is defined as the maximum relative absolute difference between the original signal and 
-   that reconstructed signals from the truncated wavelet transform. 
-   For :math:`q=N_t/2=16`, there is no truncation and the result agrees with the exact transform.
+Smaller values of :math:`q` yield faster but less accurate wavelet transforms. 
+The accuracy of this truncated wavelet transform is explored in the example notebook :doc:`accuracy_truncated_transform`.
 
 The truncated wavelet transform can be rewritten in terms of the window function :math:`\phi[k]`
 

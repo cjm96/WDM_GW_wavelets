@@ -11,3 +11,4 @@ The following example notebooks from the repository demonstrate the use of the W
    plotting_the_mother_wavelet.ipynb
    filtering_and_glitch_removal.ipynb
    benchmarking.ipynb
+   accuracy_truncated_transform.ipynb

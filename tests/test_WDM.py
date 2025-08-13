@@ -122,7 +122,7 @@ def test_exact_transform():
 
     w = wdm.forward_transform_exact(x)
 
-    x_ = wdm.inverse_transform(w)
+    x_ = wdm.inverse_transform_exact(w)
 
     assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
         "Inverse transform did not recover original signal."
@@ -146,7 +146,7 @@ def test_inverse_transforms():
 
     w = wdm.forward_transform_exact(x)
 
-    x = wdm.inverse_transform_old(w)
+    x = wdm.inverse_transform_exact(w)
     x_ = wdm.inverse_transform(w)
 
     assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
