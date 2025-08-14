@@ -226,7 +226,7 @@ def test_short_fft_transform():
         "Short FFT transform did not agree with the exact transform."
     
 
-def test_short_fft():
+def test_short_fft_thisone():
     r"""
     Check the conventions in our short FFT method.
 
@@ -249,9 +249,10 @@ def test_short_fft():
     kj = k_vals[:,jnp.newaxis,jnp.newaxis] * j_vals[jnp.newaxis,jnp.newaxis,:]  
     nNf_plus_k = n_vals[jnp.newaxis,:,jnp.newaxis]*wdm.Nf + \
                                     k_vals[:,jnp.newaxis,jnp.newaxis]
+    phi = wdm.window_TD
     my_short_ffft = jnp.sum(jnp.exp(2*jnp.pi*(1j)*kj/wdm.K) * \
                             x[nNf_plus_k] * \
-                            wdm.window_TD[k_vals,jnp.newaxis,jnp.newaxis], 
+                            phi[k_vals,jnp.newaxis,jnp.newaxis], 
                         axis=0)
     
     assert jnp.allclose(my_short_ffft, X, rtol=1.0e-3, atol=1.0e-3), \

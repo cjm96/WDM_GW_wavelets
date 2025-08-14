@@ -371,7 +371,7 @@ each segment is multiplied by the window function :math:`\phi[k]`
 and the (i)FFT is applied to each segment.
 
 The expression for the wavelet coefficients in Eq.23 can be rewritten using this short FFT downsampled to extract every 
-:math:`q^{\rm th}`` coefficient,
+:math:`q^{\rm th}` coefficient,
 
 .. math::
 
@@ -391,7 +391,9 @@ than in the time domain (see discussion in  Ref. [1]_).
 
 
 
- 
+
+
+
 The speed of all the implementations of the discrete wavelet transform are compared in the  
 example notebook :doc:`benchmarking`.
 
