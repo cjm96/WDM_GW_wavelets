@@ -13,6 +13,7 @@ dependencies = [
     "scipy",
     "matplotlib",
     "jax",
+    "ipykernel",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -23,7 +24,6 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "ipykernel",
     "sphinx-autobuild"
 ]
 

@@ -120,7 +120,7 @@ Unless otherwise stated, the default values :math:`A=\Delta \Omega/4`, :math:`B=
 WDM Wavelets
 ------------
 
-Consider a function of time :math:`x(t)`. 
+Consider a real-valued function of time :math:`x(t)`. 
 The discretely sampled time series :math:`x[k]=x(t_k)` is indexed by :math:`k\in\{0, 1, \ldots, N-1\}` 
 and evaluated at the sample times :math:`t_k=k\delta t`, where :math:`\delta t` is the cadence and 
 :math:`f_s = \frac{1}{\delta t}` is the sampling frequency.
@@ -284,14 +284,14 @@ The time-domain WDM wavelets :math:`g_{nm}(t)` are implemented in
 The Discrete Wavelet Transform
 ------------------------------
 
-The WDM wavelets form a complete orthonormal basis for discretely sampled time series,
+The WDM wavelets form a complete orthonormal basis for real-valued, discretely sampled time series,
 
 .. math::
 
    x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .
 
 Here, :math:`x[k]` is the input time series, :math:`w_{nm}` are the wavelet coefficients, and :math:`g_{nm}[k]` are the 
-WDM wavelet basis function.
+WDM wavelet basis functions.
 
 An expression for the wavelet coefficients :math:`w_{nm}` can be derived by multiplying both sides of this
 equation by :math:`\delta t g_{n'm'}[k]`, summing over :math:`k`, and using the above orthonormality property to obtain
@@ -306,23 +306,30 @@ to the time-frequency domain.
 This *exact* wavelet transform is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_exact`.
 
-The exact form of the wavelet transform described above is slow to implement.
-A small improvement comes from noticing that the WDM are (approximately) localised in time
-and therefore we don't need to sum over all values of :math:`k`.
+The exact form of the wavelet transform described above and with the double sum evaluated explicitly is slow to evaluate.
+The rest of this section describes several alternative formulation of the  wavelet transform leading eventually to a fast 
+implementation based on the FFT of the time series data.
+
+The first step in speeding up the wavelet transform is to notice that the WDM wavelets are (approximately) localised in 
+time.
+Therefore, we don't need to sum over all values of :math:`k` when evaluating the wavelet coefficients.
 The sum can be truncated to a window of length :math:`K=2qN_f` without significant loss of accuracy.
 The truncation parameter :math:`1\leq q\leq N_t/2` is a positive integer that controls the length of the window.
+The truncated window must be centered at the time where the wavelet amplitude is largest. 
 The truncated wavelet transform is given by
 
 .. math::
 
-   w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} 
-                                    g_{nm}[k + 2 n N_f] x[k + 2 n N_f] ,
+   w_{n0} = \delta t\sum_{k=-K/2}^{K/2-1} 
+                     g_{n0}[k + 2 n N_f] x[k + 2 n N_f] ,
 
 .. math::
 
-   w_{nm} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} 
-                                    g_{nm}[k + n N_f] x[k + n N_f] 
-                                    \quad \mathrm{for} \; m>0.  
+   w_{nm} = \delta t\sum_{k=-K/2}^{K/2-1} 
+                     g_{nm}[k + n N_f] x[k + n N_f] \quad \mathrm{for} \; m>0.  
+
+In expressions such as these, indices that out of bounds of the array are to be understood as wrapping around 
+circularly; i.e. :math:`x[-1] = x[N-1]` and :math:`x[N] = x[0]`.
 
 This form of the *truncated* wavelet transform is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated`.
@@ -330,37 +337,75 @@ This form of the *truncated* wavelet transform is implemented in
 Smaller values of :math:`q` yield faster but less accurate wavelet transforms. 
 The accuracy of this truncated wavelet transform is explored in the example notebook :doc:`accuracy_truncated_transform`.
 
-The truncated wavelet transform can be rewritten in terms of the window function :math:`\phi[k]`
-
-.. code-block:: python
-
-   f = jnp.fft.fftfreq(N, d=dt) 
-   Phi = Meyer(2.*jnp.pi*f, d, A, B)
-   phi = jnp.fft.ifft(Phi).real
-
-This window is created using
-:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window`.
-
-Using the definition of the WDM wavelets, the truncated wavelet transform can be written as
+The truncated wavelet transform can be rewritten in terms of the window function :math:`\phi[k]` with some shifting of the indices.
 
 .. math::
 
-   w_{nm} = 2\sqrt{2}\pi\delta t \mathrm{Re} \sum_{k=-K/2}^{K/2-1} 
-                            C_{nm} \exp(i\pi km/N_f) 
-                            x[k+nN_f] \phi[k] \quad \mathrm{for}\; m>0,
+   w_{n0} = \delta t \begin{cases} 
+   \sum_{k=-K/2}^{K/2-1} x[k+2nN_f]\phi[k] & \mathrm{if}\;n<N_t/2 \\
+   \sum_{k=-K/2}^{K/2-1} (-1)^k x[k+2nN_f]\phi[k] & \mathrm{if}\;n\geq N_t/2 \\
+    \end{cases} ,
 
 .. math::
 
-   w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} 
-                            x[k+2nN_f] \phi[k] \quad \mathrm{for}\; n<N_t/2,
+   w_{nm} = \sqrt{2}\delta t \, \mathrm{Re} \sum_{k=-K/2}^{K/2-1} C^*_{nm} 
+      \exp\left(\frac{i\pi km}{N_f}\right) x[k+nN_f] \phi[k] \quad \mathrm{for}\; m>0.
+
+To derive these expressions, substitute the definitions of the time-domain wavelets :math:`g_{nm}[k]` in 
+Eq.9 (and the special case in Eq.12) into the 
+truncated expressions for the wavelet coefficients in Eqs.22 and 23.
+
+This form of the *truncted window* wavelet transform using :math:`\phi[k]` is implemented in
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated_window`.
+
+The greatest part of the computational speed up comes from using the fast Fourier transform algorithm (FFT).
+Let us define
 
 .. math::
 
-   w_{n0} = 2\pi\delta t\sum_{k=-K/2}^{K/2-1} (-1)^k x[k+2nN_f]
-                            \phi[k] \quad \mathrm{for}\; n\geq N_t/2.
+   X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k] .
 
-This form of the *truncted, window* wavelet transform using :math:`\phi[k]` is implemented in
-:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_window`.
+This can be thought of as short FFT. (Although, with our conventions it's actually an inverse FFT.)
+The data is first split into :math:`K` overlapping segments of length :math:`K`, 
+each segment is multiplied by the window function :math:`\phi[k]` 
+and the (i)FFT is applied to each segment.
+
+The expression for the wavelet coefficients in Eq.23 can be rewritten using this short FFT downsampled to extract every 
+:math:`q^{\rm th}`` coefficient,
+
+.. math::
+
+   w_{nm} = \sqrt{2} \delta t \, \mathrm{Re}\, C_{nm}^* X_n[mq] \quad \mathrm{for}\; m>0.
+
+This formula for the wavelet coefficients only holds for :math:`m>0`. If the :math:`m=0` terms 
+are required they are calculated using the truncted window expressions above (Eq.22).
+
+This *short FFT* form of the wavelet transform is implemented in
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_short_fft`.
+
+This is now pretty fast. But it turns out that a further speed up is possible if instead 
+we perform the full FFT on the original time series, rather than the short FFT.
+The reason this is fast is to do with the fact that our chosen WDM wavelets are more compact in the frequency domain 
+than in the time domain (see discussion in  Ref. [1]_).
+
+
+
+
+ 
+The speed of all the implementations of the discrete wavelet transform are compared in the  
+example notebook :doc:`benchmarking`.
+
+
+.. raw:: html
+
+   <div style="height: 40rem;"></div>
+
+
+
+
+
+
+
 
 The greatest computational speed up comes from writing the truncated wavelet transform in terms of the
 the windowed Fast Fourier Transform (FFT).
