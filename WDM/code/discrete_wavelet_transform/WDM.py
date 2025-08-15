@@ -101,12 +101,12 @@ class WDM_transform:
     """
 
     def __init__(self, 
-                 dt: float,
-                 Nf: int,
-                 N: int,
-                 q: int = 16,
-                 d: int = 4,
-                 A_frac: float = 0.25,
+                 dt : float,
+                 Nf : int,
+                 N : int,
+                 q : int = 16,
+                 d : int = 4,
+                 A_frac : float = 0.25,
                  calc_m0 : bool = False) -> None:
         r"""
         Initialize the WDM_transform.
@@ -236,7 +236,7 @@ class WDM_transform:
         return phi
 
     @partial(jax.jit, static_argnums=0)
-    def check_indices(self, n: jnp.ndarray, m: jnp.ndarray) -> bool:
+    def check_indices(self, n : jnp.ndarray, m : jnp.ndarray) -> bool:
         r"""
         Check if the wavelet indices are in the valid range. 
 
@@ -266,9 +266,9 @@ class WDM_transform:
         return check
 
     def wavelet_central_time_frequency(self, 
-                                       n: jnp.ndarray, 
-                                       m: jnp.ndarray) -> Tuple[jnp.ndarray, 
-                                                                jnp.ndarray]:
+                                       n : jnp.ndarray, 
+                                       m : jnp.ndarray) -> Tuple[jnp.ndarray, 
+                                                                 jnp.ndarray]:
         r"""
         Compute the central time :math:`t_{nm}= n \Delta t` and the central 
         frequency :math:`f_{nm} = m \Delta f` of the wavelet :math:`g_{nm}(t)`.
@@ -305,8 +305,8 @@ class WDM_transform:
 
     @partial(jax.jit, static_argnums=0)
     def wavelet_central_time_frequency_compiled(self, 
-                                       n: jnp.ndarray, 
-                                       m: jnp.ndarray) -> Tuple[jnp.ndarray, 
+                                       n : jnp.ndarray, 
+                                       m : jnp.ndarray) -> Tuple[jnp.ndarray, 
                                                                 jnp.ndarray]:
         """
         Compiled part of wavelet_central_time_frequency method.
@@ -344,9 +344,9 @@ class WDM_transform:
         return t_nm, f_nm
 
     def Gnm(self, 
-            n: int, 
-            m: int,
-            freq: jnp.ndarray = None) -> jnp.ndarray:
+            n : int, 
+            m : int,
+            freq : jnp.ndarray = None) -> jnp.ndarray:
         r"""
         Compute the frequency-domain representation of the wavelets, 
         :math:`\tilde{G}_{nm}(f)`.
@@ -405,12 +405,12 @@ class WDM_transform:
                                 self.window_FD[(k_vals-m*self.Nt//2)%self.N]
                             )
 
-        else:
-            if n < self.Nt // 2:
+        else: 
+            if n < self.Nt // 2: # zero-frequency terms
                 Gnm = jnp.exp(-1j*n*4.*jnp.pi*self.freqs*self.dT) * \
                             self.window_FD
 
-            else:
+            else: # Nyquist-frequency terms
                 Gnm = 0.5 * jnp.exp(-1j*n*4.*jnp.pi*self.freqs*self.dT) * \
                         (self.window_FD[(k_vals+self.N//2)%self.N] + 
                          self.window_FD[(k_vals-self.N//2)%self.N]) 
@@ -484,8 +484,8 @@ class WDM_transform:
         return self._cached_Gnm_basis
     
     def gnm(self, 
-            n: int, 
-            m: int) -> jnp.ndarray:
+            n : int, 
+            m : int) -> jnp.ndarray:
         r"""
         Compute the time-domain representation of the wavelets, 
         :math:`g_{nm}(t)`.
@@ -600,7 +600,7 @@ class WDM_transform:
 
         return self._cached_gnm_basis
 
-    def pad_signal(self, x: jnp.ndarray, where: str = 'end') -> jnp.ndarray:
+    def pad_signal(self, x : jnp.ndarray, where: str = 'end') -> jnp.ndarray:
         r"""
         The transform method requires the input time series signal to have a 
         specific length :math:`N`. This method can be used to zero-pad any 
@@ -658,7 +658,7 @@ class WDM_transform:
         return x_padded, mask
 
     @partial(jax.jit, static_argnums=0)
-    def short_fft(self, x: jnp.ndarray) -> jnp.ndarray:
+    def short_fft(self, x : jnp.ndarray) -> jnp.ndarray:
         r"""
         The windowed short FFT of the input.
 
@@ -697,7 +697,7 @@ class WDM_transform:
         return windowed_fft
     
     @partial(jax.jit, static_argnums=0)
-    def forward_transform_exact(self, x: jnp.ndarray) -> jnp.ndarray:
+    def forward_transform_exact(self, x : jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform. Transforms the input
         signal from the time domain into the time-frequency domain.
@@ -735,7 +735,7 @@ class WDM_transform:
         return w
     
     @partial(jax.jit, static_argnums=0)
-    def forward_transform_truncated(self, x: jnp.ndarray) -> jnp.ndarray:
+    def forward_transform_truncated(self, x : jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform. Transforms the input
         signal from the time domain into the time-frequency domain.
@@ -795,7 +795,8 @@ class WDM_transform:
         return w
 
     @partial(jax.jit, static_argnums=0)
-    def forward_transform_truncated_window(self, x: jnp.ndarray) -> jnp.ndarray:
+    def forward_transform_truncated_window(self, 
+                                           x : jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform. Transforms the input
         signal from the time domain into the time-frequency domain.
@@ -883,7 +884,7 @@ class WDM_transform:
         return w
     
     @partial(jax.jit, static_argnums=0)
-    def forward_transform_short_fft(self, x: jnp.ndarray) -> jnp.ndarray:
+    def forward_transform_short_fft(self, x : jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform. Transforms the input
         signal from the time domain into the time-frequency domain.
@@ -959,8 +960,8 @@ class WDM_transform:
 
         return w
     
-    #@partial(jax.jit, static_argnums=0)
-    def forward_transform_fft(self, x: jnp.ndarray) -> jnp.ndarray:
+    @partial(jax.jit, static_argnums=0)
+    def forward_transform_fft(self, x : jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform. Transforms the input
         signal from the time domain into the time-frequency domain.
@@ -968,18 +969,34 @@ class WDM_transform:
         For the :math:`m>0` terms, the wavelet coefficients are calculated 
         using the following expression,
 
+        .. math::
+
+            w_{nm} = \frac{\sqrt{2}\delta t}{N} (-1)^{nm} \,\mathrm{Re}\, 
+                \Big( C_{nm}^* x_m[n] \Big) 
+
+        where
+
+        .. math::
+
+            x_m[n] = \sum_{l=-N_t/2}^{N_t/2-1} \exp\left(\frac{2\pi i nl}{N_t}
+                        \right) \Phi[l] X[l-mN_t/2] .
+
         The :math:`m=0` terms, if required, are calculated using the same method
         as in `forward_transform_truncated_window`. 
+
+        This is vectorised to allow for batch jobs computing the dwt for 
+        multiple time series at once; note the shapes of the input and output 
+        arrays.
 
         Parameters
         ----------
         x : jnp.ndarray 
-            Array shape (N,). Input time-domain signal to be transformed.
+            The time-domain signal. Array shape (..., N). 
 
         Returns
         -------
-        w : jnp.ndarray of shape (Nt, Nf)
-            WDM time-frequency-domain wavelet coefficients.
+        w : jnp.ndarray 
+            Wavelet coefficients. Array shape (..., Nt, Nf). 
 
         Notes
         -----
@@ -988,25 +1005,33 @@ class WDM_transform:
         """
         x = jnp.asarray(x)
 
-        assert x.shape == (self.N,), \
+        assert x.shape[-1:] == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
+        
+        leading = x.shape[:-1]
 
-        Phi = jnp.fft.ifftshift(self.window_FD)
-
-        X = jnp.fft.fft(x) * self.dt
-
+        l_vals = jnp.arange(-self.Nt//2, self.Nt//2)
         n_vals = jnp.arange(self.Nt)
         m_vals = jnp.arange(self.Nf)
-        l_vals = jnp.arange(-self.Nt//2, self.Nt//2)
+        alt = (-1)**(n_vals[:,jnp.newaxis]*m_vals[jnp.newaxis,:])
+        indices = l_vals[:,jnp.newaxis] - m_vals[jnp.newaxis,:]*self.Nt//2
 
-        l_plus_mNtover2 = l_vals[:,jnp.newaxis] + m_vals[jnp.newaxis,:] * self.Nt // 2
+        X = jnp.fft.fft(x, axis=-1)
 
-        xmn = jnp.fft.fft(Phi[l_vals,jnp.newaxis]*X[l_plus_mNtover2], axis=0)
+        Phi = jnp.fft.ifftshift(self.window_FD)[l_vals%self.N,jnp.newaxis]
 
-        alt = (-1)**(n_vals[:,jnp.newaxis]*m_vals[jnp.newaxis,:]) 
+        x_mn = self.Nt * jnp.fft.ifft(Phi[*(jnp.newaxis,)*len(leading),:] * \
+                                       X[indices%self.N], axis=-2)
 
-        w = jnp.sqrt(2.) * alt * jnp.real( jnp.conj(self.Cnm) * xmn )
-        
+        #w = jnp.sqrt(2.) * alt[*(jnp.newaxis,)*len(leading),:,:] / self.N * \
+        #        jnp.real(
+        #                jnp.conj(self.Cnm[*(jnp.newaxis,)*len(leading),:,:]) * \
+        #                x_mn
+        #                ) * \
+        #            (-1)**(n_vals[*(jnp.newaxis,)*len(leading),:,jnp.newaxis]) # I don't understand this
+
+        w = jnp.zeros(leading+(self.Nt, self.Nf), dtype=self.jax_dtype)
+
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
         if self.calc_m0:
@@ -1175,7 +1200,7 @@ class WDM_transform:
 
         return x
 
-    def dwt(self, x: jnp.ndarray) -> jnp.ndarray:
+    def dwt(self, x : jnp.ndarray) -> jnp.ndarray:
         r"""
         Forward discrete wavelet transform.
 
@@ -1200,20 +1225,20 @@ class WDM_transform:
 
         return self.forward_transform_fft(x)
     
-    @partial(jax.jit, static_argnums=0)
-    def inverse_transform_batched(self, w: jnp.ndarray) -> jnp.ndarray:
-        r"""
-        Vectorised version of `inverse_transform`.
-        """
-        leading = w.shape[:-2]
-        Nt, Nf  = w.shape[-2:]
-        w_flat  = w.reshape((-1, Nt, Nf))
-        x_flat  = jax.vmap(self.inverse_transform_exact, 
-                            in_axes=0, 
-                            out_axes=0)(w_flat) 
-        return x_flat.reshape(leading + (x_flat.shape[-1],))
+    #@partial(jax.jit, static_argnums=0)
+    #def inverse_transform_batched(self, w : jnp.ndarray) -> jnp.ndarray:
+    #    r"""
+    #    Vectorised version of `inverse_transform`.
+    #    """
+    #    leading = w.shape[:-2]
+    #    Nt, Nf  = w.shape[-2:]
+    #    w_flat  = w.reshape((-1, Nt, Nf))
+    #    x_flat  = jax.vmap(self.inverse_transform_exact, 
+    #                        in_axes=0, 
+    #                        out_axes=0)(w_flat) 
+    #    return x_flat.reshape(leading + (x_flat.shape[-1],))
     
-    def idwt(self, w: jnp.ndarray) -> jnp.ndarray:
+    def idwt(self, w : jnp.ndarray) -> jnp.ndarray:
         r"""
         Inverse discrete wavelet transform.
 
@@ -1234,11 +1259,7 @@ class WDM_transform:
 
         assert jnp.all(jnp.isreal(w)), "wavelet coefficients must be real."
 
-        if w.shape==(self.Nt, self.Nf):
-            return self.inverse_transform(w)
-
-        else:
-            return self.inverse_transform_batched(w)
+        return self.inverse_transform(w)
 
     def __repr__(self) -> str:
         r"""
@@ -1260,7 +1281,7 @@ class WDM_transform:
         text = "\n".join(lines)
         return text
 
-    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+    def __call__(self, x : jnp.ndarray) -> jnp.ndarray:
         r"""
         Calls the forward transform self.dwt.
         """

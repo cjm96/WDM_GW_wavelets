@@ -23,7 +23,7 @@ The project lives on `GitHub <https://github.com/cjm96/WDM_GW_wavelets>`_.
 
 
 .. toctree::
-   :maxdepth: 5
+   :maxdepth: 7
    :caption: Package Contents:
 
    modules

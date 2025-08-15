@@ -24,8 +24,8 @@ in Coherent WaveBurst (CWB; Refs. [3]_ and [4]_).
 
 This documentation is based on Refs. [1]_ and [2]_ with only a few minor changes in notation and conventions.
 The purpose of this document is to provide a complete self-contained description of the WDM wavelet 
-transform to accompany this Jax implementation and spelling out explicitly as many of the details as possible 
-and correcting a few minor typos in the literature.
+transform to accompany this Jax implementation, spelling out explicitly some details not discussed in the literature 
+and correcting a few minor typos.
 
 
 Fourier Transform Conventions
@@ -310,8 +310,7 @@ The exact form of the wavelet transform described above and with the double sum 
 The rest of this section describes several alternative formulation of the  wavelet transform leading eventually to a fast 
 implementation based on the FFT of the time series data.
 
-The first step in speeding up the wavelet transform is to notice that the WDM wavelets are (approximately) localised in 
-time.
+One way to speed up the wavelet transform is to notice that the WDM wavelets are (approximately) localised in time.
 Therefore, we don't need to sum over all values of :math:`k` when evaluating the wavelet coefficients.
 The sum can be truncated to a window of length :math:`K=2qN_f` without significant loss of accuracy.
 The truncation parameter :math:`1\leq q\leq N_t/2` is a positive integer that controls the length of the window.
@@ -328,8 +327,8 @@ The truncated wavelet transform is given by
    w_{nm} = \delta t\sum_{k=-K/2}^{K/2-1} 
                      g_{nm}[k + n N_f] x[k + n N_f] \quad \mathrm{for} \; m>0.  
 
-In expressions such as these, indices that out of bounds of the array are to be understood as wrapping around 
-circularly; i.e. :math:`x[-1] = x[N-1]` and :math:`x[N] = x[0]`.
+In expressions such as these, indices that are out of bounds of the array are to be understood as wrapping 
+around circularly; i.e. :math:`x[-1] = x[N-1]` and :math:`x[N] = x[0]`.
 
 This form of the *truncated* wavelet transform is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated`.
@@ -365,7 +364,7 @@ If the :math:`m=0` coefficients are needed, then the class should be initialised
 The effect of getting the :math:`m=0` coefficients wrong on the signal reconstructed from the wavelet coefficients 
 is explored in the example notebook :doc:`m_equal_0_terms`.
 
-The greatest part of the computational speed up comes from using the fast Fourier transform algorithm (FFT).
+The wavelet transform can be considerably sped up by exploiting the fast Fourier transform (FFT) algorithm.
 Let us define
 
 .. math::
@@ -397,18 +396,24 @@ This is pretty fast. But it turns out that a further speed up is possible if ins
 we perform the full FFT on the original time series, rather than the short FFT.
 The reason this is faster is to do with the fact that our chosen WDM wavelets are better localised in the 
 frequency domain than in the time domain (see discussion in  Ref. [1]_).
-
-.. math::
-
-   w_{nm} = \quad \mathrm{for}\; m>0.
+This also has the benefit of not introducing any truncation errors in the forward wavelet transform because 
+the WDM wavelets have compact support in frequency.
 
 To derive this FFT expression for the wavelet transform...
 
+.. math::
+
+   x_m[n] = \sum_{l=-N_t/2}^{N_t/2-1} \exp\left(\frac{2\pi i nl}{N_t}\right) \Phi[l] X[l-mN_t/2] .
+
+.. math::
+
+   w_{nm} = \frac{\sqrt{2}\delta t}{N} (-1)^{nm} \,\mathrm{Re}\, \Big( C_{nm}^* x_m[n] \Big)  \quad \mathrm{for}\; m>0.
+
+This is our final *FFT* form of the wavelet transform and is implemented in
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_fft`.
+
 Again, this FFT expression for the wavelet coefficients only holds for :math:`m>0`. If the :math:`m=0` terms 
 are required they are calculated using the truncted window expressions above (Eq.22).
-
-This *FFT* form of the wavelet transform is implemented in
-:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_fft`.
 
 This *FFT* form of the wavelet transform is the fast version intended for production use.
 This method is also vectorised to allow for efficient batch processing of multiple time series.

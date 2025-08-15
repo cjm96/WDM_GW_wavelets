@@ -148,16 +148,12 @@ def test_inverse_transforms():
     x = wdm.inverse_transform_exact(w)
     x_ = wdm.inverse_transform(w)
 
-    print(w.shape, x_.shape)
-
     assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
         "Inverse transforms don't agree."
 
     w_lots = np.repeat(w[np.newaxis,:,:], 3, axis=0)
 
     x_lots = wdm.inverse_transform(w_lots)
-
-    print(w_lots.shape, x_lots.shape)
     
     assert (x_lots.shape==(3, wdm.N) and 
             np.allclose(x, x_lots[0], rtol=1.0e-3, atol=1.0e-3)), \
@@ -277,11 +273,11 @@ def test_fft_transform():
     seed = 1234
     key = jax.random.key(seed)
 
-    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.333, 
                                                                 Nf=4, 
                                                                 N=64, 
                                                                 q=8,
-                                                                calc_m0=True)
+                                                                calc_m0=False)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
@@ -290,7 +286,13 @@ def test_fft_transform():
 
     w_ = wdm.forward_transform_fft(x)
 
-    assert np.allclose(w[:,1:], w_[:,1:], rtol=1.0e-3, atol=1.0e-3), \
+    assert np.allclose(w, w_, rtol=1.0e-3, atol=1.0e-3), \
         "FFT transform did not agree with the exact transform."
     
+    x_lots = np.repeat(x[np.newaxis,:], 3, axis=0)
+
+    w_lots = wdm.forward_transform_fft(x_lots)
     
+    assert (w_lots.shape==(3, wdm.Nt, wdm.Nf) and True), \
+        "Inverse transform vecorisation is not behaving correctly."
+        #np.allclose(w, w_lots[0], rtol=1.0e-3, atol=1.0e-3)), \

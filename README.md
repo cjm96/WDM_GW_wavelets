@@ -88,3 +88,4 @@ Christopher J. Moore
  - write vectorised version of the transform for multiple DWTs at once.
  - GW170817 data processing notebook (inc. a type of periodogram)
  - GPU test and doc.
+ - Consider moving pad, short_fft (and the equivalent in _fft method) to utils.
