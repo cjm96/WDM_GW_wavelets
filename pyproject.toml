@@ -24,12 +24,12 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "sphinx-autobuild"
 ]
 
 docs = [
     "sphinx>=7.0",
     "sphinx-rtd-theme",
+    "sphinx-autobuild",
     "myst-parser",
     "sphinx-autodoc-typehints",
 ]

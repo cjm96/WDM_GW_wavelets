@@ -1,6 +1,6 @@
-========
-Examples
-========
+=================
+Example Notebooks
+=================
 
 The following example notebooks from the repository demonstrate the use of the WDM package.
 

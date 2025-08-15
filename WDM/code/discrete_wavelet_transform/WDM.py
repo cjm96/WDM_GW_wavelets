@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+from matplotlib.pylab import indices
 
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, overlapping_windows
@@ -561,13 +562,10 @@ class WDM_transform:
             k_vals = jnp.arange(self.N)
 
             def temp_func(n, m):
-                return jnp.where((n + m) % 2 == 0, 
-                                jnp.sqrt(2.) * (-1)**(n*m) * \
-                                    jnp.cos(jnp.pi*m*k_vals/self.Nf) * \
-                                     self.window_TD[(k_vals-n*self.Nf)%self.N],
-                                jnp.sqrt(2.) * \
-                                    jnp.sin(jnp.pi*m*k_vals/self.Nf) * \
-                                     self.window_TD[(k_vals-n*self.Nf)%self.N])
+                shift = ((n+m)%2) * jnp.pi/2.
+                return jnp.sqrt(2.) * (-1)**(n*m) * \
+                            jnp.cos(jnp.pi*m*k_vals/self.Nf-shift) * \
+                                self.window_TD[(k_vals-n*self.Nf)%self.N]
 
             f_vmapped = jax.vmap(jax.vmap(temp_func, 
                                         in_axes=(None, 0)), 
@@ -690,12 +688,11 @@ class WDM_transform:
         windowed_fft = overlapping_windows(x, self.K, self.Nt, self.Nf)
 
         k_vals = jnp.arange(-self.K//2, self.K//2)
+        sign = (-1)**jnp.arange(self.K)
 
         windowed_fft *= self.window_TD[k_vals%self.N]
 
-        windowed_fft = jnp.fft.ifftshift(windowed_fft, axes=-1)
-
-        windowed_fft = jnp.fft.ifft(windowed_fft, axis=-1) * self.K
+        windowed_fft = jnp.fft.ifft(windowed_fft, axis=-1) * self.K * sign
 
         return windowed_fft
     
@@ -962,7 +959,7 @@ class WDM_transform:
 
         return w
     
-    @partial(jax.jit, static_argnums=0)
+    #@partial(jax.jit, static_argnums=0)
     def forward_transform_fft(self, x: jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the forward discrete wavelet transform. Transforms the input
@@ -994,24 +991,22 @@ class WDM_transform:
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
 
+        Phi = jnp.fft.ifftshift(self.window_FD)
+
+        X = jnp.fft.fft(x) * self.dt
+
         n_vals = jnp.arange(self.Nt)
         m_vals = jnp.arange(self.Nf)
-
-        alt = (-1.)**(n_vals[:,jnp.newaxis]*m_vals[jnp.newaxis, :])
-
-        term = jnp.fft.fft(jnp.fft.fftshift(x))
-
-        term = overlapping_windows(term, self.Nt, self.Nf, self.Nt//2)
-
         l_vals = jnp.arange(-self.Nt//2, self.Nt//2)
-        term = term * self.window_FD[l_vals%self.N]
 
-        term = jnp.fft.fftshift(term, axes=-1)
+        l_plus_mNtover2 = l_vals[:,jnp.newaxis] + m_vals[jnp.newaxis,:] * self.Nt // 2
 
-        term = jnp.fft.fft(term, axis=-1) 
+        xmn = jnp.fft.fft(Phi[l_vals,jnp.newaxis]*X[l_plus_mNtover2], axis=0)
 
-        w = jnp.sqrt(2.) * self.dt * alt * jnp.real( self.Cnm * term.T )
+        alt = (-1)**(n_vals[:,jnp.newaxis]*m_vals[jnp.newaxis,:]) 
 
+        w = jnp.sqrt(2.) * alt * jnp.real( jnp.conj(self.Cnm) * xmn )
+        
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
         if self.calc_m0:
@@ -1042,75 +1037,103 @@ class WDM_transform:
     
     @partial(jax.jit, static_argnums=0)
     def inverse_transform(self, w : jnp.ndarray) -> jnp.ndarray:
-        r"""
+        r""" 
         Perform the inverse discrete wavelet transform. Transforms the wavelet 
         coefficients from the time-frequency domain into the time domain.
 
-        This method computes the wavelet coefficients using the expression
-
-        .. math::
-
-            x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .
+        This method computes the inverse dwt using the truncated wavelets.
+        This is also vectorised to allow for batch jobs computing the idwt for 
+        multiple sets of wavelet coefficients at once; note the shapes of the 
+        input and output arrays.
 
         Parameters
         ----------
         w : jnp.ndarray 
-            Array shape (Nt, Nf). 
-            WDM time-frequency-domain wavelet coefficients.
+            Wavelet coefficients. Array shape (..., Nt, Nf). 
 
         Returns
         -------
         x : jnp.ndarray 
-            Array shape (N,). The time-domain signal.
+            The time-domain signal. Array shape (..., N). 
         """
         w = jnp.asarray(w, dtype=self.jax_dtype)
 
-        assert w.shape == (self.Nt, self.Nf), \
+        assert w.shape[-2:] == (self.Nt, self.Nf), \
                 f"Input coefficients must have shape ({self.Nt}, {self.Nf}), " \
                 f"got {w.shape=}."
 
-        x = jnp.zeros(self.N, dtype=self.jax_dtype)
+        leading = w.shape[:-2]
 
-        def add_one_band(x, n):
-            def add_one_cell(x, m):
-                m0_cond = jnp.where(m > 0, 1, 2) 
-                k_vals = jnp.arange(self.N)
-                indices = (k_vals-m0_cond*n*self.Nf)%self.N
+        x = jnp.zeros(leading+(self.N,), dtype=self.jax_dtype)
 
-                minusone_mn = (-1)**(n*m)
-                minusone_nNf = (-1)**(n*self.Nf)
-                minusone_k = (-1)**k_vals
+        @jax.jit
+        def add_one_time(x, n):
+            k_vals = jnp.arange(-self.K//2, self.K//2)
+            indices = (k_vals+n*self.Nf)%self.N
 
-                wavelet = jnp.where(m > 0,
-                            jnp.where((n + m) % 2 == 0, 
-                                jnp.sqrt(2.) * minusone_mn * \
-                                    jnp.cos(jnp.pi*m*k_vals/self.Nf) * \
-                                        self.window_TD[indices], 
-                                jnp.sqrt(2.) * \
-                                    jnp.sin(jnp.pi*m*k_vals/self.Nf) * \
-                                        self.window_TD[indices]),
-                            jnp.where(n < self.Nt // 2, 
-                                    self.window_TD[indices], 
-                                    minusone_k * self.window_TD[indices]
-                                )
-                            )
+            @jax.jit
+            def add_one_freq(x, m):
+                shift = ((n+m)%2) * jnp.pi/2.
 
-                x = x + w[n, m] * wavelet
+                wavelet = jnp.sqrt(2.) * (-1)**(n*m) * \
+                            jnp.cos(jnp.pi*m*indices/self.Nf-shift) * \
+                                 self.window_TD[k_vals]
+
+                coeff = jnp.atleast_1d(w[...,n,m])
+                term  = coeff[..., None] * wavelet[None, ...] 
+                updates_shape = x[..., indices].shape
+                x = x.at[..., indices].add(jnp.reshape(term, updates_shape))
                 return x
 
-            x = jax.lax.fori_loop(int(not self.calc_m0), # start at m=0 or 1 
+            x = jax.lax.fori_loop(1, # only sum over m>0
                                   self.Nf, 
-                                  lambda m, acc: add_one_cell(acc, m), 
+                                  lambda m, acc: add_one_freq(acc, m), 
                                   x)
             return x
 
         x = jax.lax.fori_loop(0, 
                               self.Nt, 
-                              lambda n, acc: add_one_band(acc, n), 
+                              lambda n, acc: add_one_time(acc, n), 
                               x)
+        
+        if self.calc_m0:
+            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
+            n_vals = jnp.arange(self.Nt//2)
+
+            @jax.jit
+            def add_zero_freq(x, n):
+                k_vals = jnp.arange(-self.K//2, self.K//2)
+                wavelet = self.window_TD[k_vals]
+                indices = (k_vals+2*n*self.Nf)%self.N
+                coeff = jnp.atleast_1d(w[...,n,0])
+                term  = coeff[..., None] * wavelet[None, ...] 
+                updates_shape = x[..., indices].shape
+                x = x.at[..., indices].add(jnp.reshape(term, updates_shape))
+                return x
+
+            x = jax.lax.fori_loop(0, 
+                                  self.Nt//2,
+                                  lambda n, acc: add_zero_freq(acc, n), 
+                                  x)
+            
+            @jax.jit
+            def add_Nyquist_freq(x, n):
+                k_vals = jnp.arange(-self.K//2, self.K//2)
+                wavelet = (-1)**(k_vals) * self.window_TD[k_vals]
+                indices = (k_vals+2*n*self.Nf)%self.N
+                coeff = jnp.atleast_1d(w[...,n,0])
+                term  = coeff[..., None] * wavelet[None, ...] 
+                updates_shape = x[..., indices].shape
+                x = x.at[..., indices].add(jnp.reshape(term, updates_shape))
+                return x
+
+            x = jax.lax.fori_loop(self.Nt//2, 
+                                  self.Nt,
+                                  lambda n, acc: add_Nyquist_freq(acc, n), 
+                                  x)
 
         return x
-    
+
     def inverse_transform_exact(self, w : jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the inverse discrete wavelet transform. Transforms the wavelet 
@@ -1156,29 +1179,66 @@ class WDM_transform:
         r"""
         Forward discrete wavelet transform.
 
-        Calls self.fast_forward_transform.
+        Calls `self.fast_forward_transform`. Vectorised to allow for 
+        transforming multiple time series at once.
+
+        Parameters
+        ----------
+        x : jnp.ndarray
+            Input time series. Array shape=(N,) or (..., N).
+
+        Returns
+        -------
+        w : jnp.ndarray
+            Wavelet coefficients. Array shape=(Nt, Nf) or (..., Nt, Nf).
         """
         x = jnp.asarray(x, dtype=self.jax_dtype)
 
-        assert jnp.all(jnp.isreal(x)), "time series must be real-valued."
+        assert jnp.all(jnp.isreal(x)), "time series must be real."
 
         # vectorise
 
         return self.forward_transform_fft(x)
     
+    @partial(jax.jit, static_argnums=0)
+    def inverse_transform_batched(self, w: jnp.ndarray) -> jnp.ndarray:
+        r"""
+        Vectorised version of `inverse_transform`.
+        """
+        leading = w.shape[:-2]
+        Nt, Nf  = w.shape[-2:]
+        w_flat  = w.reshape((-1, Nt, Nf))
+        x_flat  = jax.vmap(self.inverse_transform_exact, 
+                            in_axes=0, 
+                            out_axes=0)(w_flat) 
+        return x_flat.reshape(leading + (x_flat.shape[-1],))
+    
     def idwt(self, w: jnp.ndarray) -> jnp.ndarray:
         r"""
         Inverse discrete wavelet transform.
 
-        Calls self.inverse_transform.
+        Calls `self.inverse_transform`. Vectorised to allow for transforming 
+        multiple time series at once.
+
+        Parameters
+        ----------
+        w : jnp.ndarray
+            Wavelet coefficients. Array shape=(Nt, Nf) or (..., Nt, Nf).
+
+        Returns
+        -------
+        x : jnp.ndarray
+            Input time series. Array shape=(N,) or (..., N).
         """
         w = jnp.asarray(w, dtype=self.jax_dtype)
 
-        assert jnp.all(jnp.isreal(w)), "time series must be real-valued."
+        assert jnp.all(jnp.isreal(w)), "wavelet coefficients must be real."
 
-        # vectorise
+        if w.shape==(self.Nt, self.Nf):
+            return self.inverse_transform(w)
 
-        return self.inverse_transform(w)
+        else:
+            return self.inverse_transform_batched(w)
 
     def __repr__(self) -> str:
         r"""

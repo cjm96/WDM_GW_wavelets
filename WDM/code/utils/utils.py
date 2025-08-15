@@ -1,3 +1,4 @@
+from functools import partial
 import jax
 import jax.numpy as jnp
 
@@ -61,6 +62,7 @@ def C_nm(n: int, m: int) -> complex:
     return 1.0 if (n + m) % 2 == 0 else 1.0j
 
 
+@partial(jax.jit, static_argnums=(1, 2, 3))
 def overlapping_windows(x: jnp.ndarray, K: int, Nt: int, Nf: int) -> jnp.ndarray:
     """
     Extract overlapping, wrapped windows from input array `x`.
@@ -95,7 +97,6 @@ def overlapping_windows(x: jnp.ndarray, K: int, Nt: int, Nf: int) -> jnp.ndarray
             [ 8,  9, 10, 11, 12, 13, 14, 15] ])
     """
     N = x.shape[0]
-    assert K % 2 == 0, "Window length K must be even"
     
     # Centered window indices relative to each window center
     k_offsets = jnp.arange(-K//2, K//2)
@@ -104,6 +105,6 @@ def overlapping_windows(x: jnp.ndarray, K: int, Nt: int, Nf: int) -> jnp.ndarray
     centers = jnp.arange(Nt) * Nf
     
     # Create full (Nt, K) index matrix with wraparound
-    idx = (centers[:, None] + k_offsets[None, :]) % N
+    idx = (centers[:,jnp.newaxis] + k_offsets[jnp.newaxis,:]) % N
     
     return x[idx]

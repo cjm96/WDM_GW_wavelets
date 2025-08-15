@@ -1,5 +1,5 @@
-WDM
-===
+WDM Package
+===========
 
 .. toctree::
    :maxdepth: 1
