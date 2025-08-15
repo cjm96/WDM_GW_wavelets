@@ -357,6 +357,14 @@ Eq.9 (and the special case in Eq.12) into the truncated expressions for the wave
 This form of the *truncted window* wavelet transform using :math:`\phi[k]` is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_truncated_window`.
 
+The need to handle the :math:`m=0` terms separately can slow down the wavelet transform. 
+This is often unnecessary as the lowest and highest frequency parts of the signal are often not needed.
+Therefore, by default the `WDM_transform` class that implements these transformation will not bother to use the 
+formulae for the special case :math:`m=0` and will therefore (dilberately) get these coefficients wrong.
+If the :math:`m=0` coefficients are needed, then the class should be initialised with the keyword argument `calc_m0=True`. 
+The effect of getting the :math:`m=0` coefficients wrong on the signal reconstructed from the wavelet coefficients 
+is explored in the example notebook :doc:`m_equal_0_terms`.
+
 The greatest part of the computational speed up comes from using the fast Fourier transform algorithm (FFT).
 Let us define
 
