@@ -266,7 +266,7 @@ def test_short_fft():
         f"Short FFT conventions are wrong."
 
 
-def test_fft_transform():
+def test_fft_transform_thisone():
     r"""
     Test the FFT transform.
     """
@@ -277,7 +277,7 @@ def test_fft_transform():
                                                                 Nf=4, 
                                                                 N=64, 
                                                                 q=8,
-                                                                calc_m0=False)
+                                                                calc_m0=True)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
@@ -293,6 +293,6 @@ def test_fft_transform():
 
     w_lots = wdm.forward_transform_fft(x_lots)
     
-    assert (w_lots.shape==(3, wdm.Nt, wdm.Nf) and True), \
+    assert (w_lots.shape==(3, wdm.Nt, wdm.Nf) and 
+            np.allclose(w_, w_lots, rtol=1.0e-3, atol=1.0e-3)), \
         "Inverse transform vecorisation is not behaving correctly."
-        #np.allclose(w, w_lots[0], rtol=1.0e-3, atol=1.0e-3)), \

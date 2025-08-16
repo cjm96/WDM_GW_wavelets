@@ -1003,34 +1003,34 @@ class WDM_transform:
         This method is fast. Use this to perform discrete wavelet transforms for
         production analysis. This method is called by `self.dwt`.
         """
-        x = jnp.asarray(x)
+        x = jnp.asarray(x, dtype=self.jax_dtype)
 
         assert x.shape[-1:] == (self.N,), \
-                    f"Input signal must have shape ({self.N},), got {x.shape=}"
-        
+                f"Input signal must have shape({self.Nt}, {self.Nf}), " \
+                f"got {x.shape[-1:]=}."
+
         leading = x.shape[:-1]
 
         l_vals = jnp.arange(-self.Nt//2, self.Nt//2)
         n_vals = jnp.arange(self.Nt)
         m_vals = jnp.arange(self.Nf)
-        alt = (-1)**(n_vals[:,jnp.newaxis]*m_vals[jnp.newaxis,:])
-        indices = l_vals[:,jnp.newaxis] - m_vals[jnp.newaxis,:]*self.Nt//2
+        mask = l_vals[:,jnp.newaxis] - \
+                m_vals[jnp.newaxis,:]*self.Nt//2
 
-        X = jnp.fft.fft(x, axis=-1)
+        X = jnp.fft.fft(x, axis=-1) * self.dt
 
-        Phi = jnp.fft.ifftshift(self.window_FD)[l_vals%self.N,jnp.newaxis]
+        X = jnp.take(X, mask, axis=-1, mode='wrap')
 
-        x_mn = self.Nt * jnp.fft.ifft(Phi[*(jnp.newaxis,)*len(leading),:] * \
-                                       X[indices%self.N], axis=-2)
+        Phi = jnp.fft.ifftshift(self.window_FD)[*(jnp.newaxis,)*len(leading),
+                                                l_vals,
+                                                jnp.newaxis]
 
-        #w = jnp.sqrt(2.) * alt[*(jnp.newaxis,)*len(leading),:,:] / self.N * \
-        #        jnp.real(
-        #                jnp.conj(self.Cnm[*(jnp.newaxis,)*len(leading),:,:]) * \
-        #                x_mn
-        #                ) * \
-        #            (-1)**(n_vals[*(jnp.newaxis,)*len(leading),:,jnp.newaxis]) # I don't understand this
+        x_mn = self.Nt * jnp.fft.ifft(Phi*X, axis=-2)
 
-        w = jnp.zeros(leading+(self.Nt, self.Nf), dtype=self.jax_dtype)
+        w = jnp.sqrt(2.) * self.df * \
+                (-1)**(n_vals[:,jnp.newaxis] * m_vals[jnp.newaxis,:]) * \
+                    jnp.real( jnp.conj(self.Cnm[:,:]) * x_mn ) * \
+                        (-1)**(n_vals[:,jnp.newaxis]) #?
 
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
@@ -1042,10 +1042,10 @@ class WDM_transform:
 
             f0_term = self.dt * jnp.sum(
                             self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            x[k_plus_2n%self.N],
-                        axis=0)
+                            jnp.take(x, k_plus_2n, axis=-1, mode='wrap'),
+                        axis=-2)
 
-            w = w.at[n_vals, 0].set(f0_term)
+            w = w.at[..., n_vals, 0].set(f0_term)
 
             # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
             n_vals = jnp.arange(self.Nt//2, self.Nt)
@@ -1053,10 +1053,10 @@ class WDM_transform:
             fNy_term = self.dt * jnp.sum( 
                             (-1)**k_vals[:,jnp.newaxis] * \
                             self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            x[k_plus_2n%self.N],
-                        axis=0)
+                            jnp.take(x, k_plus_2n, axis=-1, mode='wrap'),
+                        axis=-2)
 
-            w = w.at[n_vals, 0].set(fNy_term)
+            w = w.at[..., n_vals, 0].set(fNy_term)
 
         return w
     
@@ -1085,7 +1085,7 @@ class WDM_transform:
 
         assert w.shape[-2:] == (self.Nt, self.Nf), \
                 f"Input coefficients must have shape ({self.Nt}, {self.Nf}), " \
-                f"got {w.shape=}."
+                f"got {w.shape[-2:].shape=}."
 
         leading = w.shape[:-2]
 
@@ -1221,22 +1221,7 @@ class WDM_transform:
 
         assert jnp.all(jnp.isreal(x)), "time series must be real."
 
-        # vectorise
-
         return self.forward_transform_fft(x)
-    
-    #@partial(jax.jit, static_argnums=0)
-    #def inverse_transform_batched(self, w : jnp.ndarray) -> jnp.ndarray:
-    #    r"""
-    #    Vectorised version of `inverse_transform`.
-    #    """
-    #    leading = w.shape[:-2]
-    #    Nt, Nf  = w.shape[-2:]
-    #    w_flat  = w.reshape((-1, Nt, Nf))
-    #    x_flat  = jax.vmap(self.inverse_transform_exact, 
-    #                        in_axes=0, 
-    #                        out_axes=0)(w_flat) 
-    #    return x_flat.reshape(leading + (x_flat.shape[-1],))
     
     def idwt(self, w : jnp.ndarray) -> jnp.ndarray:
         r"""
