@@ -1030,7 +1030,7 @@ class WDM_transform:
         w = jnp.sqrt(2.) * self.df * \
                 (-1)**(n_vals[:,jnp.newaxis] * m_vals[jnp.newaxis,:]) * \
                     jnp.real( jnp.conj(self.Cnm[:,:]) * x_mn ) * \
-                        (-1)**(n_vals[:,jnp.newaxis]) #?
+                        (-1)**(n_vals[:,jnp.newaxis]) 
 
         k_vals = jnp.arange(-self.K//2, self.K//2)
 

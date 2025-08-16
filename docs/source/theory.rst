@@ -426,21 +426,49 @@ Now use the expression for :math:`\tilde{G}_{nm}(f)` in Eq.12 evaluated at the d
    w_{nm} = \frac{1}{\sqrt{2}T} \sum_{\ell=-N/2}^{N/2-1} \tilde{X}[\ell] \exp(2\pi in\ell /N_t)
             \left( C_{nm}^*\tilde{\Phi}[\ell+mN_t/2] + C_{nm}\tilde{\Phi}[\ell-mN_t/2] \right) .
 
-
-
-
-
-
-
-
+Reindexing the first term using :math:`\ell'=\ell+mN_t/2` gives
 
 .. math::
 
-   x_m[n] = \sum_{l=-N_t/2}^{N_t/2-1} \exp\left(\frac{2\pi i nl}{N_t}\right) \Phi[l] X[l-mN_t/2] .
+   \mathrm{first}\;\mathrm{term} = \frac{(-1)^{nm}}{\sqrt{2}T} \sum_{\ell'=-N/2}^{N/2-1} 
+         \exp(2\pi i n \ell' / N_t) \tilde{X}[\ell'-mN_t/2] \tilde{\Phi}[\ell'] .
+
+Reindexing the second term using :math:`\ell'=\ell-mN_t/2` and using the fact that freqency-domain window is real 
+and and even (:math:`\tilde{\Phi}[-\ell]=\tilde{\Phi}[-\ell]` and :math:`\tilde{\Phi}[\ell]\in\mathbb{R}`), and the fact
+that the original time series is real (:math:`x[k]\in\mathbb{R}`) means that it's Fourier transform has Hermitian symmetry
+(:math:`X[-\ell]=X[\ell]^*`), gives
 
 .. math::
 
-   w_{nm} = \frac{\sqrt{2}\delta t}{N} (-1)^{nm} \,\mathrm{Re}\, \Big( C_{nm}^* x_m[n] \Big)  \quad \mathrm{for}\; m>0.
+   \mathrm{second}\;\mathrm{term} = \frac{(-1)^{nm}}{\sqrt{2}T} \sum_{\ell'=-N/2}^{N/2-1} 
+         \exp(-2\pi i n \ell' / N_t) \tilde{X}^*[\ell'-mN_t/2] \tilde{\Phi}[\ell'] .
+
+Putting these together and dropping the prime on the index gives 
+
+.. math::
+
+   w_{nm} = \frac{\sqrt{2}}{T} (-1)^{nm} \,\mathrm{Re}\, C_{nm}^* \sum_{\ell'=-N/2}^{N/2-1} 
+         \exp\left(2\pi i n \ell'/N_t\right) \tilde{X}[\ell-m N_t/2] \tilde{\Phi}[\ell] .
+
+The fact that the frequency-domain window has compact support means this sum can be truncated without any loss of accuracy,
+
+.. math::
+
+   w_{nm} = \frac{\sqrt{2}}{T} (-1)^{nm} \,\mathrm{Re}\, C_{nm}^* \sum_{\ell'=-N_t/2}^{N_t/2-1} 
+         \exp\left(2\pi i n \ell'/N_t\right) \tilde{X}[\ell-m N_t/2] \tilde{\Phi}[\ell] .
+
+The sum in this expression can be computed efficiently using an FFT; letting
+
+.. math::
+
+   x_m[n] = \sum_{\ell'=-N_t/2}^{N_t/2-1} 
+         \exp\left(2\pi i n \ell'/N_t\right) \tilde{X}[\ell-m N_t/2] \tilde{\Phi}[\ell] ,
+
+we arrive at our final expression for the wavelet coefficients,
+
+.. math::
+
+   w_{nm} = \frac{\sqrt{2}}{T} (-1)^{nm} \,\mathrm{Re}\, C_{nm}^* x_m[n] .
 
 This is our final *FFT* form of the wavelet transform and is implemented in
 :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_fft`.
