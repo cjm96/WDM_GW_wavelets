@@ -285,7 +285,7 @@ Max residual: 3.087964996553727e-14
 <p>The operations for the forward and inverse discrete wavelet transform are vectorised for multiple transforms to be performed at once in batches.</p>
 <p>We demonstrate this here by transforming both + and <span class="math notranslate nohighlight">\(\times\)</span> components of the GW signal (batch size=2).</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">GW_signal_padded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">re_strain_padded</span><span class="p">,</span> <span class="n">re_strain_padded</span><span class="p">))</span>
@@ -308,6 +308,8 @@ Max residual: 3.087964996553727e-14
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 Time series shape = (2, 8192)
+Wavelet coefficients shape = (2, 16, 512)
+Recovered time series shape = (2, 8192)
 </pre></div></div>
 </div>
 <div class="nbinput nblast docutils container">
