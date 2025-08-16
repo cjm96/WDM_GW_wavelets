@@ -454,12 +454,12 @@ want to compute the full wavelet basis for all <span class="math notranslate noh
 efficiently, use the <cite>Gnm_basis</cite> method.</p>
 <p>For <span class="math notranslate nohighlight">\(m&gt;0\)</span>, the wavelet is given by</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-0">
-<span class="eqno">(33)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-0" title="Link to this equation"></a></span>\[\tilde{G}_{nm}(f) = \frac{\exp(-2\pi i n f \Delta T)}{\sqrt{2}}
+<span class="eqno">(37)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-0" title="Link to this equation"></a></span>\[\tilde{G}_{nm}(f) = \frac{\exp(-2\pi i n f \Delta T)}{\sqrt{2}}
         \left( C_{nm}\tilde{\Phi}(f+m\Delta F)
                 + C^*_{nm}\tilde{\Phi}(f-m\Delta F) \right) .\]</div>
 <p>For the special case <span class="math notranslate nohighlight">\(m=0\)</span>, the wavelet is given by</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-1">
-<span class="eqno">(34)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-1" title="Link to this equation"></a></span>\[\begin{split}\tilde{G}_{n0}(f) = \begin{cases}
+<span class="eqno">(38)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-1" title="Link to this equation"></a></span>\[\begin{split}\tilde{G}_{n0}(f) = \begin{cases}
     \exp(-4\pi i n f \Delta T) \tilde{\Phi}(f)
         &amp; \mathrm{if}\; n&lt;N_t/2 \\
     \frac{1}{2} \exp(-4\pi i n f \Delta T) \left(
@@ -584,7 +584,7 @@ transforming multiple time series at once.</p>
 signal from the time domain into the time-frequency domain.</p>
 <p>This method computes the wavelet coefficients using the exact expression</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-2">
-<span class="eqno">(35)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-2" title="Link to this equation"></a></span>\[w_{nm} = \delta t \sum_{k=0}^{N-1} g_{nm}[k] x[k] ,\]</div>
+<span class="eqno">(39)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-2" title="Link to this equation"></a></span>\[w_{nm} = \delta t \sum_{k=0}^{N-1} g_{nm}[k] x[k] ,\]</div>
 <p>where the sum is over the whole time-domain signal (no truncation).</p>
 <p>This method is slow but exact.</p>
 <dl class="field-list simple">
@@ -609,11 +609,11 @@ signal from the time domain into the time-frequency domain.</p>
 <p>For the <span class="math notranslate nohighlight">\(m&gt;0\)</span> terms, the wavelet coefficients are calculated
 using the following expression,</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-3">
-<span class="eqno">(36)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-3" title="Link to this equation"></a></span>\[w_{nm} = \frac{\sqrt{2}\delta t}{N} (-1)^{nm} \,\mathrm{Re}\,
+<span class="eqno">(40)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-3" title="Link to this equation"></a></span>\[w_{nm} = \frac{\sqrt{2}\delta t}{N} (-1)^{nm} \,\mathrm{Re}\,
     \Big( C_{nm}^* x_m[n] \Big)\]</div>
 <p>where</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-4">
-<span class="eqno">(37)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-4" title="Link to this equation"></a></span>\[x_m[n] = \sum_{l=-N_t/2}^{N_t/2-1} \exp\left(\frac{2\pi i nl}{N_t}
+<span class="eqno">(41)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-4" title="Link to this equation"></a></span>\[x_m[n] = \sum_{l=-N_t/2}^{N_t/2-1} \exp\left(\frac{2\pi i nl}{N_t}
             \right) \Phi[l] X[l-mN_t/2] .\]</div>
 <p>The <span class="math notranslate nohighlight">\(m=0\)</span> terms, if required, are calculated using the same method
 as in <cite>forward_transform_truncated_window</cite>.</p>
@@ -644,10 +644,10 @@ signal from the time domain into the time-frequency domain.</p>
 <p>For the <span class="math notranslate nohighlight">\(m&gt;0\)</span> terms, the wavelet coefficients are calculated
 using the following expression,</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-5">
-<span class="eqno">(38)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-5" title="Link to this equation"></a></span>\[w_{nm} = \sqrt{2} \delta t \, \mathrm{Re}\, C_{nm}^* X_n[mq] ,\]</div>
+<span class="eqno">(42)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-5" title="Link to this equation"></a></span>\[w_{nm} = \sqrt{2} \delta t \, \mathrm{Re}\, C_{nm}^* X_n[mq] ,\]</div>
 <p>where the short FFT is defined as</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-6">
-<span class="eqno">(39)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-6" title="Link to this equation"></a></span>\[X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k].\]</div>
+<span class="eqno">(43)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-6" title="Link to this equation"></a></span>\[X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k].\]</div>
 <p>The <span class="math notranslate nohighlight">\(m=0\)</span> terms, if required, are calculated using the same method
 as in <cite>forward_transform_truncated_window</cite>.</p>
 <dl class="field-list simple">
@@ -674,10 +674,10 @@ signal from the time domain into the time-frequency domain.</p>
 <p>This method computes the wavelet coefficients using the truncated
 expressions</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-7">
-<span class="eqno">(40)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-7" title="Link to this equation"></a></span>\[w_{n0} = \delta t\sum_{k=-K/2}^{K/2-1}
+<span class="eqno">(44)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-7" title="Link to this equation"></a></span>\[w_{n0} = \delta t\sum_{k=-K/2}^{K/2-1}
         g_{nm}[k + 2 n N_f] x[k + 2 n N_f] ,\]</div>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-8">
-<span class="eqno">(41)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-8" title="Link to this equation"></a></span>\[w_{nm} = \delta t\sum_{k=-K/2}^{K/2-1}
+<span class="eqno">(45)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-8" title="Link to this equation"></a></span>\[w_{nm} = \delta t\sum_{k=-K/2}^{K/2-1}
         g_{nm}[k + n N_f] x[k + n N_f] \quad \mathrm{for} \; m&gt;0 ,\]</div>
 <p>where the sum is over the truncated window of length <span class="math notranslate nohighlight">\(K=2qN_f\)</span>.</p>
 <p>In the above expressions, indices out of bounds of the array are
@@ -707,14 +707,14 @@ signal from the time domain into the time-frequency domain.</p>
 <p>This method computes the wavelet coefficients using the truncated
 expressions using the window function:</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-9">
-<span class="eqno">(42)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-9" title="Link to this equation"></a></span>\[\begin{split}w_{n0} = \delta t \begin{cases}
+<span class="eqno">(46)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-9" title="Link to this equation"></a></span>\[\begin{split}w_{n0} = \delta t \begin{cases}
             \sum_{k=-K/2}^{K/2-1} x[k+2nN_f]\phi[k]
                     &amp; \mathrm{if}\;n&lt;N_t/2 \\
             \sum_{k=-K/2}^{K/2-1} (-1)^k x[k+2nN_f]\phi[k]
                     &amp; \mathrm{if}\;n\geq N_t/2 \\
         \end{cases} ,\end{split}\]</div>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-10">
-<span class="eqno">(43)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-10" title="Link to this equation"></a></span>\[w_{nm} = \sqrt{2}\delta t \, \mathrm{Re} \sum_{k=-K/2}^{K/2-1}
+<span class="eqno">(47)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-10" title="Link to this equation"></a></span>\[w_{nm} = \sqrt{2}\delta t \, \mathrm{Re} \sum_{k=-K/2}^{K/2-1}
             C^*_{nm} \exp\left(\frac{i\pi km}{N_f}\right)
             x[k+nN_f] \phi[k] \quad \mathrm{for}\; m&gt;0.\]</div>
 <dl class="field-list simple">
@@ -768,7 +768,7 @@ performing an inverse Fourier transform, as is done in the <cite>gnm</cite> meth
 this function shifts indices of <cite>window_TD</cite>.</p>
 <p>For <span class="math notranslate nohighlight">\(m&gt;0\)</span>, the wavelet is given by</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-11">
-<span class="eqno">(44)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-11" title="Link to this equation"></a></span>\[\begin{split}g_{nm}(t) = \begin{cases}
+<span class="eqno">(48)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-11" title="Link to this equation"></a></span>\[\begin{split}g_{nm}(t) = \begin{cases}
 \sqrt{2} (-1)^{mn} \cos\left(\frac{\pi m t}{\Delta T}\right)
     \phi(t-n\Delta T) &amp; \mathrm{if}\;n+m\;\mathrm{even} \\
 \sqrt{2} \sin\left(\frac{\pi m t}{\Delta T}\right)
@@ -776,7 +776,7 @@ this function shifts indices of <cite>window_TD</cite>.</p>
 \end{cases} .\end{split}\]</div>
 <p>For the special case <span class="math notranslate nohighlight">\(m=0\)</span>, the wavelet is given by</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-12">
-<span class="eqno">(45)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-12" title="Link to this equation"></a></span>\[\begin{split}g_{n0}(t) = \begin{cases}
+<span class="eqno">(49)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-12" title="Link to this equation"></a></span>\[\begin{split}g_{n0}(t) = \begin{cases}
         \phi(t-2n\Delta T) &amp; \mathrm{if}\;n&lt;N_t/2 \\
         \frac{1}{2} \exp(-4\pi i n f \Delta T)
             \left( \tilde{\Phi}(f-f_{\rm Ny})
@@ -842,7 +842,7 @@ input and output arrays.</p>
 coefficients from the time-frequency domain into the time domain.</p>
 <p>This method computes the inverse dwt direcrtly using the expression</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-13">
-<span class="eqno">(46)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-13" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
+<span class="eqno">(50)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-13" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
 <p>This method is slow and very memory inefficient. It is here
 mainly for testing. Consider using <cite>inverse_transform</cite> instead.</p>
 <dl class="field-list simple">
@@ -897,7 +897,7 @@ the signal, or equally at both ends respectively. Optional.</p></li>
 each of length <span class="math notranslate nohighlight">\(K\)</span> and with a hop interval of <span class="math notranslate nohighlight">\(N_f\)</span> between
 their centres. Each of these segments is then windowed and FFT’d.</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-14">
-<span class="eqno">(47)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-14" title="Link to this equation"></a></span>\[X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k]\]</div>
+<span class="eqno">(51)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-14" title="Link to this equation"></a></span>\[X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k]\]</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>x</strong> (<em>jnp.ndarray</em>) – Array shape (N,). Input time series signal to be transformed.</p>
@@ -930,9 +930,9 @@ Raises an AssertionError if any parameters are invalid.</p>
 frequency <span class="math notranslate nohighlight">\(f_{nm} = m \Delta f\)</span> of the wavelet <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span>.</p>
 <p>The case <span class="math notranslate nohighlight">\(m=0\)</span> is special and is handled separately using</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-15">
-<span class="eqno">(48)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-15" title="Link to this equation"></a></span>\[t_{n0} = 2n \Delta t ,\]</div>
+<span class="eqno">(52)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-15" title="Link to this equation"></a></span>\[t_{n0} = 2n \Delta t ,\]</div>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-16">
-<span class="eqno">(49)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-16" title="Link to this equation"></a></span>\[\begin{split}f_{n0} = \begin{cases} 0 &amp; \mathrm{if}\; n&lt;N_t/2 \\
+<span class="eqno">(53)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-16" title="Link to this equation"></a></span>\[\begin{split}f_{n0} = \begin{cases} 0 &amp; \mathrm{if}\; n&lt;N_t/2 \\
         f_{\mathrm{Ny}} &amp; \mathrm{if}\; n\geq N_t/2 \end{cases} .\end{split}\]</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
