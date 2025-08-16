@@ -214,7 +214,7 @@ self.K = 8192 window length
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">re_strain_padded</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">dwt</span><span class="p">(</span><span class="n">re_strain_padded</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -256,7 +256,7 @@ self.K = 8192 window length
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Max residual: 3.089461195551757e-14
+Max residual: 3.087964996553727e-14
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
@@ -282,22 +282,23 @@ Max residual: 3.089461195551757e-14
 <img alt="_images/getting_started_15_0.png" src="_images/getting_started_15_0.png" />
 </div>
 </div>
-<p>The operations for the forward and inverse discrete wavelet transform are vectorised. This allows multiple transforms to be performed at once in batches. We demonstrate this here by transforming both + and <span class="math notranslate nohighlight">\(\times\)</span> components of the GW signal.</p>
+<p>The operations for the forward and inverse discrete wavelet transform are vectorised for multiple transforms to be performed at once in batches.</p>
+<p>We demonstrate this here by transforming both + and <span class="math notranslate nohighlight">\(\times\)</span> components of the GW signal (batch size=2).</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">GW_signal_padded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">re_strain_padded</span><span class="p">,</span> <span class="n">re_strain_padded</span><span class="p">))</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Time series shape = </span><span class="si">{</span><span class="n">GW_signal_padded</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-<span class="c1">#GW_w = wdm.dwt(GW_signal_padded)</span>
+<span class="n">GW_w</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">dwt</span><span class="p">(</span><span class="n">GW_signal_padded</span><span class="p">)</span>
 
-<span class="c1">#print(f&quot;Wavelet coefficients shape = {GW_w.shape}&quot;)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Wavelet coefficients shape = </span><span class="si">{</span><span class="n">GW_w</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-<span class="c1">#GW_signal_recovered = wdm.idwt(GW_w)</span>
+<span class="n">GW_signal_recovered</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">GW_w</span><span class="p">)</span>
 
-<span class="c1">#print(f&quot;Recovered time series shape = {GW_signal_padded.shape}&quot;)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Recovered time series shape = </span><span class="si">{</span><span class="n">GW_signal_padded</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -307,130 +308,6 @@ Max residual: 3.089461195551757e-14
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 Time series shape = (2, 8192)
-</pre></div></div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">wdm</span><span class="o">.</span><span class="n">N</span><span class="p">)</span>
-
-<span class="n">wdm</span><span class="o">.</span><span class="n">forward_transform_fft</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-(16, 512)
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w</span><span class="o">.</span><span class="n">shape</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-(16, 512)
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">:]</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-(1,)
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="n">Phi</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-
-<span class="n">Phi</span><span class="p">[</span><span class="o">*</span><span class="p">(</span><span class="kc">None</span><span class="p">,)</span><span class="o">*</span><span class="mi">2</span><span class="p">,:]</span><span class="o">.</span><span class="n">shape</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-(10,)
-</pre></div></div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-(1, 1, 10)
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="kc">None</span><span class="p">,)</span><span class="o">*</span><span class="mi">2</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-(None, None)
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="o">*</span><span class="mi">3</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-1.5
 </pre></div></div>
 </div>
 <div class="nbinput nblast docutils container">

@@ -140,13 +140,18 @@ and correcting a few minor typos.</p>
 <span class="eqno">(1)<a class="headerlink" href="#equation-theory-0" title="Link to this equation"></a></span>\[\tilde{X}(f) = \int_{-\infty}^{\infty} \mathrm{d}t\; \exp(-2\pi ift) x(t) ,\]</div>
 <div class="math notranslate nohighlight" id="equation-theory-1">
 <span class="eqno">(2)<a class="headerlink" href="#equation-theory-1" title="Link to this equation"></a></span>\[x(t) = \int_{-\infty}^{\infty} \mathrm{d}f\; \exp(2\pi ift) \tilde{X}(f) .\]</div>
+<p>For discrete signals, we use the following:</p>
+<div class="math notranslate nohighlight" id="equation-theory-2">
+<span class="eqno">(3)<a class="headerlink" href="#equation-theory-2" title="Link to this equation"></a></span>\[\tilde{X}[\ell] = \delta t \sum_{k=0}^{N-1} x[k] \exp(-2\pi i \ell k / N) ,\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-3">
+<span class="eqno">(4)<a class="headerlink" href="#equation-theory-3" title="Link to this equation"></a></span>\[x[k] = \frac{1}{N\delta t} \sum_{\ell=-N/2}^{N/2-1} \tilde{X}[\ell] \exp(2\pi i\ell k/N) .\]</div>
 </section>
 <section id="meyer-window">
 <h2><a class="toc-backref" href="#id26" role="doc-backlink">Meyer Window</a><a class="headerlink" href="#meyer-window" title="Link to this heading"></a></h2>
 <p>The WDM wavelet transform is based on the Meyer window function, which is
 defined in the frequency domain by</p>
-<div class="math notranslate nohighlight" id="equation-theory-2">
-<span class="eqno">(3)<a class="headerlink" href="#equation-theory-2" title="Link to this equation"></a></span>\[\begin{split}\tilde{M}(\omega) = \begin{cases}
+<div class="math notranslate nohighlight" id="equation-theory-4">
+<span class="eqno">(5)<a class="headerlink" href="#equation-theory-4" title="Link to this equation"></a></span>\[\begin{split}\tilde{M}(\omega) = \begin{cases}
     \sqrt{\frac{1}{\Delta\Omega}} &amp; \text{if } |\omega| &lt; A, \\
     \sqrt{\frac{1}{\Delta\Omega}}  \cos\left(\frac{\pi}{2}\nu_d\left(\frac{|\omega| -
      A}{B}\right)\right) &amp; \text{if } A \leq |\omega| \leq A + B \\
@@ -171,8 +176,8 @@ To show this, first integrate over the flat-top part of the window (line 1),
 then let <span class="math notranslate nohighlight">\(x=(\omega-A)/B\)</span> (line 2), then use <span class="math notranslate nohighlight">\(\cos^2 \theta = \frac{1+\cos(2\theta)}{2}\)</span> (line 3),
 and finally use the symmetry <span class="math notranslate nohighlight">\(\cos(\pi \nu_d(1-x))=\cos(\pi (1-\nu_d(x))) = \cos(\pi-\pi\nu_d(x)))= -\cos(\pi \nu_d(x))\)</span>
 to set the remaining piece of the integral to zero (line 4):</p>
-<div class="math notranslate nohighlight" id="equation-theory-3">
-<span class="eqno">(4)<a class="headerlink" href="#equation-theory-3" title="Link to this equation"></a></span>\[\begin{split}\begin{align}
+<div class="math notranslate nohighlight" id="equation-theory-5">
+<span class="eqno">(6)<a class="headerlink" href="#equation-theory-5" title="Link to this equation"></a></span>\[\begin{split}\begin{align}
 \int_{-\infty}^{\infty} \mathrm{d}\omega\; |\tilde{M}(\omega)|^2 &amp;=
    \frac{2A+2\int_{A}^{A+B} \mathrm{d}\omega\; \cos^2\left(\frac{\pi}{2}\nu_d(\frac{\omega-A}{B})\right)}{2A+B}  , \\
    &amp;= \frac{2A+2B \int_0^1 \mathrm{d}x\; \cos^2\left(\frac{\pi}{2}\nu_d(x)\right)}{2A+B} , \\
@@ -183,11 +188,11 @@ to set the remaining piece of the integral to zero (line 4):</p>
 <p>Henceforth, we will work with frequency <span class="math notranslate nohighlight">\(f\)</span> instead of angular frequency <span class="math notranslate nohighlight">\(\omega=2\pi f\)</span>.
 This fits with the rest of the GW data analysis community which generally uses <span class="math notranslate nohighlight">\(f\)</span>.</p>
 <p>For the wavelet transform, the frequency-domain window function is defined as</p>
-<div class="math notranslate nohighlight" id="equation-theory-4">
-<span class="eqno">(5)<a class="headerlink" href="#equation-theory-4" title="Link to this equation"></a></span>\[\tilde{\Phi}(f) = \sqrt{2\pi} \tilde{M}(2\pi f) ,\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-6">
+<span class="eqno">(7)<a class="headerlink" href="#equation-theory-6" title="Link to this equation"></a></span>\[\tilde{\Phi}(f) = \sqrt{2\pi} \tilde{M}(2\pi f) ,\]</div>
 <p>and the corresponding time-domain window is</p>
-<div class="math notranslate nohighlight" id="equation-theory-5">
-<span class="eqno">(6)<a class="headerlink" href="#equation-theory-5" title="Link to this equation"></a></span>\[\phi(t) = \int \mathrm{d}f \; \exp(2\pi i ft) \tilde{\Phi}(f)\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-7">
+<span class="eqno">(8)<a class="headerlink" href="#equation-theory-7" title="Link to this equation"></a></span>\[\phi(t) = \int \mathrm{d}f \; \exp(2\pi i ft) \tilde{\Phi}(f)\]</div>
 <p>These window functions are implemented in
 <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_frequency_domain_window" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_frequency_domain_window"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_frequency_domain_window()</span></code></a> and
 <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_domain_window()</span></code></a>.</p>
@@ -205,10 +210,10 @@ and the Nyquist frequency is <span class="math notranslate nohighlight">\(f_{\rm
 The frequency resolution is <span class="math notranslate nohighlight">\(\delta f = \frac{1}{T}\)</span>.</p>
 <p>The WDM wavelet transform represents the time series using <span class="math notranslate nohighlight">\(N_f\)</span> frequency slices of width <span class="math notranslate nohighlight">\(\Delta F\)</span>
 and <span class="math notranslate nohighlight">\(N_t\)</span> time slices of width <span class="math notranslate nohighlight">\(\Delta T\)</span>;</p>
-<div class="math notranslate nohighlight" id="equation-theory-6">
-<span class="eqno">(7)<a class="headerlink" href="#equation-theory-6" title="Link to this equation"></a></span>\[\Delta T = N_f \delta t ,\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-7">
-<span class="eqno">(8)<a class="headerlink" href="#equation-theory-7" title="Link to this equation"></a></span>\[\Delta F = \frac{1}{2 N_f \delta t} = \frac{N_t}{2T} .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-8">
+<span class="eqno">(9)<a class="headerlink" href="#equation-theory-8" title="Link to this equation"></a></span>\[\Delta T = N_f \delta t ,\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-9">
+<span class="eqno">(10)<a class="headerlink" href="#equation-theory-9" title="Link to this equation"></a></span>\[\Delta F = \frac{1}{2 N_f \delta t} = \frac{N_t}{2T} .\]</div>
 <p>There are <span class="math notranslate nohighlight">\(N=N_t N_f\)</span> cells, each with area <span class="math notranslate nohighlight">\(\Delta T \Delta F = \frac{1}{2}\)</span>.
 These cells uniformly tile the time–frequency plane.
 <strong>We insist that both</strong> <span class="math notranslate nohighlight">\(N_t\)</span> <strong>and</strong> <span class="math notranslate nohighlight">\(N_f\)</span> <strong>are even.</strong> This implies that <span class="math notranslate nohighlight">\(N\)</span> is also even.
@@ -216,8 +221,8 @@ Although not necessary, this simplifies some formulae and is not a significant l
 <p>The WDM wavelets <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span> are constructed from the Meyer window function <span class="math notranslate nohighlight">\(\phi\)</span>.
 The indices <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span> label the time and frequency slices respectively.
 In the time-domain an orthonormal Wilson wavelet basis (Refs. <a class="footnote-reference brackets" href="#id16" id="id8" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a> and <a class="footnote-reference brackets" href="#id17" id="id9" role="doc-noteref"><span class="fn-bracket">[</span>6<span class="fn-bracket">]</span></a>) can be defined as</p>
-<div class="math notranslate nohighlight" id="equation-theory-8">
-<span class="eqno">(9)<a class="headerlink" href="#equation-theory-8" title="Link to this equation"></a></span>\[\begin{split}g_{nm}(t) = \begin{cases}
+<div class="math notranslate nohighlight" id="equation-theory-10">
+<span class="eqno">(11)<a class="headerlink" href="#equation-theory-10" title="Link to this equation"></a></span>\[\begin{split}g_{nm}(t) = \begin{cases}
      \phi(t-2n\Delta T) &amp; \mathrm{if}\;m=0 \\
      \begin{cases}
          \sqrt{2} (-1)^{mn} \cos\left(\frac{\pi m t}{\Delta T}\right) \phi(t-n\Delta T) &amp; \mathrm{if}\;n+m\;\mathrm{even}\\
@@ -225,15 +230,15 @@ In the time-domain an orthonormal Wilson wavelet basis (Refs. <a class="footnote
      \end{cases} &amp; \mathrm{if}\;m&gt;0
      \end{cases} .\end{split}\]</div>
 <p>Taking the Fourier transform, it is straightforward to show that the frequency-domain basis wavelets are given by</p>
-<div class="math notranslate nohighlight" id="equation-theory-9">
-<span class="eqno">(10)<a class="headerlink" href="#equation-theory-9" title="Link to this equation"></a></span>\[\begin{split}\tilde{G}_{nm}(f) = \begin{cases}
+<div class="math notranslate nohighlight" id="equation-theory-11">
+<span class="eqno">(12)<a class="headerlink" href="#equation-theory-11" title="Link to this equation"></a></span>\[\begin{split}\tilde{G}_{nm}(f) = \begin{cases}
     \exp(-4\pi i n f \Delta T) \tilde{\Phi}(f) &amp; \mathrm{if}\;m=0 \\
-    \frac{\exp(-2\pi i n f \Delta T)}{\sqrt{2}} \left( C_{nm}\tilde{\Phi}(f+m\Delta F)
+    \frac{1}{\sqrt{2}}\exp(-2\pi i n f \Delta T) \left( C_{nm}\tilde{\Phi}(f+m\Delta F)
     +C^*_{nm}\tilde{\Phi}(f-m\Delta F) \right) &amp; \mathrm{if}\;m&gt;0
 \end{cases} ,\end{split}\]</div>
 <p>where</p>
-<div class="math notranslate nohighlight" id="equation-theory-10">
-<span class="eqno">(11)<a class="headerlink" href="#equation-theory-10" title="Link to this equation"></a></span>\[\begin{split}C_{nm} = \begin{cases} 1 &amp; \mathrm{if}\;n+m\;\mathrm{even} \\
+<div class="math notranslate nohighlight" id="equation-theory-12">
+<span class="eqno">(13)<a class="headerlink" href="#equation-theory-12" title="Link to this equation"></a></span>\[\begin{split}C_{nm} = \begin{cases} 1 &amp; \mathrm{if}\;n+m\;\mathrm{even} \\
                        i &amp; \mathrm{if}\;n+m\;\mathrm{odd} \end{cases} .\end{split}\]</div>
 <p>If the time index is allowed to vary in the range <span class="math notranslate nohighlight">\(n\in\{0,1,\ldots,N_t-1\}\)</span> then the wavelet
 basis covers the full range of the time series.
@@ -241,10 +246,10 @@ However, in order to cover the full frequency range (up to the Nyquist frequency
 must be allowed to vary in the range <span class="math notranslate nohighlight">\(m\in\{0,1,\ldots, N_f\}\)</span> (including <span class="math notranslate nohighlight">\(N_f\)</span>).
 The <span class="math notranslate nohighlight">\(m=N_f\)</span> wavelets have support below the Nyquist frequency; see <a class="reference internal" href="#fig-wdm-wavelets-fd"><span class="std std-numref">Figure 2</span></a>.
 The case <span class="math notranslate nohighlight">\(m=N_f\)</span> is handled as a special case using the following formulae:</p>
-<div class="math notranslate nohighlight" id="equation-theory-11">
-<span class="eqno">(12)<a class="headerlink" href="#equation-theory-11" title="Link to this equation"></a></span>\[g_{nN_f}(t) = \cos(2\pi f_{\rm Ny}[t-2n\Delta T]) \phi(t-2n\Delta T),\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-12">
-<span class="eqno">(13)<a class="headerlink" href="#equation-theory-12" title="Link to this equation"></a></span>\[\tilde{G}_{nN_f}(f) = \frac{1}{2} \exp(-4\pi i n f \Delta T) \left( \tilde{\Phi}(f-f_{\rm Ny}) + \tilde{\Phi}(f+f_{\rm Ny}) \right) .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-13">
+<span class="eqno">(14)<a class="headerlink" href="#equation-theory-13" title="Link to this equation"></a></span>\[g_{nN_f}(t) = \cos(2\pi f_{\rm Ny}[t-2n\Delta T]) \phi(t-2n\Delta T),\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-14">
+<span class="eqno">(15)<a class="headerlink" href="#equation-theory-14" title="Link to this equation"></a></span>\[\tilde{G}_{nN_f}(f) = \frac{1}{2} \exp(-4\pi i n f \Delta T) \left( \tilde{\Phi}(f-f_{\rm Ny}) + \tilde{\Phi}(f+f_{\rm Ny}) \right) .\]</div>
 <p>Notice that for most of the wavelets the index <span class="math notranslate nohighlight">\(n\)</span> shifts the wavelets by integer multiples of <span class="math notranslate nohighlight">\(\Delta T\)</span> in time.
 However, for <span class="math notranslate nohighlight">\(m=0\)</span> and <span class="math notranslate nohighlight">\(m=N_f\)</span> it shifts them by integer multiples of <span class="math notranslate nohighlight">\(2\Delta T\)</span>.</p>
 <p>The WDM wavelets are plotted in the frequency domain in <a class="reference internal" href="#fig-wdm-wavelets-fd"><span class="std std-numref">Figure 2</span></a>.</p>
@@ -264,11 +269,11 @@ therefore, we redefine <span class="math notranslate nohighlight">\(G_{n0}(f):=G
 With this choice, the index ranges <span class="math notranslate nohighlight">\(n\in\{0,1,\ldots,N_t-1\}\)</span> and <span class="math notranslate nohighlight">\(m\in\{0,1,\ldots,N_f-1\}\)</span>
 cover the entire time-frequency plane; see <a class="reference internal" href="#fig-wdm-wavelets-animate"><span class="std std-numref">Figure 5</span></a>.
 The central time and frequency of the wavelet <span class="math notranslate nohighlight">\(g_{nm}(t)\)</span> are given by</p>
-<div class="math notranslate nohighlight" id="equation-theory-13">
-<span class="eqno">(14)<a class="headerlink" href="#equation-theory-13" title="Link to this equation"></a></span>\[\begin{split}t_{nm} = \begin{cases} 2 n \Delta T &amp; \mathrm{if}\;m=0 \\
+<div class="math notranslate nohighlight" id="equation-theory-15">
+<span class="eqno">(16)<a class="headerlink" href="#equation-theory-15" title="Link to this equation"></a></span>\[\begin{split}t_{nm} = \begin{cases} 2 n \Delta T &amp; \mathrm{if}\;m=0 \\
                   n \Delta T &amp; \mathrm{if}\;m&gt;0 \end{cases} \,,\end{split}\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-14">
-<span class="eqno">(15)<a class="headerlink" href="#equation-theory-14" title="Link to this equation"></a></span>\[\begin{split}f_{nm} = \begin{cases} \begin{cases}0&amp;\mathrm{if}\;n&lt;N_t/2\\
+<div class="math notranslate nohighlight" id="equation-theory-16">
+<span class="eqno">(17)<a class="headerlink" href="#equation-theory-16" title="Link to this equation"></a></span>\[\begin{split}f_{nm} = \begin{cases} \begin{cases}0&amp;\mathrm{if}\;n&lt;N_t/2\\
                         f_{\rm Ny}&amp;\mathrm{if}\,n\geq N_t/2\end{cases} &amp; \mathrm{if}\;m=0 \\
                   m \Delta F &amp; \mathrm{if}\;m&gt;0 \end{cases} \,.\end{split}\]</div>
 <p>These expressions are implemented in
@@ -300,10 +305,10 @@ Notice in particular the behaviour of the wavelets for <span class="math notrans
 </figcaption>
 </figure>
 <p>The discretely sampled WDM wavelets have the following orthonormality properties:</p>
-<div class="math notranslate nohighlight" id="equation-theory-15">
-<span class="eqno">(16)<a class="headerlink" href="#equation-theory-15" title="Link to this equation"></a></span>\[\delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-16">
-<span class="eqno">(17)<a class="headerlink" href="#equation-theory-16" title="Link to this equation"></a></span>\[\delta f \sum_{\ell=-N/2}^{N/2-1} \tilde{G}_{nm}[\ell] \tilde{G}^*_{n'm'}[\ell] = \delta_{nn'} \delta_{mm'} .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-17">
+<span class="eqno">(18)<a class="headerlink" href="#equation-theory-17" title="Link to this equation"></a></span>\[\delta t \sum_{k=0}^{N-1} g_{nm}[k] g_{n'm'}[k] = \delta_{nn'} \delta_{mm'} .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-18">
+<span class="eqno">(19)<a class="headerlink" href="#equation-theory-18" title="Link to this equation"></a></span>\[\delta f \sum_{\ell=-N/2}^{N/2-1} \tilde{G}_{nm}[\ell] \tilde{G}^*_{n'm'}[\ell] = \delta_{nn'} \delta_{mm'} .\]</div>
 <p>The frequency-domain WDM wavelets <span class="math notranslate nohighlight">\(\tilde{G}_{nm}(f)\)</span> are implemented in
 <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm()</span></code></a> or
 <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm_basis" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm_basis"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.Gnm_basis()</span></code></a>.</p>
@@ -314,14 +319,14 @@ Notice in particular the behaviour of the wavelets for <span class="math notrans
 <section id="the-discrete-wavelet-transform">
 <h2><a class="toc-backref" href="#id28" role="doc-backlink">The Discrete Wavelet Transform</a><a class="headerlink" href="#the-discrete-wavelet-transform" title="Link to this heading"></a></h2>
 <p>The WDM wavelets form a complete orthonormal basis for real-valued, discretely sampled time series,</p>
-<div class="math notranslate nohighlight" id="equation-theory-17">
-<span class="eqno">(18)<a class="headerlink" href="#equation-theory-17" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-19">
+<span class="eqno">(20)<a class="headerlink" href="#equation-theory-19" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
 <p>Here, <span class="math notranslate nohighlight">\(x[k]\)</span> is the input time series, <span class="math notranslate nohighlight">\(w_{nm}\)</span> are the wavelet coefficients, and <span class="math notranslate nohighlight">\(g_{nm}[k]\)</span> are the
 WDM wavelet basis functions.</p>
 <p>An expression for the wavelet coefficients <span class="math notranslate nohighlight">\(w_{nm}\)</span> can be derived by multiplying both sides of this
 equation by <span class="math notranslate nohighlight">\(\delta t \, g_{n'm'}[k]\)</span>, summing over <span class="math notranslate nohighlight">\(k\)</span>, and using the above orthonormality property to obtain</p>
-<div class="math notranslate nohighlight" id="equation-theory-18">
-<span class="eqno">(19)<a class="headerlink" href="#equation-theory-18" title="Link to this equation"></a></span>\[w_{nm} = \delta t\sum_{k=0}^{N-1} x[k] g_{nm}[k] .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-20">
+<span class="eqno">(21)<a class="headerlink" href="#equation-theory-20" title="Link to this equation"></a></span>\[w_{nm} = \delta t\sum_{k=0}^{N-1} x[k] g_{nm}[k] .\]</div>
 <p>This is the exact expression for the forward wavelet transform which transforms from the time domain
 to the time-frequency domain.</p>
 <p>This <em>exact</em> wavelet transform is implemented in
@@ -335,11 +340,11 @@ The sum can be truncated to a window of length <span class="math notranslate noh
 The truncation parameter <span class="math notranslate nohighlight">\(1\leq q\leq N_t/2\)</span> is a positive integer that controls the length of the window.
 The truncated window must be centered at the time where the wavelet amplitude is largest.
 The truncated wavelet transform is given by</p>
-<div class="math notranslate nohighlight" id="equation-theory-19">
-<span class="eqno">(20)<a class="headerlink" href="#equation-theory-19" title="Link to this equation"></a></span>\[w_{n0} = \delta t\sum_{k=-K/2}^{K/2-1}
+<div class="math notranslate nohighlight" id="equation-theory-21">
+<span class="eqno">(22)<a class="headerlink" href="#equation-theory-21" title="Link to this equation"></a></span>\[w_{n0} = \delta t\sum_{k=-K/2}^{K/2-1}
                   g_{n0}[k + 2 n N_f] x[k + 2 n N_f] ,\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-20">
-<span class="eqno">(21)<a class="headerlink" href="#equation-theory-20" title="Link to this equation"></a></span>\[w_{nm} = \delta t\sum_{k=-K/2}^{K/2-1}
+<div class="math notranslate nohighlight" id="equation-theory-22">
+<span class="eqno">(23)<a class="headerlink" href="#equation-theory-22" title="Link to this equation"></a></span>\[w_{nm} = \delta t\sum_{k=-K/2}^{K/2-1}
                   g_{nm}[k + n N_f] x[k + n N_f] \quad \mathrm{for} \; m&gt;0.\]</div>
 <p>In expressions such as these, indices that are out of bounds of the array are to be understood as wrapping
 around circularly; i.e. <span class="math notranslate nohighlight">\(x[-1] = x[N-1]\)</span> and <span class="math notranslate nohighlight">\(x[N] = x[0]\)</span>.</p>
@@ -348,13 +353,13 @@ around circularly; i.e. <span class="math notranslate nohighlight">\(x[-1] = x[N
 <p>Smaller values of <span class="math notranslate nohighlight">\(q\)</span> yield faster but less accurate wavelet transforms.
 The accuracy of this truncated wavelet transform is explored in the example notebook <a class="reference internal" href="accuracy_truncated_transform.html"><span class="doc">Exploring the accuracy of the truncated wavelet transform</span></a>.</p>
 <p>The truncated wavelet transform can be rewritten in terms of the window function <span class="math notranslate nohighlight">\(\phi[k]\)</span>;</p>
-<div class="math notranslate nohighlight" id="equation-theory-21">
-<span class="eqno">(22)<a class="headerlink" href="#equation-theory-21" title="Link to this equation"></a></span>\[\begin{split}w_{n0} = \delta t \begin{cases}
+<div class="math notranslate nohighlight" id="equation-theory-23">
+<span class="eqno">(24)<a class="headerlink" href="#equation-theory-23" title="Link to this equation"></a></span>\[\begin{split}w_{n0} = \delta t \begin{cases}
 \sum_{k=-K/2}^{K/2-1} x[k+2nN_f]\phi[k] &amp; \mathrm{if}\;n&lt;N_t/2 \\
 \sum_{k=-K/2}^{K/2-1} (-1)^k x[k+2nN_f]\phi[k] &amp; \mathrm{if}\;n\geq N_t/2 \\
  \end{cases} ,\end{split}\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-22">
-<span class="eqno">(23)<a class="headerlink" href="#equation-theory-22" title="Link to this equation"></a></span>\[w_{nm} = \sqrt{2}\delta t \, \mathrm{Re} \sum_{k=-K/2}^{K/2-1} C^*_{nm}
+<div class="math notranslate nohighlight" id="equation-theory-24">
+<span class="eqno">(25)<a class="headerlink" href="#equation-theory-24" title="Link to this equation"></a></span>\[w_{nm} = \sqrt{2}\delta t \, \mathrm{Re} \sum_{k=-K/2}^{K/2-1} C^*_{nm}
    \exp\left(\frac{i\pi km}{N_f}\right) x[k+nN_f] \phi[k] \quad \mathrm{for}\; m&gt;0.\]</div>
 <p>To derive these expressions, substitute the definitions of the time-domain wavelets <span class="math notranslate nohighlight">\(g_{nm}[k]\)</span> in
 Eq.9 (and the special case in Eq.12) into the truncated expressions for the wavelet coefficients in Eqs.22 and 23.</p>
@@ -369,8 +374,8 @@ The effect of getting the <span class="math notranslate nohighlight">\(m=0\)</sp
 is explored in the example notebook <a class="reference internal" href="m_equal_0_terms.html"><span class="doc">m=0 Wavelet Coefficients</span></a>.</p>
 <p>The wavelet transform can be considerably sped up by exploiting the fast Fourier transform (FFT) algorithm.
 Let us define</p>
-<div class="math notranslate nohighlight" id="equation-theory-23">
-<span class="eqno">(24)<a class="headerlink" href="#equation-theory-23" title="Link to this equation"></a></span>\[X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k] .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-25">
+<span class="eqno">(26)<a class="headerlink" href="#equation-theory-25" title="Link to this equation"></a></span>\[X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k] .\]</div>
 <p>This can be thought of as a short FFT. (Although, with our conventions it’s actually an inverse FFT.)
 The data is first split into <span class="math notranslate nohighlight">\(N_t\)</span> overlapping segments of length <span class="math notranslate nohighlight">\(K\)</span>,
 each segment is multiplied by the window function <span class="math notranslate nohighlight">\(\phi[k]\)</span>
@@ -379,8 +384,8 @@ and the (inverse) FFT is applied to each segment.</p>
 <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.short_fft" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.short_fft"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.short_fft()</span></code></a>.</p>
 <p>The expression for the wavelet coefficients in Eq.23 can be rewritten using this short FFT downsampled to
 extract every <span class="math notranslate nohighlight">\(q^{\rm th}\)</span> coefficient,</p>
-<div class="math notranslate nohighlight" id="equation-theory-24">
-<span class="eqno">(25)<a class="headerlink" href="#equation-theory-24" title="Link to this equation"></a></span>\[w_{nm} = \sqrt{2} \delta t \, \mathrm{Re}\, C_{nm}^* X_n[mq] \quad \mathrm{for}\; m&gt;0.\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-26">
+<span class="eqno">(27)<a class="headerlink" href="#equation-theory-26" title="Link to this equation"></a></span>\[w_{nm} = \sqrt{2} \delta t \, \mathrm{Re}\, C_{nm}^* X_n[mq] \quad \mathrm{for}\; m&gt;0.\]</div>
 <p>This formula for the wavelet coefficients only holds for <span class="math notranslate nohighlight">\(m&gt;0\)</span>. If the <span class="math notranslate nohighlight">\(m=0\)</span> terms
 are required they are calculated using the truncated window expressions above (Eq.22).</p>
 <p>This <em>short FFT</em> form of the wavelet transform is implemented in
@@ -391,11 +396,19 @@ The reason this is faster is to do with the fact that our chosen WDM wavelets ar
 frequency domain than in the time domain (see discussion in  Ref. <a class="footnote-reference brackets" href="#id12" id="id11" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>).
 This also has the benefit of not introducing any truncation errors in the forward wavelet transform because
 the WDM wavelets have compact support in frequency.</p>
-<p>To derive this FFT expression for the wavelet transform…</p>
-<div class="math notranslate nohighlight" id="equation-theory-25">
-<span class="eqno">(26)<a class="headerlink" href="#equation-theory-25" title="Link to this equation"></a></span>\[x_m[n] = \sum_{l=-N_t/2}^{N_t/2-1} \exp\left(\frac{2\pi i nl}{N_t}\right) \Phi[l] X[l-mN_t/2] .\]</div>
-<div class="math notranslate nohighlight" id="equation-theory-26">
-<span class="eqno">(27)<a class="headerlink" href="#equation-theory-26" title="Link to this equation"></a></span>\[w_{nm} = \frac{\sqrt{2}\delta t}{N} (-1)^{nm} \,\mathrm{Re}\, \Big( C_{nm}^* x_m[n] \Big)  \quad \mathrm{for}\; m&gt;0.\]</div>
+<p>To derive the FFT expression for the wavelet transform start from the definition of the wavelet coefficients
+<span class="math notranslate nohighlight">\(w_{nm}\)</span> in Eq.19 and use Parseval’s theorem (discrete form) to write them as</p>
+<div class="math notranslate nohighlight" id="equation-theory-27">
+<span class="eqno">(28)<a class="headerlink" href="#equation-theory-27" title="Link to this equation"></a></span>\[w_{nm} = \frac{1}{T} \sum_{\ell=-N/2}^{N/2-1} \tilde{X}[\ell] \tilde{G}_{nm}[\ell] .\]</div>
+<p>Now use the expression for <span class="math notranslate nohighlight">\(\tilde{G}_{nm}(f)\)</span> in Eq.12 evaluated at the discrete FFT frequencies
+<span class="math notranslate nohighlight">\(f_\ell = \ell \delta f\)</span> to write this as</p>
+<div class="math notranslate nohighlight" id="equation-theory-28">
+<span class="eqno">(29)<a class="headerlink" href="#equation-theory-28" title="Link to this equation"></a></span>\[w_{nm} = \frac{1}{\sqrt{2}T} \sum_{\ell=-N/2}^{N/2-1} \tilde{X}[\ell] \exp(2\pi in\ell /N_t)
+         \left( C_{nm}^*\tilde{\Phi}[\ell+mN_t/2] + C_{nm}\tilde{\Phi}[\ell-mN_t/2] \right) .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-29">
+<span class="eqno">(30)<a class="headerlink" href="#equation-theory-29" title="Link to this equation"></a></span>\[x_m[n] = \sum_{l=-N_t/2}^{N_t/2-1} \exp\left(\frac{2\pi i nl}{N_t}\right) \Phi[l] X[l-mN_t/2] .\]</div>
+<div class="math notranslate nohighlight" id="equation-theory-30">
+<span class="eqno">(31)<a class="headerlink" href="#equation-theory-30" title="Link to this equation"></a></span>\[w_{nm} = \frac{\sqrt{2}\delta t}{N} (-1)^{nm} \,\mathrm{Re}\, \Big( C_{nm}^* x_m[n] \Big)  \quad \mathrm{for}\; m&gt;0.\]</div>
 <p>This is our final <em>FFT</em> form of the wavelet transform and is implemented in
 <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_fft" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_fft"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.forward_transform_fft()</span></code></a>.</p>
 <p>Again, this FFT expression for the wavelet coefficients only holds for <span class="math notranslate nohighlight">\(m&gt;0\)</span>. If the <span class="math notranslate nohighlight">\(m=0\)</span> terms
@@ -483,8 +496,8 @@ then the wavelet coefficients have dimension <span class="math notranslate nohig
 <section id="normalised-incomplete-beta-function">
 <h3><a class="toc-backref" href="#id33" role="doc-backlink">Normalised Incomplete Beta Function</a><a class="headerlink" href="#normalised-incomplete-beta-function" title="Link to this heading"></a></h3>
 <p>The WDM wavelets use the normalised incomplete beta function, <span class="math notranslate nohighlight">\(\nu_d(x)\)</span>,</p>
-<div class="math notranslate nohighlight" id="equation-theory-27">
-<span class="eqno">(28)<a class="headerlink" href="#equation-theory-27" title="Link to this equation"></a></span>\[\nu_d(x) = \frac{ \int_0^x \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }
+<div class="math notranslate nohighlight" id="equation-theory-31">
+<span class="eqno">(32)<a class="headerlink" href="#equation-theory-31" title="Link to this equation"></a></span>\[\nu_d(x) = \frac{ \int_0^x \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }
                       { \int_0^1 \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} } ,
                       \quad \mathrm{for}\; 0\leq x\leq 1.\]</div>
 <p>This acts as a smooth transition function (or compact sigmoid-like function) from 0 to 1.

@@ -42,6 +42,17 @@ We use the following Fourier transform conventions:
 
    x(t) = \int_{-\infty}^{\infty} \mathrm{d}f\; \exp(2\pi ift) \tilde{X}(f) .
 
+For discrete signals, we use the following:
+
+.. math::
+
+   \tilde{X}[\ell] = \delta t \sum_{k=0}^{N-1} x[k] \exp(-2\pi i \ell k / N) ,
+
+.. math::
+
+   x[k] = \frac{1}{N\delta t} \sum_{\ell=-N/2}^{N/2-1} \tilde{X}[\ell] \exp(2\pi i\ell k/N) .
+
+
 
 Meyer Window
 ------------
@@ -165,7 +176,7 @@ Taking the Fourier transform, it is straightforward to show that the frequency-d
 
     \tilde{G}_{nm}(f) = \begin{cases}
         \exp(-4\pi i n f \Delta T) \tilde{\Phi}(f) & \mathrm{if}\;m=0 \\
-        \frac{\exp(-2\pi i n f \Delta T)}{\sqrt{2}} \left( C_{nm}\tilde{\Phi}(f+m\Delta F)
+        \frac{1}{\sqrt{2}}\exp(-2\pi i n f \Delta T) \left( C_{nm}\tilde{\Phi}(f+m\Delta F)
         +C^*_{nm}\tilde{\Phi}(f-m\Delta F) \right) & \mathrm{if}\;m>0 
     \end{cases} ,
 
@@ -400,7 +411,28 @@ frequency domain than in the time domain (see discussion in  Ref. [1]_).
 This also has the benefit of not introducing any truncation errors in the forward wavelet transform because 
 the WDM wavelets have compact support in frequency.
 
-To derive this FFT expression for the wavelet transform...
+To derive the FFT expression for the wavelet transform start from the definition of the wavelet coefficients
+:math:`w_{nm}` in Eq.19 and use Parseval's theorem (discrete form) to write them as
+
+.. math::
+
+   w_{nm} = \frac{1}{T} \sum_{\ell=-N/2}^{N/2-1} \tilde{X}[\ell] \tilde{G}_{nm}[\ell] .
+
+Now use the expression for :math:`\tilde{G}_{nm}(f)` in Eq.12 evaluated at the discrete FFT frequencies 
+:math:`f_\ell = \ell \delta f` to write this as
+
+.. math::
+
+   w_{nm} = \frac{1}{\sqrt{2}T} \sum_{\ell=-N/2}^{N/2-1} \tilde{X}[\ell] \exp(2\pi in\ell /N_t)
+            \left( C_{nm}^*\tilde{\Phi}[\ell+mN_t/2] + C_{nm}\tilde{\Phi}[\ell-mN_t/2] \right) .
+
+
+
+
+
+
+
+
 
 .. math::
 
