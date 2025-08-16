@@ -600,63 +600,6 @@ class WDM_transform:
 
         return self._cached_gnm_basis
 
-    def pad_signal(self, x : jnp.ndarray, where: str = 'end') -> jnp.ndarray:
-        r"""
-        The transform method requires the input time series signal to have a 
-        specific length :math:`N`. This method can be used to zero-pad any 
-        signal to the desired length.
-
-        This function also returns a Boolean mask that can be used later to 
-        recover arrays of the original length.
-
-        Parameters
-        ----------
-        x : jnp.ndarray
-            Input signal to be padded.
-        where : str
-            Where to add the padding. Options are 'end', 'start', or 'equal' 
-            which puts the zero padding at the end of the signal, the start of 
-            the signal, or equally at both ends respectively. Optional.
-
-        Returns
-        -------
-        x_padded : jnp.ndarray
-            Padded signal to length N, with zeros added at the end.
-        mask : jnp.ndarray
-            Boolean mask indicating the valid part of the padded signal.
-
-        Notes
-        -----
-        The Boolean mask can be used to get back to the original signal; i.e.
-        `x_padded[mask]` will recover the original signal, `x`.
-        """
-        x = jnp.asarray(x)
-
-        n = len(x)
-        padding_length = self.N - n
-
-        mask = jnp.full(self.N, True, dtype=bool)
-
-        if where == 'end':
-            x_padded = jnp.pad(x, (0, padding_length), 
-                               mode='constant', constant_values=0)
-            mask = mask.at[n:].set(False)
-        elif where == 'start':
-            x_padded = jnp.pad(x, (padding_length, 0), 
-                               mode='constant', constant_values=0)
-            mask = mask.at[:padding_length].set(False)
-        elif where == 'equal':
-            a = padding_length // 2
-            b = padding_length - a
-            x_padded = jnp.pad(x, (a, b),
-                               mode='constant', constant_values=0)
-            mask = mask.at[:a].set(False)
-            mask = mask.at[n + a:].set(False)
-        else:
-            raise ValueError(f"Invalid padding location {where=}.")
-
-        return x_padded, mask
-
     @partial(jax.jit, static_argnums=0)
     def short_fft(self, x : jnp.ndarray) -> jnp.ndarray:
         r"""

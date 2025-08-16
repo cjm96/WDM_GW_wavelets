@@ -1,5 +1,6 @@
 import numpy as np
 import jax
+import jax.numpy as jnp
 import WDM
 
 
@@ -45,7 +46,26 @@ def test_Meyer():
     assert omega.shape == Phi.shape, \
         "Meyer function should return an array of the same shape as input omega"
     
-    integral = np.trapezoid(Phi**2, x=omega)    
+    integral = np.sum(Phi**2) * np.diff(omega)[0]
 
     assert np.isclose(integral, 1.0, atol=1e-3, rtol=1.0e-3), \
         "The integral of |Phi(om)|^2 w.r.t om should be 1"
+
+
+def test_padding():
+    r"""
+    Test the padding function in the WDM class.
+    """
+    x = np.array([9.,9.,9.])
+
+    N = 5
+
+    for where in ['end', 'start', 'equal']:
+
+        x_padded, mask = WDM.utils.pad_signal(x, N, where=where)
+
+        assert len(x_padded) == N, \
+            "Length of padded signal must be a multiple of Nf"
+        
+        assert jnp.all(jnp.array_equal(x, x_padded[mask])), \
+            "Padded signal should match original signal when mask is applied"
