@@ -41,11 +41,18 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Mathematical Background:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../theory.html">Mathematical Background</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">WDM</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../examples.html">Examples</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">WDM Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../examples.html">Example Notebooks</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Code Repository:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../GitHub.html">GitHub</a></li>
 </ul>
 
         </div>
@@ -73,7 +80,8 @@
            <div itemprop="articleBody">
              
   <h1>Source code for WDM.code.utils.utils</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
 
 
@@ -144,6 +152,7 @@
 
 <div class="viewcode-block" id="overlapping_windows">
 <a class="viewcode-back" href="../../../../WDM.code.utils.html#WDM.code.utils.utils.overlapping_windows">[docs]</a>
+<span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">overlapping_windows</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">K</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Nt</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Nf</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Extract overlapping, wrapped windows from input array `x`.</span>
@@ -178,7 +187,6 @@
 <span class="sd">            [ 8,  9, 10, 11, 12, 13, 14, 15] ])</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">N</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="k">assert</span> <span class="n">K</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Window length K must be even&quot;</span>
     
     <span class="c1"># Centered window indices relative to each window center</span>
     <span class="n">k_offsets</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
@@ -187,7 +195,7 @@
     <span class="n">centers</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">Nt</span><span class="p">)</span> <span class="o">*</span> <span class="n">Nf</span>
     
     <span class="c1"># Create full (Nt, K) index matrix with wraparound</span>
-    <span class="n">idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">centers</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">k_offsets</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:])</span> <span class="o">%</span> <span class="n">N</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">centers</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">k_offsets</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span> <span class="o">%</span> <span class="n">N</span>
     
     <span class="k">return</span> <span class="n">x</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span></div>
 

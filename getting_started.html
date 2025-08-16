@@ -25,7 +25,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Visualising the WDM wavelets" href="plotting_the_mother_wavelet.html" />
-    <link rel="prev" title="Examples" href="examples.html" /> 
+    <link rel="prev" title="Example Notebooks" href="examples.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -47,18 +47,26 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
-<ul class="current">
+              <p class="caption" role="heading"><span class="caption-text">Mathematical Background:</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="theory.html">Mathematical Background</a></li>
-<li class="toctree-l1"><a class="reference internal" href="modules.html">WDM</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="examples.html">Examples</a><ul class="current">
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="modules.html">WDM Package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="examples.html">Example Notebooks</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Getting Started</a></li>
 <li class="toctree-l2"><a class="reference internal" href="plotting_the_mother_wavelet.html">Visualising the WDM wavelets</a></li>
 <li class="toctree-l2"><a class="reference internal" href="filtering_and_glitch_removal.html">Filtering, whitening and glitch removal</a></li>
 <li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
 <li class="toctree-l2"><a class="reference internal" href="accuracy_truncated_transform.html">Exploring the accuracy of the truncated wavelet transform</a></li>
+<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">m=0 Wavelet Coefficients</a></li>
 </ul>
 </li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Code Repository:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="GitHub.html">GitHub</a></li>
 </ul>
 
         </div>
@@ -75,7 +83,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="examples.html">Examples</a></li>
+          <li class="breadcrumb-item"><a href="examples.html">Example Notebooks</a></li>
       <li class="breadcrumb-item active">Getting Started</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/getting_started.ipynb.txt" rel="nofollow"> View page source</a>
@@ -91,40 +99,38 @@
 <p>To run this notebook you will first need to download the GW data,</p>
 <p><code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">download_SXSwaveform_data.py</span></code></p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
-import matplotlib.pyplot as plt
-import WDM
-from WDM.code.utils.utils import next_multiple
-from WDM.code.plotting.plotting import time_frequency_plot
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">WDM</span>
 </pre></div>
 </div>
 </div>
 <p>Here’s an example GW waveform. We also compute the frequency of the signal as a function of time.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>data = np.loadtxt(&quot;../data/waveform_SXS:BBH:0305_Reh22.txt&quot;)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;../data/waveform_SXS:BBH:0305_Reh22.txt&quot;</span><span class="p">)</span>
 
-time = data[0]
-re_strain = data[1]
-im_strain = data[2]
+<span class="n">time</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">re_strain</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">im_strain</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
 
-frequency = np.diff(-np.unwrap(np.atan2(im_strain, re_strain)), prepend=0) / np.diff(time, prepend=0) / (2*np.pi)
+<span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">unwrap</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atan2</span><span class="p">(</span><span class="n">im_strain</span><span class="p">,</span> <span class="n">re_strain</span><span class="p">)),</span> <span class="n">prepend</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">prepend</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
 
-fig, axes = plt.subplots(nrows=2, sharex=True)
-axes[0].plot(time, re_strain)
-axes[0].set_xlabel(&#39;Time&#39;)
-axes[0].set_ylabel(&#39;Strain&#39;)
-axes[0].grid()
-axes[1].plot(time[100:-200], frequency[100:-200], &#39;k-&#39;)
-axes[1].set_xlabel(&#39;Time&#39;)
-axes[1].set_ylabel(&#39;Frequency&#39;)
-axes[1].grid()
-plt.show()
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">re_strain</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Strain&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="mi">100</span><span class="p">:</span><span class="o">-</span><span class="mi">200</span><span class="p">],</span> <span class="n">frequency</span><span class="p">[</span><span class="mi">100</span><span class="p">:</span><span class="o">-</span><span class="mi">200</span><span class="p">],</span> <span class="s1">&#39;k-&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Frequency&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -136,12 +142,12 @@ plt.show()
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>current_length = len(time)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">current_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">time</span><span class="p">)</span>
 
-print(f&quot;Current length of time series: {current_length}&quot;)
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Current length of time series: </span><span class="si">{</span><span class="n">current_length</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -155,20 +161,21 @@ Current length of time series: 7688
 </div>
 <p>Let’s take a wavelet transform of this using <span class="math notranslate nohighlight">\(N_f=512\)</span> frequency slices. The <code class="docutils literal notranslate"><span class="pre">wdm</span></code> object will handle the wavelet transform. We need to pad the signal so that it’s length is an even multiple of this number</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>dt = np.mean(np.diff(time))
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">time</span><span class="p">))</span>
 
-Nf = 512
+<span class="n">Nf</span> <span class="o">=</span> <span class="mi">512</span>
 
-N = next_multiple(current_length, 2*Nf)
+<span class="n">N</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">next_multiple</span><span class="p">(</span><span class="n">current_length</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">Nf</span><span class="p">)</span>
 
-wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8, calc_m0=True)
+<span class="n">wdm</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span><span class="n">Nf</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">,</span> <span class="n">q</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">calc_m0</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-re_strain_padded, mask = wdm.pad_signal(re_strain)
+<span class="n">re_strain_padded</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">pad_signal</span><span class="p">(</span><span class="n">re_strain</span><span class="p">)</span>
+<span class="n">im_strain_padded</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">pad_signal</span><span class="p">(</span><span class="n">im_strain</span><span class="p">)</span>
 
-print(f&quot;Padded length of time series: {N}&quot;)
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Padded length of time series: </span><span class="si">{</span><span class="n">N</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <br/></pre></div>
 </div>
 </div>
@@ -182,10 +189,10 @@ Padded length of time series: 8192
 </div>
 <p>We can print the wdm object to see some key information about the wavelets we are using.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>print(wdm)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">wdm</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -204,22 +211,22 @@ self.K = 8192 window length
 </div>
 <p>Take the forward discrete wavelet transform (dwt). This transforms from the time domain to the time-frequency domain.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w = wdm.dwt(re_strain_padded)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">re_strain_padded</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <p>We can plot these coefficients in the time-frequency plane. The black line shows the frequency obtained directly from the NR waveform. Note, this doesn’t look as beautifully smooth as the oversampled periodograms we are used to looking at, but this is what we want for data analysis.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = time_frequency_plot(wdm, w, part=&#39;abs&#39;, scale=&#39;linear&#39;)
-ax.set_ylim(0,0.1)
-ax.plot(time[100:-200], frequency[100:-200], color=&#39;k&#39;, lw=2)
-plt.show()
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">plotting</span><span class="o">.</span><span class="n">time_frequency_plot</span><span class="p">(</span><span class="n">wdm</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s1">&#39;abs&#39;</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="mi">100</span><span class="p">:</span><span class="o">-</span><span class="mi">200</span><span class="p">],</span> <span class="n">frequency</span><span class="p">[</span><span class="mi">100</span><span class="p">:</span><span class="o">-</span><span class="mi">200</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -233,14 +240,14 @@ plt.show()
 <p>Let’s take an inverse discrete wavelet transform (idwt).</p>
 <p>This transforms back into the time domain. We do this to check we can recover the original signal. We will use the mask to get the output back to the original shape.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>re_strain_recovered = wdm.idwt(w)[mask]
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">re_strain_recovered</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">w</span><span class="p">)[</span><span class="n">mask</span><span class="p">]</span>
 
-residuals = re_strain_recovered-re_strain
+<span class="n">residuals</span> <span class="o">=</span> <span class="n">re_strain_recovered</span><span class="o">-</span><span class="n">re_strain</span>
 
-print(f&quot;Max residual: {np.max(np.abs(residuals))}&quot;)
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Max residual: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">residuals</span><span class="p">))</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -249,22 +256,22 @@ print(f&quot;Max residual: {np.max(np.abs(residuals))}&quot;)
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Max residual: 3.5312031076983885e-14
+Max residual: 3.089461195551757e-14
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
-ax.plot(time, re_strain, label=&#39;SXS:BBH:0305&#39;)
-ax.plot(time, re_strain_recovered, label=&#39;recovered&#39;)
-ax.plot(time, residuals, &#39;k:&#39;, label=&#39;residuals&#39;)
-ax.set_xlabel(&#39;Time (s)&#39;)
-ax.set_ylabel(&#39;Strain&#39;)
-ax.legend()
-ax.grid()
-plt.show()
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">re_strain</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;SXS:BBH:0305&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">re_strain_recovered</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;recovered&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">residuals</span><span class="p">,</span> <span class="s1">&#39;k:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;residuals&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Time (s)&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Strain&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -274,6 +281,157 @@ plt.show()
 <div class="output_area docutils container">
 <img alt="_images/getting_started_15_0.png" src="_images/getting_started_15_0.png" />
 </div>
+</div>
+<p>The operations for the forward and inverse discrete wavelet transform are vectorised. This allows multiple transforms to be performed at once in batches. We demonstrate this here by transforming both + and <span class="math notranslate nohighlight">\(\times\)</span> components of the GW signal.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">GW_signal_padded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">re_strain_padded</span><span class="p">,</span> <span class="n">re_strain_padded</span><span class="p">))</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Time series shape = </span><span class="si">{</span><span class="n">GW_signal_padded</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1">#GW_w = wdm.dwt(GW_signal_padded)</span>
+
+<span class="c1">#print(f&quot;Wavelet coefficients shape = {GW_w.shape}&quot;)</span>
+
+<span class="c1">#GW_signal_recovered = wdm.idwt(GW_w)</span>
+
+<span class="c1">#print(f&quot;Recovered time series shape = {GW_signal_padded.shape}&quot;)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Time series shape = (2, 8192)
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">wdm</span><span class="o">.</span><span class="n">N</span><span class="p">)</span>
+
+<span class="n">wdm</span><span class="o">.</span><span class="n">forward_transform_fft</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(16, 512)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w</span><span class="o">.</span><span class="n">shape</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(16, 512)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">:]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(1,)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">Phi</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+<span class="n">Phi</span><span class="p">[</span><span class="o">*</span><span class="p">(</span><span class="kc">None</span><span class="p">,)</span><span class="o">*</span><span class="mi">2</span><span class="p">,:]</span><span class="o">.</span><span class="n">shape</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(10,)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(1, 1, 10)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="kc">None</span><span class="p">,)</span><span class="o">*</span><span class="mi">2</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(None, None)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="o">*</span><span class="mi">3</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+1.5
+</pre></div></div>
 </div>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -289,7 +447,7 @@ plt.show()
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="examples.html" class="btn btn-neutral float-left" title="Examples" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="examples.html" class="btn btn-neutral float-left" title="Example Notebooks" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="plotting_the_mother_wavelet.html" class="btn btn-neutral float-right" title="Visualising the WDM wavelets" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

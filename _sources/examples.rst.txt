@@ -1,6 +1,6 @@
-========
-Examples
-========
+=================
+Example Notebooks
+=================
 
 The following example notebooks from the repository demonstrate the use of the WDM package.
 
@@ -12,3 +12,4 @@ The following example notebooks from the repository demonstrate the use of the W
    filtering_and_glitch_removal.ipynb
    benchmarking.ipynb
    accuracy_truncated_transform.ipynb
+   m_equal_0_terms.ipynb

@@ -1,0 +1,231 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>m=0 Wavelet Coefficients &mdash; WDM 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/nbsphinx-code-cells.css?v=2aa19091" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css?v=86424434" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="GitHub" href="GitHub.html" />
+    <link rel="prev" title="Exploring the accuracy of the truncated wavelet transform" href="accuracy_truncated_transform.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            WDM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Mathematical Background:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="theory.html">Mathematical Background</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="modules.html">WDM Package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="examples.html">Example Notebooks</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plotting_the_mother_wavelet.html">Visualising the WDM wavelets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="filtering_and_glitch_removal.html">Filtering, whitening and glitch removal</a></li>
+<li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="accuracy_truncated_transform.html">Exploring the accuracy of the truncated wavelet transform</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">m=0 Wavelet Coefficients</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Code Repository:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="GitHub.html">GitHub</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">WDM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="examples.html">Example Notebooks</a></li>
+      <li class="breadcrumb-item active">m=0 Wavelet Coefficients</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/m_equal_0_terms.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="m=0-Wavelet-Coefficients">
+<h1>m=0 Wavelet Coefficients<a class="headerlink" href="#m=0-Wavelet-Coefficients" title="Link to this heading"></a></h1>
+<p>The wavelet basis is labelled by the indices <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span>;</p>
+<div class="math notranslate nohighlight" id="equation-m-equal-0-terms-0">
+<span class="eqno">(48)<a class="headerlink" href="#equation-m-equal-0-terms-0" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
+<p>The index <span class="math notranslate nohighlight">\(m\)</span> labels wavelets of different frequencies and varies in the range <span class="math notranslate nohighlight">\(m\in\{0,1,\ldots,N_f-1\}\)</span>.</p>
+<p>The terms with <span class="math notranslate nohighlight">\(m=0\)</span> include both the lowest frequency (<span class="math notranslate nohighlight">\(f\approx 0\)</span>) and the highest frequency (<span class="math notranslate nohighlight">\(f\approx f_{\rm Nyquist}\)</span>) wavelets. These terms need to be handled separately from the majority of the terms with <span class="math notranslate nohighlight">\(m&gt;0\)</span>. This slows down the wavelet transfrom.</p>
+<p>However, very often the lowest and highest frequencies are not used for data analysis. E.g. when computing a GW log-likelihood we typically only integrate over a range <span class="math notranslate nohighlight">\(f_{\rm low}\leq f \leq f_{\rm high}\)</span> where the limits are chosen to be well inside the frequency range of the FFT.</p>
+<p>For this reason the <code class="docutils literal notranslate"><span class="pre">WDM_transform</span></code> class is by default initialised with <code class="docutils literal notranslate"><span class="pre">calc_m0=False</span></code>. This will speed up the transformation but will get the calculations of the <span class="math notranslate nohighlight">\(m=0\)</span> terms wrong. If the <span class="math notranslate nohighlight">\(m=0\)</span> terms are needed, then set <code class="docutils literal notranslate"><span class="pre">calc_m0=True</span></code>.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">WDM</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Nf</span> <span class="o">=</span> <span class="mi">32</span>
+<span class="n">N</span> <span class="o">=</span> <span class="mi">32</span><span class="o">*</span><span class="n">Nf</span>
+
+<span class="n">wdm_m_all</span>  <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span><span class="n">Nf</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">,</span> <span class="n">calc_m0</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">wdm_m_geq0</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span><span class="n">Nf</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">)</span> <span class="c1"># default calc_m0=False</span>
+</pre></div>
+</div>
+</div>
+<p>If we use the <code class="docutils literal notranslate"><span class="pre">wdm_m_geq0</span></code> wdm transform to analyse a signal with lots of power at very low (or very high) frequencies then we will get the wrong result.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">u</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">a</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">u</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="n">u</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">test_signal_lowf</span> <span class="o">=</span> <span class="n">f</span><span class="p">((</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="o">-</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">T</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">T</span><span class="o">/</span><span class="mi">16</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">test_signal_lowf</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Test signal&#39;</span><span class="p">)</span>
+
+<span class="n">reconstructed_m_all</span> <span class="o">=</span> <span class="n">wdm_m_all</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">test_signal_lowf</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">reconstructed_m_all</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Reconstructed (all $m$)&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+<span class="n">reconstructed_m_geq0</span> <span class="o">=</span> <span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">test_signal_lowf</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">reconstructed_m_geq0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Reconstructed ($m&gt;0$)&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">);</span> <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Signal&#39;</span><span class="p">);</span> <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/m_equal_0_terms_5_0.png" src="_images/m_equal_0_terms_5_0.png" />
+</div>
+</div>
+<p>However, for signals where all the power concentrated is in the middle of the bandwidth it will work OK.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">test_signal_highf</span> <span class="o">=</span> <span class="n">f</span><span class="p">((</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="o">-</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">T</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">T</span><span class="o">/</span><span class="mi">16</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">test_signal_highf</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Test signal&#39;</span><span class="p">)</span>
+
+<span class="n">reconstructed_m_all</span> <span class="o">=</span> <span class="n">wdm_m_all</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">test_signal_highf</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">reconstructed_m_all</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Reconstructed (all $m$)&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="n">reconstructed_m_geq0</span> <span class="o">=</span> <span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">test_signal_highf</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">reconstructed_m_geq0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Reconstructed ($m&gt;0$)&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">);</span> <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Signal&#39;</span><span class="p">);</span> <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/m_equal_0_terms_7_0.png" src="_images/m_equal_0_terms_7_0.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="accuracy_truncated_transform.html" class="btn btn-neutral float-left" title="Exploring the accuracy of the truncated wavelet transform" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="GitHub.html" class="btn btn-neutral float-right" title="GitHub" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Christopher J. Moore.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
