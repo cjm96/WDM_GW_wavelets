@@ -138,7 +138,6 @@ def test_inverse_transforms():
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=16, 
                                                                 N=512, 
-                                                                q=5,
                                                                 calc_m0=True)
 
     key, subkey = jax.random.split(key)
@@ -151,6 +150,15 @@ def test_inverse_transforms():
 
     assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
         "Inverse transforms don't agree."
+
+    w_lots = np.repeat(w[np.newaxis,:,:], 3, axis=0)
+
+    x_lots = wdm.inverse_transform(w_lots)
+    
+    assert (x_lots.shape==(3, wdm.N) and 
+            np.allclose(x, x_lots[0], rtol=1.0e-3, atol=1.0e-3)), \
+        "Inverse transform vecorisation is not behaving correctly."
+
 
 
 def test_truncated_transform():
@@ -170,8 +178,33 @@ def test_truncated_transform():
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
 
     w = wdm.forward_transform_exact(x)
+    print(w)
 
     w_ = wdm.forward_transform_truncated(x)
+
+    assert np.allclose(w, w_, rtol=1.0e-3, atol=1.0e-3), \
+        "Truncated transform did not agree with the exact transform."
+    
+
+def test_truncated_window_transform():
+    r"""
+    Test the exact wavelet transform.
+    """
+    seed = 1234
+    key = jax.random.key(seed)
+
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
+                                                                Nf=4, 
+                                                                N=64, 
+                                                                q=8,
+                                                                calc_m0=True)
+
+    key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
+
+    w = wdm.forward_transform_exact(x)
+
+    w_ = wdm.forward_transform_truncated_window(x)
 
     assert np.allclose(w, w_, rtol=1.0e-3, atol=1.0e-3), \
         "Truncated transform did not agree with the exact transform."
@@ -198,6 +231,68 @@ def test_short_fft_transform():
     w_ = wdm.forward_transform_short_fft(x)
 
     assert np.allclose(w, w_, rtol=1.0e-3, atol=1.0e-3), \
-        "Truncated transform did not agree with the exact transform."
+        "Short FFT transform did not agree with the exact transform."
     
+
+def test_short_fft():
+    r"""
+    Check the conventions in our short FFT method.
+
+    .. math::
+
+        X_n[j] = \sum_{k=-K/2}^{K/2-1} \exp(2\pi i kj/K) x[nN_f+k] \phi[k]
+    """
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
+                                                                Nf=4, 
+                                                                N=64, 
+                                                                q=4)
     
+    x = jnp.arange(wdm.N, dtype=wdm.jax_dtype) # test signal
+
+    X = wdm.short_fft(x)
+
+    k_vals = jnp.arange(-wdm.K//2, wdm.K//2)
+    j_vals = jnp.arange(wdm.K)
+    n_vals = jnp.arange(wdm.Nt)
+    kj = k_vals[:,jnp.newaxis,jnp.newaxis] * j_vals[jnp.newaxis,jnp.newaxis,:]  
+    nNf_plus_k = n_vals[jnp.newaxis,:,jnp.newaxis]*wdm.Nf + \
+                                    k_vals[:,jnp.newaxis,jnp.newaxis]
+    my_short_ffft = jnp.sum(jnp.exp(2*jnp.pi*(1j)*kj/wdm.K) * \
+                            x[nNf_plus_k%wdm.N] * \
+                            wdm.window_TD[k_vals%wdm.N,jnp.newaxis,jnp.newaxis],
+                        axis=0)
+    
+    assert jnp.allclose(my_short_ffft, X, rtol=1.0e-3, atol=1.0e-3), \
+        f"Short FFT conventions are wrong."
+
+
+def test_fft_transform():
+    r"""
+    Test the FFT transform.
+    """
+    seed = 1234
+    key = jax.random.key(seed)
+
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.333, 
+                                                                Nf=4, 
+                                                                N=64, 
+                                                                q=8,
+                                                                calc_m0=False)
+
+    key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
+
+    w = wdm.forward_transform_exact(x)
+
+    w_ = wdm.forward_transform_fft(x)
+
+    assert np.allclose(w, w_, rtol=1.0e-3, atol=1.0e-3), \
+        "FFT transform did not agree with the exact transform."
+    
+    x_lots = np.repeat(x[np.newaxis,:], 3, axis=0)
+
+    w_lots = wdm.forward_transform_fft(x_lots)
+    
+    assert (w_lots.shape==(3, wdm.Nt, wdm.Nf) and True), \
+        "Inverse transform vecorisation is not behaving correctly."
+        #np.allclose(w, w_lots[0], rtol=1.0e-3, atol=1.0e-3)), \

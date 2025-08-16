@@ -13,6 +13,7 @@ dependencies = [
     "scipy",
     "matplotlib",
     "jax",
+    "ipykernel",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -23,13 +24,12 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "ipykernel",
-    "sphinx-autobuild"
 ]
 
 docs = [
     "sphinx>=7.0",
     "sphinx-rtd-theme",
+    "sphinx-autobuild",
     "myst-parser",
     "sphinx-autodoc-typehints",
 ]

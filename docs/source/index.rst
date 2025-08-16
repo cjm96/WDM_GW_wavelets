@@ -1,16 +1,12 @@
-.. WDM documentation master file, created by
-   sphinx-quickstart on Tue Jul 29 11:52:13 2025.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 WDM_GW_wavelets documentation
 =============================
+
+Author: Christopher J. Moore
 
 A fast, JAX-based Python implementation of the Wilson-Daubechies-Meyer (WDM) wavelet 
 transform for the time-frequency analysis of gravitational wave data.
 
 The project lives on `GitHub <https://github.com/cjm96/WDM_GW_wavelets>`_.
-
 
 
 .. image:: ../../logo_images/logo.png
@@ -21,8 +17,20 @@ The project lives on `GitHub <https://github.com/cjm96/WDM_GW_wavelets>`_.
 
 .. toctree::
    :maxdepth: 5
-   :caption: Package Contents:
+   :caption: Mathematical Background:
 
    theory
+
+
+.. toctree::
+   :maxdepth: 7
+   :caption: Package Contents:
+
    modules
    examples
+
+.. toctree::
+   :maxdepth: 5
+   :caption: Code Repository:
+
+   GitHub
