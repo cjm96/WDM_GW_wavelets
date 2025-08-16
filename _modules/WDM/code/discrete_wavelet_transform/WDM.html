@@ -714,66 +714,6 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_gnm_basis</span></div>
 
 
-<div class="viewcode-block" id="WDM_transform.pad_signal">
-<a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.pad_signal">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">pad_signal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">where</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;end&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        The transform method requires the input time series signal to have a </span>
-<span class="sd">        specific length :math:`N`. This method can be used to zero-pad any </span>
-<span class="sd">        signal to the desired length.</span>
-
-<span class="sd">        This function also returns a Boolean mask that can be used later to </span>
-<span class="sd">        recover arrays of the original length.</span>
-
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        x : jnp.ndarray</span>
-<span class="sd">            Input signal to be padded.</span>
-<span class="sd">        where : str</span>
-<span class="sd">            Where to add the padding. Options are &#39;end&#39;, &#39;start&#39;, or &#39;equal&#39; </span>
-<span class="sd">            which puts the zero padding at the end of the signal, the start of </span>
-<span class="sd">            the signal, or equally at both ends respectively. Optional.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        x_padded : jnp.ndarray</span>
-<span class="sd">            Padded signal to length N, with zeros added at the end.</span>
-<span class="sd">        mask : jnp.ndarray</span>
-<span class="sd">            Boolean mask indicating the valid part of the padded signal.</span>
-
-<span class="sd">        Notes</span>
-<span class="sd">        -----</span>
-<span class="sd">        The Boolean mask can be used to get back to the original signal; i.e.</span>
-<span class="sd">        `x_padded[mask]` will recover the original signal, `x`.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
-        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="n">padding_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span> <span class="o">-</span> <span class="n">n</span>
-
-        <span class="n">mask</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">where</span> <span class="o">==</span> <span class="s1">&#39;end&#39;</span><span class="p">:</span>
-            <span class="n">x_padded</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">padding_length</span><span class="p">),</span> 
-                               <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span> <span class="n">constant_values</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">n</span><span class="p">:]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">where</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
-            <span class="n">x_padded</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="n">padding_length</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> 
-                               <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span> <span class="n">constant_values</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">at</span><span class="p">[:</span><span class="n">padding_length</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">where</span> <span class="o">==</span> <span class="s1">&#39;equal&#39;</span><span class="p">:</span>
-            <span class="n">a</span> <span class="o">=</span> <span class="n">padding_length</span> <span class="o">//</span> <span class="mi">2</span>
-            <span class="n">b</span> <span class="o">=</span> <span class="n">padding_length</span> <span class="o">-</span> <span class="n">a</span>
-            <span class="n">x_padded</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">),</span>
-                               <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span> <span class="n">constant_values</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">at</span><span class="p">[:</span><span class="n">a</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
-            <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">n</span> <span class="o">+</span> <span class="n">a</span><span class="p">:]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid padding location </span><span class="si">{</span><span class="n">where</span><span class="si">=}</span><span class="s2">.&quot;</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">x_padded</span><span class="p">,</span> <span class="n">mask</span></div>
-
-
 <div class="viewcode-block" id="WDM_transform.short_fft">
 <a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.short_fft">[docs]</a>
     <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>

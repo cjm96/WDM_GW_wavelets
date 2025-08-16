@@ -102,7 +102,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 4,
+   "execution_count": 5,
    "id": "e56fca95",
    "metadata": {},
    "outputs": [
@@ -123,8 +123,8 @@
     "\n",
     "wdm = WDM.WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8, calc_m0=True)\n",
     "\n",
-    "re_strain_padded, mask = wdm.pad_signal(re_strain)\n",
-    "im_strain_padded, mask = wdm.pad_signal(im_strain)\n",
+    "re_strain_padded, mask = WDM.utils.pad_signal(re_strain, N)\n",
+    "im_strain_padded, mask = WDM.utils.pad_signal(im_strain, N)\n",
     "\n",
     "print(f\"Padded length of time series: {N}\")\n"
    ]
@@ -139,7 +139,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 5,
+   "execution_count": 6,
    "id": "de39ee38",
    "metadata": {},
    "outputs": [
@@ -170,7 +170,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 6,
+   "execution_count": 7,
    "id": "005c19de",
    "metadata": {},
    "outputs": [],
@@ -190,7 +190,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 7,
+   "execution_count": 8,
    "id": "34017691",
    "metadata": {},
    "outputs": [
@@ -226,7 +226,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 8,
+   "execution_count": 9,
    "id": "9686e999",
    "metadata": {},
    "outputs": [
@@ -248,7 +248,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 9,
+   "execution_count": 10,
    "id": "e38b39bb",
    "metadata": {},
    "outputs": [
@@ -287,7 +287,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 10,
+   "execution_count": 11,
    "id": "016afbbe",
    "metadata": {},
    "outputs": [

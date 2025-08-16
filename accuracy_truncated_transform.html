@@ -97,7 +97,7 @@
   <section id="Exploring-the-accuracy-of-the-truncated-wavelet-transform">
 <h1>Exploring the accuracy of the truncated wavelet transform<a class="headerlink" href="#Exploring-the-accuracy-of-the-truncated-wavelet-transform" title="Link to this heading"></a></h1>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -114,7 +114,7 @@
 </div>
 <p>Time series properties.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dt</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">Nt</span><span class="p">,</span> <span class="n">Nf</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">8</span>
@@ -125,7 +125,7 @@
 </div>
 <p>Generate a white noise time series signal with r.m.s. value of 1.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">key</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
@@ -137,7 +137,7 @@
 <p>Perform a bunch of different wavelet transforms with different truncation <span class="math notranslate nohighlight">\(q\)</span> parameters. We quantify the accuracy of the transformation by performing a forward (truncated) and inverse (exact) wavelet transformation and looking at the largest absolute difference between the original and recovered time series.</p>
 <p>Allowed values of <span class="math notranslate nohighlight">\(q\)</span>. Must be an integer in the range <span class="math notranslate nohighlight">\(1\leq q \leq N_t/2\equiv 32\)</span>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">q_vals</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">4</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">12</span><span class="p">,</span><span class="mi">14</span><span class="p">,</span><span class="mi">16</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">25</span><span class="p">,</span><span class="mi">32</span><span class="p">]</span>
@@ -161,7 +161,7 @@
 </div>
 <p>We will also compare this with the error when using the exact forward transform. The exact transform should be same as the truncated transform when <span class="math notranslate nohighlight">\(q=N_t/2=32\)</span>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">wdm</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
@@ -171,7 +171,7 @@
 
 <span class="n">w</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">forward_transform_exact</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 
-<span class="n">x_recovered</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+<span class="n">x_recovered</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">inverse_transform_exact</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
 
 <span class="n">err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">x_recovered</span><span class="p">))</span>
 </pre></div>

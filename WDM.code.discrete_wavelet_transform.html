@@ -860,36 +860,6 @@ WDM time-frequency-domain wavelet coefficients.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.pad_signal">
-<span class="sig-name descname"><span class="pre">pad_signal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">where</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'end'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.pad_signal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.pad_signal" title="Link to this definition"></a></dt>
-<dd><p>The transform method requires the input time series signal to have a
-specific length <span class="math notranslate nohighlight">\(N\)</span>. This method can be used to zero-pad any
-signal to the desired length.</p>
-<p>This function also returns a Boolean mask that can be used later to
-recover arrays of the original length.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>x</strong> (<em>jnp.ndarray</em>) – Input signal to be padded.</p></li>
-<li><p><strong>where</strong> (<em>str</em>) – Where to add the padding. Options are ‘end’, ‘start’, or ‘equal’
-which puts the zero padding at the end of the signal, the start of
-the signal, or equally at both ends respectively. Optional.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><ul class="simple">
-<li><p><strong>x_padded</strong> (<em>jnp.ndarray</em>) – Padded signal to length N, with zeros added at the end.</p></li>
-<li><p><strong>mask</strong> (<em>jnp.ndarray</em>) – Boolean mask indicating the valid part of the padded signal.</p></li>
-</ul>
-</p>
-</dd>
-</dl>
-<p class="rubric">Notes</p>
-<p>The Boolean mask can be used to get back to the original signal; i.e.
-<cite>x_padded[mask]</cite> will recover the original signal, <cite>x</cite>.</p>
-</dd></dl>
-
-<dl class="py method">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.short_fft">
 <span class="sig-name descname"><span class="pre">short_fft</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.short_fft"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.short_fft" title="Link to this definition"></a></dt>
 <dd><p>The windowed short FFT of the input.</p>
