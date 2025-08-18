@@ -96,183 +96,293 @@
              
   <section id="Filtering,-whitening-and-glitch-removal">
 <h1>Filtering, whitening and glitch removal<a class="headerlink" href="#Filtering,-whitening-and-glitch-removal" title="Link to this heading"></a></h1>
+<p>This notebook demonstrates (i) filtering, (ii) whitening, and (iii) glitch removal in the time-frequency domain using wavelets and compares this with the usual frequency-domain approaches using Fourier transforms.</p>
+<p>As an example to illustrate these methods, we use Livingston (L1) data around GW170817. This contains noise + GW signal + glitch.</p>
 <p>To run this notebook you will need to download the GW data.</p>
 <p><code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">download_GW170817_data.py</span></code></p>
-<p>Use the L1 GW170817 data to demonstrate (i) glitch removal, (ii) bandpass filtering, and (iii) whitening in the wavelet time-frequency domain.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-
+<span class="kn">from</span><span class="w"> </span><span class="nn">astropy.time</span><span class="w"> </span><span class="kn">import</span> <span class="n">Time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">WDM</span>
 </pre></div>
 </div>
 </div>
 <p>Load the Livingston data around GW170817.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;../data/L-L1_GWOSC_4KHZ_R1-1187006835-4096.txt&quot;</span>
 
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">):</span>
-            <span class="nb">print</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">))</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">break</span>
-
 <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 
 <span class="n">f_samp</span> <span class="o">=</span> <span class="mf">4096.0</span>
-
 <span class="n">gps_time</span> <span class="o">=</span> <span class="mf">1187006835.0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">f_samp</span>
+
+<span class="n">trigger_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">Time</span><span class="p">(</span><span class="s1">&#39;2017-08-17T12:41:04&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">gps</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-# Gravitational wave strain for GW170817_R1 for L1 (see http://losc.ligo.org)
-# This file has 4096 samples per second
-# starting GPS 1187006835 duration 4096
-</pre></div></div>
-</div>
-<p>Noise Estimatation</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">overlapping_windows</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">num_perseg</span><span class="p">,</span> <span class="n">num_overlap</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Split input `x` into overlapping windows. Trailing samples that don&#39;t fill</span>
-<span class="sd">    a full window are discarded.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    x : ndarray</span>
-<span class="sd">        Input array to split into windows.</span>
-<span class="sd">    num_perseg : int</span>
-<span class="sd">        Length of each segment.</span>
-<span class="sd">    num_overlap : int</span>
-<span class="sd">        Number of overlapping samples between segments.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    y : ndarray</span>
-<span class="sd">        Array of shape (n_windows, num_perseg).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;x must be 1D&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">num_perseg</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;num_perseg must be positive&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">num_overlap</span> <span class="o">&lt;</span> <span class="n">num_perseg</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;num_overlap must satisfy 0 &lt;= overlap &lt; num_perseg&quot;</span><span class="p">)</span>
-
-    <span class="n">step</span> <span class="o">=</span> <span class="n">num_perseg</span> <span class="o">-</span> <span class="n">num_overlap</span>
-    <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;</span> <span class="n">num_perseg</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_perseg</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">lib</span><span class="o">.</span><span class="n">stride_tricks</span><span class="o">.</span><span class="n">sliding_window_view</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">num_perseg</span><span class="p">)[::</span><span class="n">step</span><span class="p">]</span>
-</pre></div>
-</div>
-</div>
+<p>Let’s plot the full 4096 seconds of data. The data has already been bandpass filtered to remove noise below <span class="math notranslate nohighlight">\(\approx 10\,\mathrm{Hz}\)</span> and above <span class="math notranslate nohighlight">\(\approx 1500\,\mathrm{Hz}\)</span> You can clearly see the glitch in this plot.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">num_perseg</span> <span class="o">=</span> <span class="mi">32</span><span class="o">*</span><span class="nb">int</span><span class="p">(</span><span class="n">f_samp</span><span class="p">)</span>
-<span class="n">num_overlap</span> <span class="o">=</span> <span class="n">num_perseg</span> <span class="o">//</span> <span class="mi">10</span>
-
-<span class="n">overlapping_times</span> <span class="o">=</span> <span class="n">overlapping_windows</span><span class="p">(</span><span class="n">gps_time</span><span class="p">,</span> <span class="n">num_perseg</span><span class="p">,</span> <span class="n">num_overlap</span><span class="p">)</span>
-<span class="n">overlapping_data</span> <span class="o">=</span> <span class="n">overlapping_windows</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">num_perseg</span><span class="p">,</span> <span class="n">num_overlap</span><span class="p">)</span>
-
-<span class="n">trigger</span> <span class="o">=</span> <span class="mf">1187008882.43</span>
-
-<span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">overlapping_times</span><span class="o">&gt;</span><span class="n">trigger</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Splitting data in </span><span class="si">{</span><span class="n">overlapping_times</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> segements with &quot;</span> \
-      <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">num_perseg</span><span class="si">}</span><span class="s2"> samples per segment. &quot;</span> \
-      <span class="sa">f</span><span class="s2">&quot;The signal is in segment number </span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Splitting data in 142 segements with 131072 samples per segment. The signal is in segment number 70.
-</pre></div></div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">wdm</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mf">1.</span><span class="o">/</span><span class="n">f_samp</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">num_perseg</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[38]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">t</span><span class="p">,</span> <span class="n">f</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">wavelet_central_time_frequency</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nt</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nf</span><span class="p">))</span>
-
-<span class="n">bandpass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">f</span><span class="o">&gt;</span><span class="mf">20.0</span><span class="p">,</span> <span class="n">f</span><span class="o">&lt;</span><span class="mf">1000.0</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[39]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test</span><span class="p">():</span>
-    <span class="k">assert</span> <span class="n">wdm</span><span class="o">.</span><span class="n">check_indices</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;a&quot;</span>
-    <span class="k">return</span> <span class="mi">1</span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[40]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">overlapping_data_TF</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
-                        <span class="n">wdm</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">overlapping_data</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-                        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">overlapping_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="p">])</span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[41]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">overlapping_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">!=</span> <span class="n">idx</span><span class="p">)</span>
-
-<span class="n">overlapping_data_off_source_TF</span> <span class="o">=</span> <span class="n">overlapping_data_TF</span><span class="p">[</span><span class="n">mask</span><span class="p">,:,:]</span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[42]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">S</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">overlapping_data_off_source_TF</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[43]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">),</span> <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">num_perseg</span><span class="o">/</span><span class="n">f_samp</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">f_samp</span><span class="p">],</span> <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">gps_time</span><span class="o">-</span><span class="n">trigger_time</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Time from August 17, 2017 12:41:04 UTC [s]&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Strain&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;LIGO Livingston data around GW170817&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/filtering_and_glitch_removal_5_0.png" src="_images/filtering_and_glitch_removal_5_0.png" />
+</div>
+</div>
+<p>Working on the assumption that the instrumental noise is (approximately) stationary, we will split the data into multiple short, nonoverlapping segments. We will use the off-source segments to estimate the noise and then use this analyse the segment containing the signal + glitch.</p>
+<p>We split the data into 128 nonoverlapping windows of length 32 seconds.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.noise.periodogram</span><span class="w"> </span><span class="kn">import</span> <span class="n">overlapping_windows</span>
+
+<span class="n">num_perseg</span> <span class="o">=</span> <span class="mi">32</span><span class="o">*</span><span class="nb">int</span><span class="p">(</span><span class="n">f_samp</span><span class="p">)</span>
+<span class="n">num_overlap</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="n">windows</span> <span class="o">=</span> <span class="n">overlapping_windows</span><span class="p">(</span><span class="n">data</span><span class="p">,</span>
+                              <span class="n">num_perseg</span><span class="p">,</span>
+                              <span class="n">num_overlap</span><span class="p">)</span>
+
+<span class="n">window_times</span> <span class="o">=</span> <span class="n">overlapping_windows</span><span class="p">(</span><span class="n">gps_time</span><span class="p">,</span>
+                                   <span class="n">num_perseg</span><span class="p">,</span>
+                                   <span class="n">num_overlap</span><span class="p">)</span>
+
+<span class="n">num_windows</span> <span class="o">=</span> <span class="n">windows</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Number of windows </span><span class="si">{</span><span class="n">num_windows</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Number of windows 128
+</pre></div></div>
+</div>
+<p>The signal is in window number 63.</p>
+<p>We split the data into analysis_data (window 63) and off-source data (all other windows).</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">window_times</span><span class="o">&gt;</span><span class="n">trigger_time</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Signal is in window </span><span class="si">{</span><span class="n">idx</span><span class="si">:</span><span class="s2">d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="n">analysis_data</span> <span class="o">=</span> <span class="n">windows</span><span class="p">[</span><span class="n">idx</span><span class="p">,:]</span>
+<span class="n">analysis_times</span> <span class="o">=</span> <span class="n">window_times</span><span class="p">[</span><span class="n">idx</span><span class="p">,:]</span>
+
+<span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_windows</span><span class="p">)</span> <span class="o">!=</span> <span class="n">idx</span>
+<span class="n">off_source_data</span> <span class="o">=</span> <span class="n">windows</span><span class="p">[</span><span class="n">mask</span><span class="p">,:]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Signal is in window 63
+</pre></div></div>
+</div>
+<p>Let us first process this data in the frequency domain.</p>
+<p>We use a Welch periodogram to estimate the power spectral density (PSD) from the off-source data. We use a Tukey window that is flat across 95% of its duration.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">scipy.signal.windows</span><span class="w"> </span><span class="kn">import</span> <span class="n">tukey</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.interpolate</span><span class="w"> </span><span class="kn">import</span> <span class="n">interp1d</span>
+
+<span class="n">tukey_window</span> <span class="o">=</span> <span class="n">tukey</span><span class="p">(</span><span class="n">num_perseg</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
+<span class="n">psd_freqs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfftfreq</span><span class="p">(</span><span class="n">num_perseg</span><span class="p">,</span> <span class="n">d</span><span class="o">=</span><span class="mf">1.</span><span class="o">/</span><span class="n">f_samp</span><span class="p">)</span>
+<span class="n">norm</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">/</span> <span class="n">f_samp</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">tukey_window</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">tukey_window</span><span class="o">*</span><span class="n">windows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span>
+<span class="n">psd</span> <span class="o">=</span> <span class="n">norm</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">tukey_window</span><span class="o">*</span><span class="n">windows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="n">Sn</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">psd_freqs</span><span class="p">,</span> <span class="n">psd</span><span class="p">,</span> <span class="n">bounds_error</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">psd_freqs</span><span class="p">,</span> <span class="n">psd</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2000</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">1.0e-48</span><span class="p">,</span> <span class="mf">1.0e-37</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Frequency $f$ [Hz]&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;PSD $S_n(f)$ [1/Hz]&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Welch PSD Estimate&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/filtering_and_glitch_removal_12_0.png" src="_images/filtering_and_glitch_removal_12_0.png" />
+</div>
+</div>
+<p>We can now use this PSD to whitened the analysis data. At the same time we also further bandpass filter the data by setting all frequency components outside the range <span class="math notranslate nohighlight">\(10&lt;f&lt;1000\)</span> to zero.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">analysis_data_FD</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">analysis_data</span><span class="p">)</span> <span class="o">/</span> <span class="n">f_samp</span>
+
+<span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="mf">10.0</span><span class="o">&lt;</span><span class="n">psd_freqs</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">psd_freqs</span> <span class="o">&lt;</span><span class="mf">1000.0</span><span class="p">)</span>
+<span class="n">analysis_data_FD</span><span class="p">[</span><span class="o">~</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+<span class="n">analysis_data_FD</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">Sn</span><span class="p">(</span><span class="n">psd_freqs</span><span class="p">)</span><span class="o">*</span><span class="n">f_samp</span><span class="p">)</span>
+
+<span class="n">analysis_data_whitened</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">irfft</span><span class="p">(</span><span class="n">analysis_data_FD</span><span class="p">)</span> <span class="o">*</span> <span class="n">f_samp</span>
+</pre></div>
+</div>
+</div>
+<p>In the plot of the whitened data you can still only see the glitch.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">analysis_times</span><span class="o">-</span><span class="n">trigger_time</span><span class="p">,</span> <span class="n">analysis_data_whitened</span><span class="o">*</span><span class="n">tukey_window</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Time from August 17, 2017 12:41:04 UTC [s]&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Strain&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;LIGO Livingston data around GW170817&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mi">100</span><span class="p">,</span><span class="mi">120</span><span class="p">)</span>
+<span class="n">axins</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">inset_axes</span><span class="p">([</span><span class="mf">0.15</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">,</span> <span class="mf">0.45</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">],</span>
+                      <span class="n">xlim</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="o">-</span><span class="mi">19</span><span class="p">),</span> <span class="n">ylim</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">yticks</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">],</span> <span class="n">yticklabels</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">])</span>
+<span class="n">axins</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">analysis_times</span><span class="o">-</span><span class="n">trigger_time</span><span class="p">,</span> <span class="n">analysis_data_whitened</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">indicate_inset_zoom</span><span class="p">(</span><span class="n">axins</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/filtering_and_glitch_removal_16_0.png" src="_images/filtering_and_glitch_removal_16_0.png" />
+</div>
+</div>
+<p>Now let us perform a similar analysis in the time-frequency domain using WDM wavelets.</p>
+<p>We will continue to use the 32 long segments of data with the same Tukey window applied. We will split each segment into <span class="math notranslate nohighlight">\(N_f=256\)</span> frequency slices, and <span class="math notranslate nohighlight">\(N_t=N/N_f=512\)</span> time slices.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">wdm</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mf">1.</span><span class="o">/</span><span class="n">f_samp</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">num_perseg</span><span class="p">)</span>
+
+<span class="n">t_nm</span><span class="p">,</span> <span class="n">f_nm</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">wavelet_central_time_frequency</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nt</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nf</span><span class="p">))</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">wdm</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+WDM_transform(Nf=256, N=131072, q=16, d=4, A_frac=0.25, calc_m0=False)
+self.Nt = 512 time cells
+self.Nf = 256 frequency cells
+self.dT = 0.0625 time resolution
+self.dF = 8.0 frequency resolution
+self.K = 8192 window length
+</pre></div></div>
+</div>
+<p>We can use the off source data to estimate the covariance matrix of the wavelet coefficients. This is analogous to the frequency-domain Welch periodogram.</p>
+<p>The noise is assumed to be a Gaussian locally stationary wavelet processes meaning the wavelet coefficients satisfy</p>
+<div class="math notranslate nohighlight" id="equation-filtering-and-glitch-removal-0">
+<span class="eqno">(56)<a class="headerlink" href="#equation-filtering-and-glitch-removal-0" title="Link to this equation"></a></span>\[\left&lt; w_{nm} w_{n'm'} \right&gt; = C_{(nm)(n'm')} ,\]</div>
+<p>where</p>
+<div class="math notranslate nohighlight" id="equation-filtering-and-glitch-removal-1">
+<span class="eqno">(57)<a class="headerlink" href="#equation-filtering-and-glitch-removal-1" title="Link to this equation"></a></span>\[C_{(nm)(n'm')} = S_{nm} \delta_{nn'} \delta_{mm'} .\]</div>
+<p>Note, by performing this averaging we are still assuming that the instrumental noise is stationary. If you wanted to go beyond this assumption you would have to introduce some kind of model for the time dependence of the noise and fit this to the data. This is not done here.</p>
+<p>(Note, the <code class="docutils literal notranslate"><span class="pre">.dwt</span></code> method is vectorised and computes all the discrete wavelet transfroms at once.)</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">wavelet_covariance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">dwt</span><span class="p">(</span><span class="n">tukey_window</span><span class="o">*</span><span class="n">windows</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>We can visualise this wavelet coefficient covariance matrix in several ways:</p>
+<ul class="simple">
+<li><p>as a function of frequency; this corresponding to plotting rows of the matrix <span class="math notranslate nohighlight">\(S_{nm}\)</span> for several fixed <span class="math notranslate nohighlight">\(n\)</span>.</p></li>
+<li><p>as a function of time; this corresponding to plotting columns of the matrix <span class="math notranslate nohighlight">\(S_{nm}\)</span> for several fixed <span class="math notranslate nohighlight">\(m\)</span>.</p></li>
+<li><p>as a function of time and frequency; this plots the whole matrix using <code class="docutils literal notranslate"><span class="pre">imshow</span></code>.</p></li>
+</ul>
+<p>These three figures are shown below.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">ncols</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">384</span><span class="p">]):</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">f_nm</span><span class="p">[</span><span class="mi">0</span><span class="p">,:],</span> <span class="n">wavelet_covariance</span><span class="p">[</span><span class="n">i</span><span class="p">,:]</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+                   <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;t=</span><span class="si">{</span><span class="n">t_nm</span><span class="p">[</span><span class="n">t_idx</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">,</span>
+                   <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;--&#39;</span><span class="p">,</span><span class="s1">&#39;-.&#39;</span><span class="p">,</span><span class="s1">&#39;:&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">f_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span><span class="mi">13</span><span class="p">,</span><span class="mi">125</span><span class="p">]):</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">f_nm</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">f_idx</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;C</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2000</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">1.0e-50</span><span class="p">,</span> <span class="mf">1.0e-41</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Frequency $f$ [Hz]&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$S_</span><span class="si">{nm}</span><span class="s1">$ [1/Hz]&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Wavelet $S_</span><span class="si">{nm}</span><span class="s2">$ frequency slice&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;lower left&#39;</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">f_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span><span class="mi">13</span><span class="p">,</span><span class="mi">125</span><span class="p">]):</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t_nm</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span> <span class="n">wavelet_covariance</span><span class="p">[:,</span><span class="n">f_idx</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+                        <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;f=</span><span class="si">{</span><span class="n">f_nm</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="n">f_idx</span><span class="p">]</span><span class="si">}</span><span class="s2">Hz&quot;</span><span class="p">,</span>
+                        <span class="n">color</span><span class="o">=</span><span class="s1">&#39;C</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="mi">128</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">384</span><span class="p">]):</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">t_nm</span><span class="p">[</span><span class="n">t_idx</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;--&#39;</span><span class="p">,</span><span class="s1">&#39;-.&#39;</span><span class="p">,</span><span class="s1">&#39;:&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Time $t$ [s]&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$S_</span><span class="si">{nm}</span><span class="s1">$ [1/Hz]&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Wavelet $S_</span><span class="si">{nm}</span><span class="s2">$ time slice&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;lower right&#39;</span><span class="p">,</span> <span class="n">framealpha</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">im</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">wavelet_covariance</span><span class="o">.</span><span class="n">T</span><span class="p">),</span> <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">num_perseg</span><span class="o">/</span><span class="n">f_samp</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">f_samp</span><span class="p">],</span> <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">)</span>
+<span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mf">0.02</span><span class="p">)</span>
+<span class="n">cbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$\log_</span><span class="si">{10}</span><span class="s1">\, S_</span><span class="si">{nm}</span><span class="s1">$ [1/Hz]&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">t_nm</span><span class="p">[::</span><span class="mi">50</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">f_nm</span><span class="p">[</span><span class="mi">1</span><span class="p">,::</span><span class="mi">30</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Time $t$ [s]&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Frequency $f$ [Hz]&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -280,49 +390,30 @@ Splitting data in 142 segements with 131072 samples per segment. The signal is i
 <div class="nboutput docutils container">
 <div class="prompt empty docutils container">
 </div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-/var/folders/qj/mhy_bkdx1n7dy8knwlxg3fqw0000gn/T/ipykernel_71150/751887108.py:2: RuntimeWarning: divide by zero encountered in log10
-  ax.imshow(np.log10(S.T), extent=[0., num_perseg/f_samp, 0., 0.5*f_samp], aspect=&#39;auto&#39;)
-</pre></div></div>
+<div class="output_area docutils container">
+<img alt="_images/filtering_and_glitch_removal_22_0.png" src="_images/filtering_and_glitch_removal_22_0.png" />
+</div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="_images/filtering_and_glitch_removal_14_1.png" src="_images/filtering_and_glitch_removal_14_1.png" />
+<img alt="_images/filtering_and_glitch_removal_22_1.png" src="_images/filtering_and_glitch_removal_22_1.png" />
 </div>
 </div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[44]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">S</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
-
-<span class="n">whitened</span> <span class="o">=</span> <span class="n">overlapping_data_TF</span><span class="p">[</span><span class="n">idx</span><span class="p">,:,:]</span><span class="o">/</span><span class="n">S</span>
-
-<span class="n">whitened</span><span class="p">[</span><span class="o">~</span><span class="n">bandpass</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[45]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">t_cells</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">wavelet_central_time_frequency</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nt</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nf</span><span class="p">))</span>
-
-<span class="n">glitch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">t_cells</span><span class="o">&gt;</span><span class="mf">29.8</span><span class="p">,</span> <span class="n">t_cells</span><span class="o">&lt;</span><span class="mf">30.9</span><span class="p">)</span>
-
-<span class="n">whitened</span><span class="p">[</span><span class="n">glitch</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
-</pre></div>
-</div>
-</div>
+<p>Now we can take the wavelet transform of the analysis data. We can plot these coefficients using <code class="docutils literal notranslate"><span class="pre">imshow</span></code> to get a visual time-frequency representation of the signal.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[47]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">plotting</span><span class="o">.</span><span class="n">time_frequency_plot</span><span class="p">(</span><span class="n">wdm</span><span class="p">,</span> <span class="n">whitened</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">500</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.plotting.plotting</span><span class="w"> </span><span class="kn">import</span> <span class="n">time_frequency_plot</span>
+
+<span class="n">wavelet_w</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">dwt</span><span class="p">(</span><span class="n">analysis_data</span><span class="o">*</span><span class="n">tukey_window</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">time_frequency_plot</span><span class="p">(</span><span class="n">wdm</span><span class="p">,</span> <span class="n">wavelet_w</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s1">&#39;abs&#39;</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Time from August 17, 2017 12:41:04 UTC [s]&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Frequency $f$ [Hz]&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">500</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -331,22 +422,51 @@ Splitting data in 142 segements with 131072 samples per segment. The signal is i
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="_images/filtering_and_glitch_removal_17_0.png" src="_images/filtering_and_glitch_removal_17_0.png" />
+<img alt="_images/filtering_and_glitch_removal_24_0.png" src="_images/filtering_and_glitch_removal_24_0.png" />
+</div>
+</div>
+<p>Now that we have inferred the wavelet coefficient covariance matrix from the off-source data, we can use this to analyse the analysis data.</p>
+<p>We define the wavelet-whitened time series as</p>
+<div class="math notranslate nohighlight" id="equation-filtering-and-glitch-removal-2">
+<span class="eqno">(58)<a class="headerlink" href="#equation-filtering-and-glitch-removal-2" title="Link to this equation"></a></span>\[\hat{x}(t) = \sum_n\sum_n\frac{w_{nm}}{\sqrt{S_{nm}}}g_{nm}(t) .\]</div>
+<p>As well as whitening we can also perform bandpass filtering an glitch removal. We will set to zero all the wavelet coefficients <span class="math notranslate nohighlight">\(w_{nm}\)</span> whose frequencies are not in the range <span class="math notranslate nohighlight">\(20&lt;f_{nm}/\mathrm{Hz}&lt;1000\)</span>. And we will set to zero all the wavelet coefficients <span class="math notranslate nohighlight">\(w_{nm}\)</span> whose times are in the range <span class="math notranslate nohighlight">\(29.8&lt;t_{nm}/\mathrm{s}&lt;30.9\)</span>.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">wavelet_w_whitened</span> <span class="o">=</span> <span class="n">wavelet_w</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">wavelet_covariance</span><span class="p">)</span>
+</pre></div>
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[48]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">whitened_TD</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">whitened</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">bandpass</span> <span class="o">=</span> <span class="p">(</span><span class="n">f_nm</span><span class="o">&gt;</span><span class="mi">20</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">f_nm</span><span class="o">&lt;</span><span class="mi">1000</span><span class="p">)</span>
+<span class="n">wavelet_w_whitened_bandpassfiltered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">wavelet_w</span><span class="p">)</span>
+<span class="n">wavelet_w_whitened_bandpassfiltered</span><span class="p">[</span><span class="n">bandpass</span><span class="p">]</span> <span class="o">=</span> <span class="n">wavelet_w_whitened</span><span class="p">[</span><span class="n">bandpass</span><span class="p">]</span>
 </pre></div>
 </div>
 </div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">deglitch</span> <span class="o">=</span> <span class="p">(</span><span class="n">t_nm</span><span class="o">&lt;</span><span class="mf">29.8</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">t_nm</span><span class="o">&gt;</span><span class="mf">30.9</span><span class="p">)</span>
+<span class="n">wavelet_w_whitened_bandpassfiltered_deglitched</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">wavelet_w</span><span class="p">)</span>
+<span class="n">wavelet_w_whitened_bandpassfiltered_deglitched</span><span class="p">[</span><span class="n">deglitch</span><span class="p">]</span> <span class="o">=</span> <span class="n">wavelet_w_whitened_bandpassfiltered</span><span class="p">[</span><span class="n">deglitch</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<p>In this representation of the data the chirping time-frequency track of the GW signal can be seen.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">whitened_TD</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">time_frequency_plot</span><span class="p">(</span><span class="n">wdm</span><span class="p">,</span> <span class="n">wavelet_w_whitened_bandpassfiltered_deglitched</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s1">&#39;abs&#39;</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Time from August 17, 2017 12:41:04 UTC [s]&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Frequency $f$ [Hz]&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">500</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -355,7 +475,30 @@ Splitting data in 142 segements with 131072 samples per segment. The signal is i
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="_images/filtering_and_glitch_removal_19_0.png" src="_images/filtering_and_glitch_removal_19_0.png" />
+<img alt="_images/filtering_and_glitch_removal_30_0.png" src="_images/filtering_and_glitch_removal_30_0.png" />
+</div>
+</div>
+<p>We can now transform this wavelet-whitened, filtered and deglitched analysis data back into the time domain.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">clean_data</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">wavelet_w_whitened_bandpassfiltered_deglitched</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">analysis_times</span><span class="o">-</span><span class="n">trigger_time</span><span class="p">,</span> <span class="n">clean_data</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Time from August 17, 2017 12:41:04 UTC [s]&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Cleaned data&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Cleaned GW170817 Data&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="_images/filtering_and_glitch_removal_32_0.png" src="_images/filtering_and_glitch_removal_32_0.png" />
 </div>
 </div>
 <div class="nbinput nblast docutils container">
