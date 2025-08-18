@@ -5,6 +5,6 @@ from .code.utils import Meyer, utils
 
 from .code.plotting import plotting
 
-from .code.periodogram import periodogram
+from .code.noise import periodogram
 
 from .code.discrete_wavelet_transform import WDM
