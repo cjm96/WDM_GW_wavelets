@@ -81,9 +81,3 @@ python -m pytest
 # Authors
 
 Christopher J. Moore
-
-
-# To Do List
-
- - GW170817 data processing notebook (inc. a type of periodogram)
- - GPU test and doc.
