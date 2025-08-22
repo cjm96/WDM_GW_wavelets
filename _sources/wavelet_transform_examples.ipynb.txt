@@ -5,7 +5,9 @@
    "id": "296625ef",
    "metadata": {},
    "source": [
-    "# Examples of wavelet transforms"
+    "# Examples of wavelet transforms\n",
+    "\n",
+    "This notebook contains plots for a few simple time series showing them in the time (left), frequency (middle) and wavelet time-frequency (right) domains."
    ]
   },
   {
