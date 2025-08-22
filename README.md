@@ -81,3 +81,11 @@ python -m pytest
 # Authors
 
 Christopher J. Moore
+
+
+# TO DO
+
+ - diag cov matrix noise testing in wavelet basis
+ - noise docs
+ - relating Snm to S(f) when stationary - add this to filtering demo
+ - long duration signal in ET - time dependent response function. (f_samp~1024, f_high~500)
