@@ -40,3 +40,4 @@ dmypy.json
 
 # large data files
 data/*.txt
+data/*.h5

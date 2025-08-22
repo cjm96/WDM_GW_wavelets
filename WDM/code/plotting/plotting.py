@@ -9,7 +9,8 @@ from typing import Tuple
 
 
 def time_domain_plot(wdm : WDM_transform, 
-                     x: jnp.ndarray) -> Tuple[plt.Figure, plt.Axes]:
+                     x: jnp.ndarray,
+                     figax: Tuple = ()) -> Tuple[plt.Figure, plt.Axes]:
     r"""
     Plot the time-domain signal.
 
@@ -19,6 +20,9 @@ def time_domain_plot(wdm : WDM_transform,
         The WDM transform object.
     x : jnp.ndarray
         Array shape (N,). Input time-domain signal to be plotted.
+    figax : Tuple, optional
+        A tuple (fig, ax) containing the figure and axes to plot on.
+        If not provided, a new figure and axes will be created.
 
     Returns
     -------
@@ -35,7 +39,11 @@ def time_domain_plot(wdm : WDM_transform,
     assert x.shape == (wdm.N,), \
                 f"Input signal must have shape ({wdm.N},), got {x.shape=}"
     
-    fig, ax = plt.subplots()
+    if figax == ():
+        fig, ax = plt.subplots()
+    else:
+        fig, ax = figax
+
     ax.plot(wdm.times, x)
     ax.set_xlabel(r'Time $t$')
     ax.set_ylabel(r'Signal $x(t)$')
@@ -43,7 +51,8 @@ def time_domain_plot(wdm : WDM_transform,
 
 
 def frequency_domain_plot(wdm : WDM_transform, 
-                          x: jnp.ndarray) -> Tuple[plt.Figure, plt.Axes]:
+                          x: jnp.ndarray,
+                          figax: Tuple = ()) -> Tuple[plt.Figure, plt.Axes]:
     r"""
     Plot the frequency-domain signal.
 
@@ -53,6 +62,9 @@ def frequency_domain_plot(wdm : WDM_transform,
         The WDM transform object.
     x : jnp.ndarray
         Array shape (N,). Input time-domain signal to be plotted.
+    figax : Tuple, optional
+        A tuple (fig, ax) containing the figure and axes to plot on.
+        If not provided, a new figure and axes will be created.
 
     Returns
     -------
@@ -69,10 +81,14 @@ def frequency_domain_plot(wdm : WDM_transform,
     assert x.shape == (wdm.N,), \
                 f"Input signal must have shape ({wdm.N},), got {x.shape=}"
     
-    data = jnp.abs(jnp.fft.fft(x))
-    mask = wdm.freqs >= 0.
+    data = jnp.abs(jnp.fft.fftshift(jnp.fft.fft(x)))
+    mask = wdm.freqs > 0.
 
-    fig, ax = plt.subplots()
+    if figax == ():
+        fig, ax = plt.subplots()
+    else:
+        fig, ax = figax
+
     ax.loglog(wdm.freqs[mask], data[mask])
     ax.set_xlabel(r'Frequency $f$')
     ax.set_ylabel(r'Signal $|\tilde{X}(f)|$')
@@ -81,6 +97,7 @@ def frequency_domain_plot(wdm : WDM_transform,
 
 def time_frequency_plot(wdm : WDM_transform, 
                         w: jnp.ndarray, 
+                        figax: Tuple = (),
                         part='abs',
                         scale='linear') -> Tuple[plt.Figure, plt.Axes]:
     r"""
@@ -92,6 +109,9 @@ def time_frequency_plot(wdm : WDM_transform,
         The WDM transform object.
     w : jnp.ndarray of shape (Nt, Nf)
         WDM time-frequency coefficients to be plotted.
+    figax : Tuple, optional
+        A tuple (fig, ax) containing the figure and axes to plot on.
+        If not provided, a new figure and axes will be created.
     part : str
         Part of the coefficients to plot. Options are 'abs' for magnitude, 
         'real', or 'imag'. Default is 'abs'. Optional.
@@ -127,7 +147,11 @@ def time_frequency_plot(wdm : WDM_transform,
         raise ValueError(f"Invalid {part=}. " + 
                             "Choose 'abs', 'real', or 'imag'.")
 
-    fig, ax = plt.subplots()
+    if figax == ():
+        fig, ax = plt.subplots()
+    else:
+        fig, ax = figax
+
     if scale == 'linear':
         im = ax.imshow(data.T, aspect='auto', origin='lower', 
                     extent=[0., wdm.T, 0., wdm.f_Ny], cmap='jet')
