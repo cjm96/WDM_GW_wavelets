@@ -238,7 +238,7 @@
    "source": [
     "Top hat pulse\n",
     "\n",
-    "$$ x(t) = \\theta\\left(t-t_c+\\frac{w}{2}\\right) - \\theta\\left(t-t_c-\\frac{w}{2}\\right) $$"
+    "$$ x(t) = \\Theta\\left(t-t_c+\\frac{w}{2}\\right) - \\Theta\\left(t-t_c-\\frac{w}{2}\\right) $$"
    ]
   },
   {
@@ -283,7 +283,7 @@
    "source": [
     "Narrow top hat pulse\n",
     "\n",
-    "$$ x(t) = \\theta\\left(t-t_c+\\frac{w}{2}\\right) - \\theta\\left(t-t_c-\\frac{w}{2}\\right) $$"
+    "$$ x(t) = \\Theta\\left(t-t_c+\\frac{w}{2}\\right) - \\Theta\\left(t-t_c-\\frac{w}{2}\\right) $$"
    ]
   },
   {
