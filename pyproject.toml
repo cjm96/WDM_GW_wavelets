@@ -36,4 +36,3 @@ docs = [
 ]
 
 [tool.setuptools]
-packages = ["WDM"]
