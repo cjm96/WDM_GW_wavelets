@@ -626,6 +626,96 @@
         <span class="k">return</span> <span class="n">gnm</span></div>
 
     
+<div class="viewcode-block" id="WDM_transform.gnm_basis_allm">
+<a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm_basis_allm">[docs]</a>
+    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">gnm_basis_allm</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method compute the time-domain basis wavelets using the expressions</span>
+
+<span class="sd">        .. math::</span>
+<span class="sd">            g_{nm}(t) = \begin{cases}</span>
+<span class="sd">            \sqrt{2} \cos\left(\frac{\pi m (t-n\Delta T)}{\Delta T}\right) </span>
+<span class="sd">                \phi(t-n\Delta T) &amp; \mathrm{if}\;n+m\;\mathrm{even} \\</span>
+<span class="sd">            \sqrt{2} (-1)^{mn} \sin\left(\frac{\pi m (t-n\Delta T)}{\Delta T}\right) </span>
+<span class="sd">                \phi(t-n\Delta T) &amp; \mathrm{if}\;n+m\;\mathrm{odd}</span>
+<span class="sd">            \end{cases}  ,</span>
+
+<span class="sd">        for ALL m, including m=0. These _allm basis wavelets only agree with the </span>
+<span class="sd">        true WDM basis wavelets computed using `gnm_basis` for m&gt;0. </span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        basis : jnp.ndarray </span>
+<span class="sd">            Array of shape (N, Nt, Nf). The time-domain wavelet basis.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
+        <span class="n">m_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
+        <span class="n">k_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">temp_func</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span>
+            <span class="n">shift</span> <span class="o">=</span> <span class="p">((</span><span class="n">n</span><span class="o">+</span><span class="n">m</span><span class="p">)</span><span class="o">%</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mf">2.</span>
+            <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">n</span><span class="o">*</span><span class="n">m</span><span class="p">)</span> <span class="o">*</span> \
+                        <span class="n">jnp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">m</span><span class="o">*</span><span class="n">k_vals</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="o">-</span><span class="n">shift</span><span class="p">)</span> <span class="o">*</span> \
+                            <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[(</span><span class="n">k_vals</span><span class="o">-</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">]</span>
+
+        <span class="n">f_vmapped</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">temp_func</span><span class="p">,</span> 
+                                    <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">)),</span> 
+                            <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+
+        <span class="n">basis</span> <span class="o">=</span> <span class="n">f_vmapped</span><span class="p">(</span><span class="n">n_vals</span><span class="p">,</span> <span class="n">m_vals</span><span class="p">)</span>
+        <span class="n">basis</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">basis</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">basis</span></div>
+
+
+<div class="viewcode-block" id="WDM_transform.gnm_basis_comp_allm">
+<a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm_basis_comp_allm">[docs]</a>
+    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">gnm_basis_comp_allm</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method compute the time-domain basis complementary wavelets using </span>
+<span class="sd">        the expressions</span>
+
+<span class="sd">        .. math::</span>
+<span class="sd">            g_{nm}(t) = \begin{cases}</span>
+<span class="sd">            \sqrt{2} \sin\left(\frac{\pi m (t-n\Delta T)}{\Delta T}\right) </span>
+<span class="sd">                \phi(t-n\Delta T) &amp; \mathrm{if}\;n+m\;\mathrm{even} \\</span>
+<span class="sd">            \sqrt{2} (-1)^{mn} \cos\left(\frac{\pi m (t-n\Delta T)}{\Delta T}\right) </span>
+<span class="sd">                \phi(t-n\Delta T) &amp; \mathrm{if}\;n+m\;\mathrm{odd}</span>
+<span class="sd">            \end{cases}  ,</span>
+
+<span class="sd">        for ALL m, including m=0. </span>
+
+<span class="sd">        The standard and complementary wavelet bases are related by a time shift </span>
+<span class="sd">        of $\frac{1}{2}\Delta T$ and contain identical information; see the </span>
+<span class="sd">        discussion in V. Necula et al. (2012).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        basis : jnp.ndarray </span>
+<span class="sd">            Array of shape (N, Nt, Nf). The time-domain wavelet basis.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
+        <span class="n">m_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
+        <span class="n">k_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">temp_func</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">):</span>
+            <span class="n">shift</span> <span class="o">=</span> <span class="p">((</span><span class="n">n</span><span class="o">+</span><span class="n">m</span><span class="p">)</span><span class="o">%</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mf">2.</span>
+            <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">n</span><span class="o">*</span><span class="n">m</span><span class="p">)</span> <span class="o">*</span> \
+                        <span class="n">jnp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">m</span><span class="o">*</span><span class="n">k_vals</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="o">+</span><span class="n">shift</span><span class="p">)</span> <span class="o">*</span> \
+                            <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[(</span><span class="n">k_vals</span><span class="o">-</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">]</span>
+
+        <span class="n">f_vmapped</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">temp_func</span><span class="p">,</span> 
+                                    <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">)),</span> 
+                            <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+
+        <span class="n">basis</span> <span class="o">=</span> <span class="n">f_vmapped</span><span class="p">(</span><span class="n">n_vals</span><span class="p">,</span> <span class="n">m_vals</span><span class="p">)</span>
+        <span class="n">basis</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">basis</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">basis</span></div>
+
+    
 <div class="viewcode-block" id="WDM_transform.gnm_basis">
 <a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.gnm_basis">[docs]</a>
     <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
