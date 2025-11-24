@@ -417,6 +417,17 @@ class WDM_transform:
 
         return Gnm
     
+    def Gnm_dual(self,
+                 n : int, 
+                 m : int) -> jnp.ndarray:
+        r""" 
+        This method compute the frequency-domain dual basis wavelets 
+        :math:`\hat{g}_{nm}(t)` using the following expressions,
+
+        NOT IMPLEMENTED YET
+        """
+        raise NotImplementedError("Gnm_dual method not implemented yet.")
+    
     @partial(jax.jit, static_argnums=0)
     def Gnm_basis(self) -> jnp.ndarray:
         r"""
@@ -514,90 +525,51 @@ class WDM_transform:
         gnm = jnp.fft.ifft(jnp.fft.ifftshift(Gnm)).real / self.dt
 
         return gnm
-    
+
     @partial(jax.jit, static_argnums=0)
-    def gnm_basis_allm(self) -> jnp.ndarray:
+    def gnm_dual(self, 
+                 n : int, 
+                 m : int) -> jnp.ndarray:
         r"""
-        This method compute the time-domain basis wavelets using the expressions
+        This method compute the time-domain dual basis wavelets 
+        :math:`\hat{g}_{nm}(t)` using the following expressions,
 
         .. math::
-            g_{nm}(t) = \begin{cases}
-            \sqrt{2} \cos\left(\frac{\pi m (t-n\Delta T)}{\Delta T}\right) 
-                \phi(t-n\Delta T) & \mathrm{if}\;n+m\;\mathrm{even} \\
-            \sqrt{2} (-1)^{mn} \sin\left(\frac{\pi m (t-n\Delta T)}{\Delta T}\right) 
-                \phi(t-n\Delta T) & \mathrm{if}\;n+m\;\mathrm{odd}
-            \end{cases}  ,
+            \hat{g}_{nm}(t) = \begin{cases}
+                    \sqrt{2} (-1)^{nm}
+                        \sin\left(\frac{\pi m t}{\Delta T}\right) 
+                            \phi(t-n\Delta T) 
+                                & \mathrm{if}\;n+m\;\mathrm{even} \\
+                    \sqrt{2} 
+                        \cos\left(\frac{\pi m t}{\Delta T}\right) 
+                            \phi(t-n\Delta T) 
+                                & \mathrm{if}\;n+m\;\mathrm{odd}
+            \end{cases} .
 
-        for ALL m, including m=0. These _allm basis wavelets only agree with the 
-        true WDM basis wavelets computed using `gnm_basis` for m>0. 
+        These expressions are used for all :math:`m`, including for :math:`m=0`. 
+        Therefore, this only gives the correct results for :math:`m>0`.
+
+        Parameters
+        ----------
+        n : int
+            Wavelet time index.
+        m : int
+            Wavelet frequency index.
 
         Returns
         -------
-        basis : jnp.ndarray 
-            Array of shape (N, Nt, Nf). The time-domain wavelet basis.
+        ghat_nm : jnp.ndarray 
+            Array of shape (N,). The time-domain wavelet basis.
         """
-        n_vals = jnp.arange(self.Nt)
-        m_vals = jnp.arange(self.Nf)
         k_vals = jnp.arange(self.N)
 
-        def temp_func(n, m):
-            shift = ((n+m)%2) * jnp.pi/2.
-            return jnp.sqrt(2.) * (-1)**(n*m) * \
-                        jnp.cos(jnp.pi*m*k_vals/self.Nf-shift) * \
-                            self.window_TD[(k_vals-n*self.Nf)%self.N]
+        shift = ((n+m)%2) * jnp.pi/2.
 
-        f_vmapped = jax.vmap(jax.vmap(temp_func, 
-                                    in_axes=(None, 0)), 
-                            in_axes=(0, None))
+        ghat_nm = jnp.sqrt(2.) * (-1)**(n*m) * \
+                    jnp.sin(jnp.pi*m*k_vals/self.Nf + shift) * \
+                        self.window_TD[(k_vals-n*self.Nf)%self.N]
 
-        basis = f_vmapped(n_vals, m_vals)
-        basis = jnp.transpose(basis, (2, 0, 1))
-
-        return basis
-
-    @partial(jax.jit, static_argnums=0)
-    def gnm_basis_comp_allm(self) -> jnp.ndarray:
-        r"""
-        This method compute the time-domain basis complementary wavelets using 
-        the expressions
-
-        .. math::
-            g_{nm}(t) = \begin{cases}
-            \sqrt{2} \sin\left(\frac{\pi m (t-n\Delta T)}{\Delta T}\right) 
-                \phi(t-n\Delta T) & \mathrm{if}\;n+m\;\mathrm{even} \\
-            \sqrt{2} (-1)^{mn} \cos\left(\frac{\pi m (t-n\Delta T)}{\Delta T}\right) 
-                \phi(t-n\Delta T) & \mathrm{if}\;n+m\;\mathrm{odd}
-            \end{cases}  ,
-
-        for ALL m, including m=0. 
-
-        The standard and complementary wavelet bases are related by a time shift 
-        of $\frac{1}{2}\Delta T$ and contain identical information; see the 
-        discussion in V. Necula et al. (2012).
-
-        Returns
-        -------
-        basis : jnp.ndarray 
-            Array of shape (N, Nt, Nf). The time-domain wavelet basis.
-        """
-        n_vals = jnp.arange(self.Nt)
-        m_vals = jnp.arange(self.Nf)
-        k_vals = jnp.arange(self.N)
-
-        def temp_func(n, m):
-            shift = ((n+m)%2) * jnp.pi/2.
-            return jnp.sqrt(2.) * (-1)**(n*m) * \
-                        jnp.sin(jnp.pi*m*k_vals/self.Nf+shift) * \
-                            self.window_TD[(k_vals-n*self.Nf)%self.N]
-
-        f_vmapped = jax.vmap(jax.vmap(temp_func, 
-                                    in_axes=(None, 0)), 
-                            in_axes=(0, None))
-
-        basis = f_vmapped(n_vals, m_vals)
-        basis = jnp.transpose(basis, (2, 0, 1))
-
-        return basis
+        return ghat_nm
     
     @partial(jax.jit, static_argnums=0)
     def gnm_basis(self) -> jnp.ndarray:

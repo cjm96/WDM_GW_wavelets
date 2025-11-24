@@ -293,6 +293,32 @@ The time-domain WDM wavelets :math:`g_{nm}(t)` are implemented in
 
 
 
+Dual Wavelets
+-------------
+
+There is still some ambiguity in the definition of the WDM wavelet basis.
+Time shifting the WDM wavelet basis by :math:`\Delta T/2` gives a complementary, 
+or dual, wavelet basis :math:`\hat{g}_{nm}(t)` which spans exacly the same 
+space as the original basis. For :math:`m>0`, this basis is given by
+
+.. math::
+
+   \hat{g}_{nm}(t) = \begin{cases} 
+                        \sqrt{2} (-1)^{nm} 
+                           \sin\left(\frac{\pi m t}{\Delta T}\right)
+                              \phi(t-n\Delta T) 
+                                 & \mathrm{if}\;n+m\;\mathrm{even} \\
+                        \sqrt{2} 
+                           \cos\left(\frac{\pi m t}{\Delta T}\right) 
+                              \phi(t-n\Delta T) 
+                                 & \mathrm{if}\;n+m\;\mathrm{odd} \\
+                     \end{cases} .
+
+This dual basis spans exactly the same space as the original WDM wavelets 
+:math:`g_{nm}(t)` defined above; see discussion in Ref. [1]_.
+
+
+
 The Discrete Wavelet Transform
 ------------------------------
 
