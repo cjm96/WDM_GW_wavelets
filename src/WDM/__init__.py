@@ -8,3 +8,5 @@ from .code.plotting import plotting
 from .code.noise import periodogram
 
 from .code.discrete_wavelet_transform import WDM
+
+from .code.time_delay_filters import filters

@@ -20,6 +20,7 @@ The project lives on `GitHub <https://github.com/cjm96/WDM_GW_wavelets>`_.
    :caption: Mathematical Background:
 
    theory
+   time_delay_filters
 
 
 .. toctree::

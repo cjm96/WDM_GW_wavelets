@@ -1,6 +1,6 @@
-=======================
-Mathematical Background
-=======================
+================================
+Introduction to the WDM Wavelets
+================================
 
 This section describes the mathematical background to the WDM wavelet transform.
 
