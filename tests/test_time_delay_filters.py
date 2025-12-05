@@ -84,7 +84,7 @@ def test_filter_X_expressions():
     
     delta_t = 0.5 * wdm.dT
 
-    boundary = 12  # to avoid edge effects
+    boundary = 12 # avoid periodic edge effects not captured by interpolation
 
     for n in range(boundary, wdm.Nt - boundary):
         for m in range(wdm.Nf):
@@ -110,9 +110,3 @@ def test_filter_X_expressions():
                             f" n={n}, m={m}, n'={n_}, m'={m_}, delta_t={delta_t}: " + \
                             f"X_expression={X_expression}, X_direct_integral={X_direct_integral}"
 
-
-    
-
-    print()
-
-    
