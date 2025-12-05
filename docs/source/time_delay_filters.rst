@@ -42,11 +42,11 @@ The main results for the general case when :math:`m\neq 0` and :math:`m'\neq 0` 
 
 .. math::
 
-    X_{nn';m(m\pm 1)}(\delta t) = \mathrm{Re} \bigg\{ (-1)^{(n-n')m} (-i)^{n-n'} 
-                            \exp\left(2\pi i (m\pm\frac{1}{2}) \Delta F \delta t\right) 
+    X_{nn';m(m\pm 1)}(\delta t) = \mathrm{Re} \bigg\{ (-1)^{(n-n')m} (\mp i)^{n-n'} 
+                            \exp\left(2\pi i \left(m\pm\frac{1}{2}\right) \Delta F \delta t\right) 
                             C^*_{nm} C_{n'(m\pm 1)} T'_{n-n'}(\delta t) \bigg\} ,
 
-where time-delay filters :math:`T_{\ell}(\delta t)` and :math:`T'_{\ell}(\delta t)` are
+where the time-delay filters :math:`T_{\ell}(\delta t)` and :math:`T'_{\ell}(\delta t)` are
 defined as
 
 .. math::
