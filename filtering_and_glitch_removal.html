@@ -49,7 +49,8 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Mathematical Background:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="theory.html">Mathematical Background</a></li>
+<li class="toctree-l1"><a class="reference internal" href="theory.html">Introduction to the WDM Wavelets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="time_delay_filters.html">Time-Delay Filters</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
 <ul class="current">
@@ -62,6 +63,7 @@
 <li class="toctree-l2"><a class="reference internal" href="accuracy_truncated_transform.html">Exploring the accuracy of the truncated wavelet transform</a></li>
 <li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">m=0 Wavelet Coefficients</a></li>
 <li class="toctree-l2"><a class="reference internal" href="wavelet_transform_examples.html">Examples of wavelet transforms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="time_delay_filters_demo.html">Time-Delay Filters</a></li>
 </ul>
 </li>
 </ul>
@@ -320,10 +322,10 @@ self.K = 8192 window length
 <p>We can use the off source data to estimate the covariance matrix of the wavelet coefficients. This is analogous to the frequency-domain Welch periodogram.</p>
 <p>The noise is assumed to be a Gaussian locally stationary wavelet processes meaning the wavelet coefficients satisfy</p>
 <div class="math notranslate nohighlight" id="equation-filtering-and-glitch-removal-0">
-<span class="eqno">(58)<a class="headerlink" href="#equation-filtering-and-glitch-removal-0" title="Link to this equation"></a></span>\[\left&lt; w_{nm} w_{n'm'} \right&gt; = C_{(nm)(n'm')} ,\]</div>
+<span class="eqno">(72)<a class="headerlink" href="#equation-filtering-and-glitch-removal-0" title="Link to this equation"></a></span>\[\left&lt; w_{nm} w_{n'm'} \right&gt; = C_{(nm)(n'm')} ,\]</div>
 <p>where</p>
 <div class="math notranslate nohighlight" id="equation-filtering-and-glitch-removal-1">
-<span class="eqno">(59)<a class="headerlink" href="#equation-filtering-and-glitch-removal-1" title="Link to this equation"></a></span>\[C_{(nm)(n'm')} = S_{nm} \delta_{nn'} \delta_{mm'} .\]</div>
+<span class="eqno">(73)<a class="headerlink" href="#equation-filtering-and-glitch-removal-1" title="Link to this equation"></a></span>\[C_{(nm)(n'm')} = S_{nm} \delta_{nn'} \delta_{mm'} .\]</div>
 <p>Note, by performing this averaging we are still assuming that the instrumental noise is stationary. If you wanted to go beyond this assumption you would have to introduce some kind of model for the time dependence of the noise and fit this to the data. This is not done here.</p>
 <p>(Note, the <code class="docutils literal notranslate"><span class="pre">.dwt</span></code> method is vectorised and computes all the discrete wavelet transfroms at once.)</p>
 <div class="nbinput nblast docutils container">
@@ -429,7 +431,7 @@ self.K = 8192 window length
 <p>Now that we have inferred the wavelet coefficient covariance matrix from the off-source data, we can use this to analyse the analysis data.</p>
 <p>We define the wavelet-whitened time series as</p>
 <div class="math notranslate nohighlight" id="equation-filtering-and-glitch-removal-2">
-<span class="eqno">(60)<a class="headerlink" href="#equation-filtering-and-glitch-removal-2" title="Link to this equation"></a></span>\[\hat{x}(t) = \sum_n\sum_n\frac{w_{nm}}{\sqrt{S_{nm}}}g_{nm}(t) .\]</div>
+<span class="eqno">(74)<a class="headerlink" href="#equation-filtering-and-glitch-removal-2" title="Link to this equation"></a></span>\[\hat{x}(t) = \sum_n\sum_n\frac{w_{nm}}{\sqrt{S_{nm}}}g_{nm}(t) .\]</div>
 <p>As well as whitening we can also perform bandpass filtering an glitch removal. We will set to zero all the wavelet coefficients <span class="math notranslate nohighlight">\(w_{nm}\)</span> whose frequencies are not in the range <span class="math notranslate nohighlight">\(20&lt;f_{nm}/\mathrm{Hz}&lt;1000\)</span>. And we will set to zero all the wavelet coefficients <span class="math notranslate nohighlight">\(w_{nm}\)</span> whose times are in the range <span class="math notranslate nohighlight">\(29.8&lt;t_{nm}/\mathrm{s}&lt;30.9\)</span>.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:

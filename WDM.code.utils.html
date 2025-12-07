@@ -48,7 +48,8 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Mathematical Background:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="theory.html">Mathematical Background</a></li>
+<li class="toctree-l1"><a class="reference internal" href="theory.html">Introduction to the WDM Wavelets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="time_delay_filters.html">Time-Delay Filters</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package Contents:</span></p>
 <ul class="current">
@@ -108,7 +109,7 @@
 <span class="sig-prename descclassname"><span class="pre">WDM.code.utils.Meyer.</span></span><span class="sig-name descname"><span class="pre">Meyer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">omega</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">A</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">B</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/utils/Meyer.html#Meyer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.utils.Meyer.Meyer" title="Link to this definition"></a></dt>
 <dd><p>This function evaluates the Meyer-type frequency-domain window function:</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-utils-0">
-<span class="eqno">(56)<a class="headerlink" href="#equation-wdm-code-utils-0" title="Link to this equation"></a></span>\[\begin{split}\Phi(\omega) =
+<span class="eqno">(67)<a class="headerlink" href="#equation-wdm-code-utils-0" title="Link to this equation"></a></span>\[\begin{split}\Phi(\omega) =
     \begin{cases}
     \frac{1}{\sqrt{\Delta \Omega}}, &amp; |\omega| &lt; A \\
     \frac{1}{\sqrt{\Delta \Omega}} \cos\left( \frac{\pi}{2} \,
@@ -146,7 +147,7 @@ The function is symmetric and real-valued.</p>
 <span class="sig-prename descclassname"><span class="pre">WDM.code.utils.Meyer.</span></span><span class="sig-name descname"><span class="pre">nu_d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/utils/Meyer.html#nu_d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.utils.Meyer.nu_d" title="Link to this definition"></a></dt>
 <dd><p>This function evaluates the normalised incomplete beta function.</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-utils-1">
-<span class="eqno">(57)<a class="headerlink" href="#equation-wdm-code-utils-1" title="Link to this equation"></a></span>\[\nu_d(x) = \frac{ \int_0^x \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }
+<span class="eqno">(68)<a class="headerlink" href="#equation-wdm-code-utils-1" title="Link to this equation"></a></span>\[\nu_d(x) = \frac{ \int_0^x \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }
                   { \int_0^1 \mathrm{d}t \, t^{d-1} (1 - t)^{d-1} }\]</div>
 <p>Both the input <cite>x</cite> and output <span class="math notranslate nohighlight">\(\nu_d(x)\)</span> are in the range <cite>[0, 1]</cite>.</p>
 <dl class="field-list simple">
