@@ -14,3 +14,4 @@ The following example notebooks from the repository demonstrate the use of the W
    accuracy_truncated_transform.ipynb
    m_equal_0_terms.ipynb
    wavelet_transform_examples.ipynb
+   time_delay_filters_demo.ipynb

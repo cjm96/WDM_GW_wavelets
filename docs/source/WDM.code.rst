@@ -7,3 +7,5 @@ WDM.code package
    WDM.code.discrete_wavelet_transform
    WDM.code.utils
    WDM.code.plotting
+   WDM.code.time_delay_filters
+   
