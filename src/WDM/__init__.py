@@ -9,4 +9,4 @@ from .code.noise import periodogram
 
 from .code.discrete_wavelet_transform import WDM
 
-from .code.time_delay_filters import filters
+from .code.time_delay_filters import filters, time_shift_fast
