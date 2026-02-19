@@ -225,8 +225,6 @@ def wdm_time_shift_fixed(wdm, w_xi, delta, Nf=None):
     Fixed (constant) time shift in the Eq.(34) orientation:
         w_out[n,m] = sum_{n',m'} w_in[n',m'] * X_{n n'; m m'}(delta)
 
-    Here `delta` is δ in g(t + δ). For a physical delay x(t - Δ), pass delta = -Δ.
-
     This is faster than the variable-δ version because Tl/Tp are computed once.
     """
     Nt, Nm = w_xi.shape
