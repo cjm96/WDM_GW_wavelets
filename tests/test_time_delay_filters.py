@@ -1,11 +1,14 @@
 import jax
 import jax.numpy as jnp
+import numpy as np
+import pytest
 
 import WDM
 from WDM.code.discrete_wavelet_transform import WDM
 from WDM.code.time_delay_filters.filters import time_delay_filter_Tl
 from WDM.code.time_delay_filters.filters import time_delay_filter_Tprimel
 from WDM.code.time_delay_filters.filters import time_delay_X
+from WDM.code.time_delay_filters import time_shift_fast as tsf
 
 from scipy.interpolate import interp1d
 
@@ -109,4 +112,53 @@ def test_filter_X_expressions():
                             "the X coefficients do not match the direct integral!" + \
                             f" n={n}, m={m}, n'={n_}, m'={m_}, delta_t={delta_t}: " + \
                             f"X_expression={X_expression}, X_direct_integral={X_direct_integral}"
+
+
+def test_variable_shift_batch_matches_single_calls():
+    r"""Batch target-mode assembly should match repeated single-job calls."""
+    if not getattr(tsf, "_JAX_AVAILABLE", False):
+        pytest.skip("JAX assembly backend is not available.")
+
+    wdm = WDM.WDM_transform(
+        dt=0.5,
+        Nf=8,
+        N=64,
+        q=4,
+        calc_m0=True,
+    )
+
+    rng = np.random.default_rng(1234)
+    jobs = []
+    for phase in (0.0, 0.3, -0.2):
+        w_xi = rng.normal(size=(wdm.Nt, wdm.Nf)) + 1j * rng.normal(size=(wdm.Nt, wdm.Nf))
+        t_shift = 0.15 * np.sin(np.linspace(0.0, 2.0 * np.pi, wdm.Nt) + phase)
+        jobs.append((w_xi.astype(np.complex128), t_shift.astype(np.float64)))
+
+    batch_out = tsf.wdm_time_shift_variable_batch(
+        wdm,
+        jobs,
+        Nf=wdm.Nf,
+        L_trunc=3,
+        batch_chunk=2,
+        tl_tp_mode="interp",
+        tl_tp_interp_points=16,
+        tl_tp_interp_pad=0.05,
+    )
+    single_out = [
+        tsf.wdm_time_shift_variable(
+            wdm,
+            w_xi,
+            t_shift,
+            Nf=wdm.Nf,
+            L_trunc=3,
+            tl_tp_mode="interp",
+            tl_tp_interp_points=16,
+            tl_tp_interp_pad=0.05,
+        )
+        for w_xi, t_shift in jobs
+    ]
+
+    assert len(batch_out) == len(single_out)
+    for batch_arr, single_arr in zip(batch_out, single_out):
+        assert np.allclose(batch_arr, single_arr, atol=1e-5, rtol=1e-8)
 
