@@ -184,68 +184,114 @@ def _assemble_shift_target_impl(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, 
 _assemble_shift_target_core = jax.jit(_assemble_shift_target_impl, static_argnums=(3,))
 
 
-@jax.jit
 def _assemble_shift_fixed_core(w_xi, delta, ell_all, offset, Tl_vec, Tp_vec, Cnm, dF):
     """JIT kernel for fixed-delay assembly with precomputed Tl/Tp vectors."""
     Nt, Nm = w_xi.shape
+    n_lag = ell_all.shape[0]
     j_neg = (-ell_all) + offset
-    minus1_to_m = jnp.where((jnp.arange(Nm) % 2) == 0, 1.0, -1.0)
 
-    delta_vec = jnp.full_like(ell_all, delta, dtype=jnp.float64)
-    ph_m_all = _phase_m(delta_vec, Nm, dF)
-    ph_mid_all = _phase_mid(delta_vec, Nm, dF)
+    minus1_to_m = jnp.where((jnp.arange(Nm) % 2) == 0, 1.0, -1.0)
+    ell_even = (ell_all % 2) == 0
+    parity = jnp.where(
+        ell_even[:, None],
+        jnp.ones((n_lag, Nm), dtype=jnp.float64),
+        minus1_to_m[None, :],
+    )
+    low_phase = ((-1j) ** (-ell_all)).astype(jnp.complex128)
+    up_phase = ((+1j) ** (-ell_all)).astype(jnp.complex128)
+
+    Tl_j = Tl_vec[j_neg]
+    Tp_j = Tp_vec[j_neg]
+
+    m_full = jnp.arange(Nm, dtype=jnp.float64)
+    ph_m_row = jnp.exp(2j * jnp.pi * (m_full * dF) * delta)
+    if Nm > 1:
+        ph_mid_row = ph_m_row[:-1] * jnp.exp(1j * jnp.pi * dF * delta)
+    else:
+        ph_mid_row = jnp.zeros((0,), dtype=jnp.complex128)
+
+    left = min(offset, Nt)
+    right = max(left, Nt - offset)
+
+    zero_head = jnp.zeros((1,), dtype=jnp.complex128)
+    zero_tail = jnp.zeros((1,), dtype=jnp.complex128)
+
+    def row_accum(p, interior):
+        Cp = Cnm[p, :]
+        Cp_conj = jnp.conj(Cp)
+        carrier_prefac = Cp_conj * ph_m_row
+        if Nm > 1:
+            cp_conj_hi = Cp_conj[1:]
+            cp_conj_lo = Cp_conj[:-1]
+        else:
+            cp_conj_hi = jnp.zeros((0,), dtype=jnp.complex128)
+            cp_conj_lo = jnp.zeros((0,), dtype=jnp.complex128)
+
+        def lag_body(i, row_state):
+            ell = ell_all[i]
+            n = p + ell
+
+            def skip_row(r):
+                return r
+
+            def add_row(r):
+                Cn = Cnm[n, :]
+                w_n = w_xi[n, :]
+
+                carrier = (parity[i, :] * carrier_prefac * Cn * Tl_j[i]).real * w_n
+
+                def add_sidebands(_):
+                    mid_common = Tp_j[i] * ph_mid_row
+                    low_vals = (
+                        parity[i, :-1]
+                        * low_phase[i]
+                        * cp_conj_hi
+                        * Cn[:-1]
+                        * mid_common
+                    ).real * w_n[:-1]
+                    up_vals = (
+                        parity[i, 1:]
+                        * up_phase[i]
+                        * cp_conj_lo
+                        * Cn[1:]
+                        * mid_common
+                    ).real * w_n[1:]
+                    side = zero_side
+                    side = side.at[1:].add(low_vals)
+                    side = side.at[:-1].add(up_vals)
+                    return side
+
+                sidebands = jax.lax.cond(
+                    Nm > 1,
+                    add_sidebands,
+                    lambda _: jnp.zeros((Nm,), dtype=jnp.complex128),
+                    operand=None,
+                )
+                return r + carrier + sidebands
+
+            if interior:
+                return add_row(row_state)
+            return jax.lax.cond((n >= 0) & (n < Nt), add_row, skip_row, row_state)
+
+        row0 = jnp.zeros((Nm,), dtype=jnp.complex128)
+        return jax.lax.fori_loop(0, n_lag, lag_body, row0)
 
     def row_fn(p):
-        n_all = p + ell_all
-        valid = (n_all >= 0) & (n_all < Nt)
-        n_clipped = jnp.clip(n_all, 0, Nt - 1)
-        valid_f = valid.astype(jnp.float64)[:, None]
+        return row_accum(p, False)
 
-        Cp = Cnm[p, :]
-        Cn = Cnm[n_clipped, :]
-        w_n = w_xi[n_clipped, :]
+    def row_fn_interior(p):
+        return row_accum(p, True)
 
-        Tl_j = Tl_vec[j_neg]
-        Tp_j = Tp_vec[j_neg]
+    if left == Nt:
+        return jax.vmap(row_fn)(jnp.arange(Nt))
 
-        ell_even = (ell_all % 2) == 0
-        parity = jnp.where(ell_even[:, None], jnp.ones((1, Nm), dtype=jnp.float64), minus1_to_m[None, :])
-
-        Kc = parity * jnp.conj(Cp)[None, :] * Cn * Tl_j[:, None] * ph_m_all
-        row = jnp.sum(valid_f * Kc.real * w_n, axis=0)
-
-        def add_sidebands(row_in):
-            low_factor = ((-1j) ** (-ell_all)) * Tp_j
-            up_factor = ((+1j) ** (-ell_all)) * Tp_j
-
-            K_low = (
-                parity[:, :-1]
-                * low_factor[:, None]
-                * jnp.conj(Cp[1:])[None, :]
-                * Cn[:, :-1]
-                * ph_mid_all
-            )
-            low_acc = jnp.sum(valid_f * K_low.real * w_n[:, :-1], axis=0)
-
-            K_up = (
-                parity[:, 1:]
-                * up_factor[:, None]
-                * jnp.conj(Cp[:-1])[None, :]
-                * Cn[:, 1:]
-                * ph_mid_all
-            )
-            up_acc = jnp.sum(valid_f * K_up.real * w_n[:, 1:], axis=0)
-
-            row_out = row_in.at[1:].add(low_acc)
-            row_out = row_out.at[:-1].add(up_acc)
-            return row_out
-
-        row = jax.lax.cond(Nm > 1, add_sidebands, lambda r: r, row)
-        return row
-
-    return jax.vmap(row_fn)(jnp.arange(Nt))
+    boundary_left = jax.vmap(row_fn)(jnp.arange(left)) if left > 0 else jnp.zeros((0, Nm), dtype=jnp.complex128)
+    interior_rows = jax.vmap(row_fn_interior)(jnp.arange(left, right)) if right > left else jnp.zeros((0, Nm), dtype=jnp.complex128)
+    boundary_right = jax.vmap(row_fn)(jnp.arange(right, Nt)) if Nt > right else jnp.zeros((0, Nm), dtype=jnp.complex128)
+    return jnp.concatenate((boundary_left, interior_rows, boundary_right), axis=0)
 
 
+_assemble_shift_fixed_core = jax.jit(_assemble_shift_fixed_core, static_argnums=(3,))
 @jax.jit
 def _assemble_shift_variable_mode_core(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF, mode):
     """JIT kernel for variable-delay assembly with selectable delay mode.
