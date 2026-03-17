@@ -256,10 +256,7 @@ def _assemble_shift_fixed_core(w_xi, delta, ell_all, offset, Tl_vec, Tp_vec, Cnm
                         * Cn[1:]
                         * mid_common
                     ).real * w_n[1:]
-                    side = zero_side
-                    side = side.at[1:].add(low_vals)
-                    side = side.at[:-1].add(up_vals)
-                    return side
+                    return jnp.concatenate((zero_head, low_vals)) + jnp.concatenate((up_vals, zero_tail))
 
                 sidebands = jax.lax.cond(
                     Nm > 1,
