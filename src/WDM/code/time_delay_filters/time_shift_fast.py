@@ -1,15 +1,22 @@
 import numpy as np
 
 try:
+    import jax.numpy as jnp
+except Exception:
+    jnp = None
+
+try:
     from ._time_shift_assembly import (
         _assemble_shift_fixed_dispatch,
         _assemble_shift_target_dispatch,
+        _assemble_shift_target_batch_dispatch,
         _assemble_shift_variable_mode_dispatch,
     )
     _JAX_AVAILABLE = True
 except Exception:
     _assemble_shift_fixed_dispatch = None
     _assemble_shift_target_dispatch = None
+    _assemble_shift_target_batch_dispatch = None
     _assemble_shift_variable_mode_dispatch = None
     _JAX_AVAILABLE = False
 
@@ -436,6 +443,135 @@ def _build_TlTp_from_shift_matrix_interp(
     return Tl_all, Tp_all
 
 
+def _build_TlTp_from_shift_matrix_interp_jax(
+    t_shift_mat,
+    freqs_u,
+    W0_u,
+    W1_u,
+    scale,
+    idx,
+    interp_points=64,
+    interp_pad=0.0,
+    interp_kind="linear",
+):
+    """Approximate ``Tl/Tp`` via delay-grid interpolation using JAX array ops.
+
+    Notes
+    -----
+    This path keeps FFT-based grid construction unchanged, but performs the
+    interpolation gather/blend with JAX arrays. It is intended as an optional
+    optimization path for JAX-heavy workflows.
+    """
+    if jnp is None:
+        raise RuntimeError("JAX interpolation backend requested but jax is not available.")
+
+    t_shift_mat = np.asarray(t_shift_mat, dtype=np.float64)
+    if t_shift_mat.ndim != 2:
+        raise ValueError(f"Expected t_shift_mat to have shape (B, Nt), got ndim={t_shift_mat.ndim}")
+
+    flat_shift = t_shift_mat.reshape(-1)
+    if flat_shift.size == 0:
+        raise ValueError("Interpolation requested with empty shift matrix.")
+
+    n_grid = max(2, int(interp_points))
+    t_min = float(np.min(flat_shift))
+    t_max = float(np.max(flat_shift))
+    if not np.isfinite(t_min) or not np.isfinite(t_max):
+        raise ValueError("Non-finite delays detected in t_shift_mat.")
+
+    if t_max == t_min:
+        return _build_TlTp_from_shift_matrix(t_shift_mat, freqs_u, W0_u, W1_u, scale, idx)
+
+    span = t_max - t_min
+    pad = float(interp_pad) * span
+    grid_min = t_min - pad
+    grid_max = t_max + pad
+    if grid_max <= grid_min:
+        return _build_TlTp_from_shift_matrix(t_shift_mat, freqs_u, W0_u, W1_u, scale, idx)
+
+    shift_grid = np.linspace(grid_min, grid_max, n_grid, dtype=np.float64)
+    Tl_grid_np, Tp_grid_np = _build_TlTp_from_shift_matrix(
+        shift_grid[:, None], freqs_u, W0_u, W1_u, scale, idx
+    )
+    Tl_grid = jnp.asarray(Tl_grid_np[:, 0, :], dtype=jnp.complex128)
+    Tp_grid = jnp.asarray(Tp_grid_np[:, 0, :], dtype=jnp.complex128)
+
+    step = (grid_max - grid_min) / float(n_grid - 1)
+    pos = (jnp.asarray(flat_shift, dtype=jnp.float64) - grid_min) / step
+    pos = jnp.clip(pos, 0.0, float(n_grid - 1))
+    idx0 = jnp.floor(pos).astype(jnp.int64)
+    idx0 = jnp.clip(idx0, 0, n_grid - 2)
+    frac = pos - idx0.astype(jnp.float64)
+
+    if interp_kind == "linear":
+        frac_col = frac[:, None]
+        Tl_flat = (1.0 - frac_col) * Tl_grid[idx0, :] + frac_col * Tl_grid[idx0 + 1, :]
+        Tp_flat = (1.0 - frac_col) * Tp_grid[idx0, :] + frac_col * Tp_grid[idx0 + 1, :]
+    elif interp_kind == "cubic":
+        if n_grid < 4:
+            raise ValueError("Cubic interpolation requires interp_points >= 4.")
+        i1 = idx0
+        i0 = jnp.clip(i1 - 1, 0, n_grid - 1)
+        i2 = jnp.clip(i1 + 1, 0, n_grid - 1)
+        i3 = jnp.clip(i1 + 2, 0, n_grid - 1)
+
+        t = frac[:, None]
+        t2 = t * t
+        t3 = t2 * t
+
+        p0_Tl = Tl_grid[i0, :]
+        p1_Tl = Tl_grid[i1, :]
+        p2_Tl = Tl_grid[i2, :]
+        p3_Tl = Tl_grid[i3, :]
+        p0_Tp = Tp_grid[i0, :]
+        p1_Tp = Tp_grid[i1, :]
+        p2_Tp = Tp_grid[i2, :]
+        p3_Tp = Tp_grid[i3, :]
+
+        Tl_flat = 0.5 * (
+            2.0 * p1_Tl
+            + (-p0_Tl + p2_Tl) * t
+            + (2.0 * p0_Tl - 5.0 * p1_Tl + 4.0 * p2_Tl - p3_Tl) * t2
+            + (-p0_Tl + 3.0 * p1_Tl - 3.0 * p2_Tl + p3_Tl) * t3
+        )
+        Tp_flat = 0.5 * (
+            2.0 * p1_Tp
+            + (-p0_Tp + p2_Tp) * t
+            + (2.0 * p0_Tp - 5.0 * p1_Tp + 4.0 * p2_Tp - p3_Tp) * t2
+            + (-p0_Tp + 3.0 * p1_Tp - 3.0 * p2_Tp + p3_Tp) * t3
+        )
+    else:
+        raise ValueError("interp_kind must be 'linear' or 'cubic'.")
+
+    out_shape = t_shift_mat.shape + (idx.shape[0],)
+    Tl_all = np.asarray(Tl_flat).reshape(out_shape)
+    Tp_all = np.asarray(Tp_flat).reshape(out_shape)
+    return Tl_all, Tp_all
+
+
+def _resolve_interp_backend(tl_tp_interp_backend, use_jax):
+    """Resolve interpolation backend name for ``tl_tp_mode='interp'``.
+
+    Parameters
+    ----------
+    tl_tp_interp_backend : str
+        One of ``"numpy"``, ``"jax"``, or ``"auto"``.
+    use_jax : bool
+        Effective JAX usage flag for assembly.
+
+    Returns
+    -------
+    str
+        Resolved backend name, either ``"numpy"`` or ``"jax"``.
+    """
+    backend = str(tl_tp_interp_backend).lower()
+    if backend == "auto":
+        return "jax" if (_JAX_AVAILABLE and bool(use_jax)) else "numpy"
+    if backend not in ("numpy", "jax"):
+        raise ValueError("tl_tp_interp_backend must be 'numpy', 'jax', or 'auto'.")
+    return backend
+
+
 def wdm_time_shift_variable(
     wdm, w_xi, t_shift, Nf=None, delta_mode="target",
     L_trunc=None, Nker=None, safety=1.02,
@@ -446,6 +582,8 @@ def wdm_time_shift_variable(
     tl_tp_interp_points=64,
     tl_tp_interp_pad=0.0,
     tl_tp_interp_kind="linear",
+    tl_tp_interp_backend="numpy",
+    assembly_vmap=False,
 ):
     """
     Apply variable-delay WDM time shifting with optional interpolated ``Tl/Tp``.
@@ -465,6 +603,14 @@ def wdm_time_shift_variable(
         Fractional padding for interpolation grid bounds.
     tl_tp_interp_kind : {"linear", "cubic"}
         Interpolation kernel used when ``tl_tp_mode='interp'``.
+    tl_tp_interp_backend : {"numpy", "jax", "auto"}
+        Backend used for interpolation gather/blend in ``tl_tp_mode='interp'``.
+        ``"numpy"`` preserves legacy behavior. ``"jax"`` uses JAX arrays for
+        interpolation arithmetic. ``"auto"`` selects JAX when available.
+    assembly_vmap : bool
+        If ``True``, JAX assembly maps rows with ``vmap`` for maximum throughput.
+        If ``False`` (default), assembly uses a row loop to reduce peak memory
+        usage on constrained machines.
 
     Notes
     -----
@@ -500,17 +646,31 @@ def wdm_time_shift_variable(
             t_shift[None, :], freqs_u, W0_u, W1_u, scale, idx
         )
     elif tl_tp_mode == "interp":
-        Tl_all_mat, Tp_all_mat = _build_TlTp_from_shift_matrix_interp(
-            t_shift[None, :],
-            freqs_u,
-            W0_u,
-            W1_u,
-            scale,
-            idx,
-            interp_points=tl_tp_interp_points,
-            interp_pad=tl_tp_interp_pad,
-            interp_kind=tl_tp_interp_kind,
-        )
+        backend = _resolve_interp_backend(tl_tp_interp_backend, use_jax=use_jax)
+        if backend == "jax":
+            Tl_all_mat, Tp_all_mat = _build_TlTp_from_shift_matrix_interp_jax(
+                t_shift[None, :],
+                freqs_u,
+                W0_u,
+                W1_u,
+                scale,
+                idx,
+                interp_points=tl_tp_interp_points,
+                interp_pad=tl_tp_interp_pad,
+                interp_kind=tl_tp_interp_kind,
+            )
+        else:
+            Tl_all_mat, Tp_all_mat = _build_TlTp_from_shift_matrix_interp(
+                t_shift[None, :],
+                freqs_u,
+                W0_u,
+                W1_u,
+                scale,
+                idx,
+                interp_points=tl_tp_interp_points,
+                interp_pad=tl_tp_interp_pad,
+                interp_kind=tl_tp_interp_kind,
+            )
     else:
         raise ValueError("tl_tp_mode must be 'exact' or 'interp'.")
 
@@ -520,7 +680,7 @@ def wdm_time_shift_variable(
     Cnm = _get_Cnm_parity(Nt, Nm, dtype=np.complex128)
     if delta_mode == "target":
         return _assemble_shift_target_dispatch(
-            wdm, w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm=Cnm, use_jax=use_jax
+            wdm, w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm=Cnm, use_jax=use_jax, assembly_vmap=assembly_vmap
         )
 
     return _assemble_shift_variable_mode_dispatch(
@@ -534,6 +694,7 @@ def wdm_time_shift_variable(
         Cnm=Cnm,
         use_jax=use_jax,
         delta_mode=delta_mode,
+        assembly_vmap=assembly_vmap,
     )
 
 
@@ -551,6 +712,9 @@ def wdm_time_shift_variable_batch(
     tl_tp_interp_points=64,
     tl_tp_interp_pad=0.0,
     tl_tp_interp_kind="linear",
+    tl_tp_interp_backend="numpy",
+    assembly_vmap=False,
+    jax_pad_last_chunk=False,
 ):
     """Apply variable target-mode WDM time shifts for multiple jobs at once.
 
@@ -584,6 +748,17 @@ def wdm_time_shift_variable_batch(
         ``tl_tp_mode='interp'``.
     tl_tp_interp_kind : {"linear", "cubic"}, optional
         Interpolation kernel used when ``tl_tp_mode='interp'``.
+    tl_tp_interp_backend : {"numpy", "jax", "auto"}, optional
+        Backend used for interpolation gather/blend in ``tl_tp_mode='interp'``.
+        ``"numpy"`` preserves legacy behavior. ``"jax"`` uses JAX arrays for
+        interpolation arithmetic. ``"auto"`` selects JAX when available.
+    assembly_vmap : bool, optional
+        If ``True``, JAX assembly maps rows with ``vmap``. ``False`` (default)
+        reduces peak memory usage at the cost of some throughput.
+    jax_pad_last_chunk : bool, optional
+        When using JAX with ``assembly_vmap=True``, pad the final short chunk to
+        ``batch_chunk`` rows by repeating the last row so every chunk keeps the
+        same shape. This can reduce JIT retracing in some workloads.
 
     Notes
     -----
@@ -629,42 +804,78 @@ def wdm_time_shift_variable_batch(
         t_arrays.append(t_shift)
 
     out = [None] * len(shift_jobs)
-    chunk = max(1, int(batch_chunk))
+    chunk = len(shift_jobs) if batch_chunk is None else max(1, int(batch_chunk))
+    interp_backend = _resolve_interp_backend(tl_tp_interp_backend, use_jax=use_jax)
 
     for k0 in range(0, len(shift_jobs), chunk):
         k1 = min(k0 + chunk, len(shift_jobs))
         t_shift_mat = np.stack(t_arrays[k0:k1], axis=0)
+        w_chunk = np.stack(w_arrays[k0:k1], axis=0)
+        true_batch = k1 - k0
+
+        should_pad = (
+            bool(use_jax)
+            and bool(assembly_vmap)
+            and bool(jax_pad_last_chunk)
+            and (len(shift_jobs) > chunk)
+            and (true_batch < chunk)
+        )
+        if should_pad:
+            pad_rows = chunk - true_batch
+            t_pad = np.repeat(t_shift_mat[-1:, :], pad_rows, axis=0)
+            w_pad = np.repeat(w_chunk[-1:, :, :], pad_rows, axis=0)
+            t_shift_work = np.concatenate((t_shift_mat, t_pad), axis=0)
+            w_work = np.concatenate((w_chunk, w_pad), axis=0)
+        else:
+            t_shift_work = t_shift_mat
+            w_work = w_chunk
+
         if tl_tp_mode == "exact":
             Tl_batch, Tp_batch = _build_TlTp_from_shift_matrix(
-                t_shift_mat, freqs_u, W0_u, W1_u, scale, idx
+                t_shift_work, freqs_u, W0_u, W1_u, scale, idx
             )
         elif tl_tp_mode == "interp":
-            Tl_batch, Tp_batch = _build_TlTp_from_shift_matrix_interp(
-                t_shift_mat,
-                freqs_u,
-                W0_u,
-                W1_u,
-                scale,
-                idx,
-                interp_points=tl_tp_interp_points,
-                interp_pad=tl_tp_interp_pad,
-                interp_kind=tl_tp_interp_kind,
-            )
+            if interp_backend == "jax":
+                Tl_batch, Tp_batch = _build_TlTp_from_shift_matrix_interp_jax(
+                    t_shift_work,
+                    freqs_u,
+                    W0_u,
+                    W1_u,
+                    scale,
+                    idx,
+                    interp_points=tl_tp_interp_points,
+                    interp_pad=tl_tp_interp_pad,
+                    interp_kind=tl_tp_interp_kind,
+                )
+            else:
+                Tl_batch, Tp_batch = _build_TlTp_from_shift_matrix_interp(
+                    t_shift_work,
+                    freqs_u,
+                    W0_u,
+                    W1_u,
+                    scale,
+                    idx,
+                    interp_points=tl_tp_interp_points,
+                    interp_pad=tl_tp_interp_pad,
+                    interp_kind=tl_tp_interp_kind,
+                )
         else:
             raise ValueError("tl_tp_mode must be 'exact' or 'interp'.")
 
-        for j in range(k1 - k0):
-            out[k0 + j] = _assemble_shift_target_dispatch(
-                wdm,
-                w_arrays[k0 + j],
-                t_arrays[k0 + j],
-                ell_all,
-                offset,
-                Tl_batch[j],
-                Tp_batch[j],
-                Cnm=Cnm,
-                use_jax=use_jax,
-            )
+        shifted_chunk = _assemble_shift_target_batch_dispatch(
+            wdm,
+            w_work,
+            t_shift_work,
+            ell_all,
+            offset,
+            Tl_batch,
+            Tp_batch,
+            Cnm=Cnm,
+            use_jax=use_jax,
+            assembly_vmap=assembly_vmap,
+        )
+        for j in range(true_batch):
+            out[k0 + j] = shifted_chunk[j]
 
     return out
 
@@ -678,6 +889,7 @@ def wdm_time_shift_fixed_batch(
     safety=1.02,
     kernel_kwargs=None,
     use_jax=None,
+    assembly_vmap=False,
 ):
     """Apply fixed WDM time shifts for multiple jobs using shared kernel precomputes.
 
@@ -697,6 +909,9 @@ def wdm_time_shift_fixed_batch(
         Safety factor used for automatic ``Nker`` sizing.
     kernel_kwargs : dict or None, optional
         Extra kwargs forwarded to kernel-WDM construction.
+    assembly_vmap : bool, optional
+        If ``True``, JAX assembly maps rows with ``vmap``. ``False`` (default)
+        reduces peak memory usage at the cost of some throughput.
 
     Returns
     -------
@@ -756,6 +971,7 @@ def wdm_time_shift_fixed_batch(
             Tp_all[i],
             Cnm=Cnm,
             use_jax=use_jax,
+            assembly_vmap=assembly_vmap,
         )
 
     return out

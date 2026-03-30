@@ -11,6 +11,35 @@ import jax
 import jax.numpy as jnp
 
 
+def _map_rows_range(row_fn, start, stop, Nm, use_vmap):
+    """Evaluate ``row_fn`` for rows ``[start, stop)`` with optional ``vmap``.
+
+    Parameters
+    ----------
+    row_fn : callable
+        Function mapping row index ``p`` to a ``(Nm,)`` row.
+    start, stop : int
+        Half-open row index interval.
+    Nm : int
+        Number of frequency bins (row width).
+    use_vmap : bool
+        When true, evaluate rows with ``jax.vmap``. When false, use
+        ``lax.fori_loop`` row-by-row to reduce peak memory usage.
+    """
+    n_rows = max(0, int(stop) - int(start))
+    if n_rows == 0:
+        return jnp.zeros((0, Nm), dtype=jnp.complex128)
+    if use_vmap:
+        return jax.vmap(row_fn)(jnp.arange(start, stop))
+
+    def body(i, arr):
+        p = start + i
+        return arr.at[i, :].set(row_fn(p))
+
+    out0 = jnp.zeros((n_rows, Nm), dtype=jnp.complex128)
+    return jax.lax.fori_loop(0, n_rows, body, out0)
+
+
 def _phase_m(delta_vec, Nm, dF):
     """Return full-bin phase factors ``exp(i 2 pi m dF delta)``.
 
@@ -117,7 +146,7 @@ def _accumulate_target_row(p, w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cn
     return jax.lax.fori_loop(0, n_lag, lag_body, row0)
 
 
-def _assemble_shift_target_impl(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF):
+def _assemble_shift_target_impl(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF, use_vmap):
     """JIT kernel for target-mode variable-delay assembly.
 
     For each output row ``p``, the delay and Tl/Tp vectors are taken from the
@@ -173,18 +202,18 @@ def _assemble_shift_target_impl(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, 
         )
 
     if left == Nt:
-        return jax.vmap(row_fn)(jnp.arange(Nt))
+        return _map_rows_range(row_fn, 0, Nt, Nm, use_vmap)
 
-    boundary_left = jax.vmap(row_fn)(jnp.arange(left)) if left > 0 else jnp.zeros((0, Nm), dtype=jnp.complex128)
-    interior_rows = jax.vmap(row_fn_interior)(jnp.arange(left, right)) if right > left else jnp.zeros((0, Nm), dtype=jnp.complex128)
-    boundary_right = jax.vmap(row_fn)(jnp.arange(right, Nt)) if Nt > right else jnp.zeros((0, Nm), dtype=jnp.complex128)
+    boundary_left = _map_rows_range(row_fn, 0, left, Nm, use_vmap)
+    interior_rows = _map_rows_range(row_fn_interior, left, right, Nm, use_vmap)
+    boundary_right = _map_rows_range(row_fn, right, Nt, Nm, use_vmap)
     return jnp.concatenate((boundary_left, interior_rows, boundary_right), axis=0)
 
 
-_assemble_shift_target_core = jax.jit(_assemble_shift_target_impl, static_argnums=(3,))
+_assemble_shift_target_core = jax.jit(_assemble_shift_target_impl, static_argnums=(3, 8))
 
 
-def _assemble_shift_fixed_core(w_xi, delta, ell_all, offset, Tl_vec, Tp_vec, Cnm, dF):
+def _assemble_shift_fixed_impl(w_xi, delta, ell_all, offset, Tl_vec, Tp_vec, Cnm, dF, use_vmap):
     """JIT kernel for fixed-delay assembly with precomputed Tl/Tp vectors."""
     Nt, Nm = w_xi.shape
     n_lag = ell_all.shape[0]
@@ -280,17 +309,18 @@ def _assemble_shift_fixed_core(w_xi, delta, ell_all, offset, Tl_vec, Tp_vec, Cnm
         return row_accum(p, True)
 
     if left == Nt:
-        return jax.vmap(row_fn)(jnp.arange(Nt))
+        return _map_rows_range(row_fn, 0, Nt, Nm, use_vmap)
 
-    boundary_left = jax.vmap(row_fn)(jnp.arange(left)) if left > 0 else jnp.zeros((0, Nm), dtype=jnp.complex128)
-    interior_rows = jax.vmap(row_fn_interior)(jnp.arange(left, right)) if right > left else jnp.zeros((0, Nm), dtype=jnp.complex128)
-    boundary_right = jax.vmap(row_fn)(jnp.arange(right, Nt)) if Nt > right else jnp.zeros((0, Nm), dtype=jnp.complex128)
+    boundary_left = _map_rows_range(row_fn, 0, left, Nm, use_vmap)
+    interior_rows = _map_rows_range(row_fn_interior, left, right, Nm, use_vmap)
+    boundary_right = _map_rows_range(row_fn, right, Nt, Nm, use_vmap)
     return jnp.concatenate((boundary_left, interior_rows, boundary_right), axis=0)
 
 
-_assemble_shift_fixed_core = jax.jit(_assemble_shift_fixed_core, static_argnums=(3,))
-@jax.jit
-def _assemble_shift_variable_mode_core(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF, mode):
+_assemble_shift_fixed_core = jax.jit(_assemble_shift_fixed_impl, static_argnums=(3, 8))
+
+
+def _assemble_shift_variable_mode_impl(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF, mode, use_vmap):
     """JIT kernel for variable-delay assembly with selectable delay mode.
 
     Parameters
@@ -380,10 +410,13 @@ def _assemble_shift_variable_mode_core(w_xi, t_shift, ell_all, offset, Tl_all, T
         row = jax.lax.cond(Nm > 1, add_sidebands, lambda r: r, row)
         return row
 
-    return jax.vmap(row_fn)(jnp.arange(Nt))
+    return _map_rows_range(row_fn, 0, Nt, Nm, use_vmap)
 
 
-def assemble_shift_target_jax(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF):
+_assemble_shift_variable_mode_core = jax.jit(_assemble_shift_variable_mode_impl, static_argnums=(8, 9))
+
+
+def assemble_shift_target_jax(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF, assembly_vmap=False):
     """Assemble target-mode variable-delay shift using JAX kernels.
 
     Returns
@@ -400,11 +433,88 @@ def assemble_shift_target_jax(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cn
         jnp.asarray(Tp_all, dtype=jnp.complex128),
         jnp.asarray(Cnm, dtype=jnp.complex128),
         float(dF),
+        bool(assembly_vmap),
     )
     return np.asarray(out)
 
 
-def assemble_shift_fixed_jax(w_xi, delta, ell_all, offset, Tl_vec, Tp_vec, Cnm, dF):
+def _assemble_shift_target_batch_impl(w_xi_batch, t_shift_batch, ell_all, offset, Tl_batch, Tp_batch, Cnm, dF, assembly_vmap):
+    """JIT kernel for batched target-mode variable-delay assembly.
+
+    Parameters
+    ----------
+    w_xi_batch : jax.Array
+        Batch of WDM arrays with shape ``(B, Nt, Nm)``.
+    t_shift_batch : jax.Array
+        Batch of delay arrays with shape ``(B, Nt)``.
+    Tl_batch, Tp_batch : jax.Array
+        Batch of precomputed ``Tl/Tp`` arrays with shape ``(B, Nt, n_lag)``.
+    assembly_vmap : bool
+        Controls row mapping strategy inside each item (see
+        ``assemble_shift_target_jax``).
+    """
+    B, Nt, Nm = w_xi_batch.shape
+
+    if assembly_vmap:
+        def one_item(w_xi, t_shift, Tl_all, Tp_all):
+            return _assemble_shift_target_impl(
+                w_xi,
+                t_shift,
+                ell_all,
+                offset,
+                Tl_all,
+                Tp_all,
+                Cnm,
+                dF,
+                True,
+            )
+
+        return jax.vmap(one_item)(w_xi_batch, t_shift_batch, Tl_batch, Tp_batch)
+
+    def body(i, out):
+        row = _assemble_shift_target_impl(
+            w_xi_batch[i],
+            t_shift_batch[i],
+            ell_all,
+            offset,
+            Tl_batch[i],
+            Tp_batch[i],
+            Cnm,
+            dF,
+            False,
+        )
+        return out.at[i, :, :].set(row)
+
+    out0 = jnp.zeros((B, Nt, Nm), dtype=jnp.complex128)
+    return jax.lax.fori_loop(0, B, body, out0)
+
+
+_assemble_shift_target_batch_core = jax.jit(_assemble_shift_target_batch_impl, static_argnums=(3, 8))
+
+
+def assemble_shift_target_batch_jax(w_xi_batch, t_shift_batch, ell_all, offset, Tl_batch, Tp_batch, Cnm, dF, assembly_vmap=False):
+    """Assemble batched target-mode variable-delay shifts using JAX kernels.
+
+    Returns
+    -------
+    numpy.ndarray
+        Shifted WDM coefficients with shape ``(B, Nt, Nm)``.
+    """
+    out = _assemble_shift_target_batch_core(
+        jnp.asarray(w_xi_batch, dtype=jnp.complex128),
+        jnp.asarray(t_shift_batch, dtype=jnp.float64),
+        jnp.asarray(ell_all, dtype=jnp.int64),
+        int(offset),
+        jnp.asarray(Tl_batch, dtype=jnp.complex128),
+        jnp.asarray(Tp_batch, dtype=jnp.complex128),
+        jnp.asarray(Cnm, dtype=jnp.complex128),
+        float(dF),
+        bool(assembly_vmap),
+    )
+    return np.asarray(out)
+
+
+def assemble_shift_fixed_jax(w_xi, delta, ell_all, offset, Tl_vec, Tp_vec, Cnm, dF, assembly_vmap=False):
     """Assemble fixed-delay shift using JAX kernels.
 
     Returns
@@ -421,11 +531,12 @@ def assemble_shift_fixed_jax(w_xi, delta, ell_all, offset, Tl_vec, Tp_vec, Cnm, 
         jnp.asarray(Tp_vec, dtype=jnp.complex128),
         jnp.asarray(Cnm, dtype=jnp.complex128),
         float(dF),
+        bool(assembly_vmap),
     )
     return np.asarray(out)
 
 
-def assemble_shift_variable_mode_jax(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF, delta_mode):
+def assemble_shift_variable_mode_jax(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF, delta_mode, assembly_vmap=False):
     """Assemble variable-delay shift for ``target``, ``source``, or ``midpoint``.
 
     Parameters
@@ -448,5 +559,6 @@ def assemble_shift_variable_mode_jax(w_xi, t_shift, ell_all, offset, Tl_all, Tp_
         jnp.asarray(Cnm, dtype=jnp.complex128),
         float(dF),
         int(mode_map[delta_mode]),
+        bool(assembly_vmap),
     )
     return np.asarray(out)
