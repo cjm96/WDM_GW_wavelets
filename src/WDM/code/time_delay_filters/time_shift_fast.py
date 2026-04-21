@@ -680,7 +680,16 @@ def wdm_time_shift_variable(
     Cnm = _get_Cnm_parity(Nt, Nm, dtype=np.complex128)
     if delta_mode == "target":
         return _assemble_shift_target_dispatch(
-            wdm, w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm=Cnm, use_jax=use_jax, assembly_vmap=assembly_vmap
+            wdm,
+            w_xi,
+            t_shift,
+            ell_all,
+            offset,
+            Tl_all,
+            Tp_all,
+            Cnm=Cnm,
+            use_jax=use_jax,
+            assembly_vmap=assembly_vmap,
         )
 
     return _assemble_shift_variable_mode_dispatch(
