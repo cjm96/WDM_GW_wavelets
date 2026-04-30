@@ -78,11 +78,13 @@ def _normalize_assembly_backend(backend):
     key = str(backend).lower()
     if key in ("lagfirst_chunked", "chunked", "auto"):
         return "lagfirst_chunked"
+    if key in ("lagfirst_chunked_lagblock", "lagblock", "lagfirst_lagblock"):
+        return "lagfirst_chunked_lagblock"
     if key in ("legacy", "row", "lagfirst_row"):
         return "legacy"
     if key == "vmap":
         return "vmap"
-    raise ValueError("assembly_backend must be lagfirst_chunked, legacy, row, lagfirst_row, vmap, or auto.")
+    raise ValueError("assembly_backend must be lagfirst_chunked, lagfirst_chunked_lagblock, legacy, row, lagfirst_row, vmap, or auto.")
 
 
 def _resolve_assembly_backend(assembly_backend, assembly_vmap):
@@ -101,6 +103,16 @@ def _validate_row_chunk_size(row_chunk_size):
     if row_chunk_size < 1:
         raise ValueError("row_chunk_size must be >= 1.")
     return row_chunk_size
+
+
+def _validate_lag_block_size(lag_block_size):
+    try:
+        lag_block_size = int(lag_block_size)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("lag_block_size must be a positive integer.") from exc
+    if lag_block_size < 1:
+        raise ValueError("lag_block_size must be >= 1.")
+    return lag_block_size
 
 
 def _kernel_cache_key(wdm_data, Nker, Nf, d, q, calc_m0, extra_kwargs):
@@ -630,6 +642,7 @@ def wdm_time_shift_variable(
     assembly_backend=None,
     assembly_precision="complex64",
     row_chunk_size=128,
+    lag_block_size=1,
     assembly_vmap=None,
 ):
     """
@@ -654,16 +667,19 @@ def wdm_time_shift_variable(
         Backend used for interpolation gather/blend in ``tl_tp_mode='interp'``.
         ``"numpy"`` preserves legacy behavior. ``"jax"`` uses JAX arrays for
         interpolation arithmetic. ``"auto"`` selects JAX when available.
-    assembly_backend : {"lagfirst_chunked", "legacy", "row", "lagfirst_row", "vmap", "auto"}
+    assembly_backend : {"lagfirst_chunked", "lagfirst_chunked_lagblock", "legacy", "row", "lagfirst_row", "vmap", "auto"}
         Selects the target-mode assembly backend. When omitted, the default
-        is ``"lagfirst_chunked"`` (fastest dense backend). ``"legacy"``/``"row"``
-        keep the older row-first implementation. ``"vmap"`` uses the older
-        vmap-based route.
+        is ``"lagfirst_chunked"`` (fastest dense backend). ``"lagfirst_chunked_lagblock"``
+        (alias ``"lagblock"``) processes lags in blocks for potential improvements.
+        ``"legacy"``/``"row"`` keep the older row-first implementation. ``"vmap"`` 
+        uses the older vmap-based route.
     assembly_precision : {"complex64", "complex128", "float32", "float64"}
         Precision used for the chunked backend. ``"complex64"`` is the fast
         mode; ``"complex128"`` is the faithful exact mode.
     row_chunk_size : int
         Row chunk size used by the chunked backend (default 128).
+    lag_block_size : int
+        Lag block size used by the lag-blocked backend (default 1).
     assembly_vmap : bool or None
         Legacy flag selecting vmap assembly when ``assembly_backend`` is not
         provided. When ``assembly_backend`` is set, this flag is ignored.
@@ -736,6 +752,7 @@ def wdm_time_shift_variable(
     resolved_backend = _resolve_assembly_backend(assembly_backend, assembly_vmap)
     precision = _normalize_assembly_precision(assembly_precision)
     row_chunk_size = _validate_row_chunk_size(row_chunk_size)
+    lag_block_size = _validate_lag_block_size(lag_block_size)
 
     if delta_mode == "target":
         cnm_dtype = np.complex64 if precision == "complex64" else np.complex128
@@ -753,6 +770,7 @@ def wdm_time_shift_variable(
             assembly_backend=resolved_backend,
             assembly_precision=precision,
             row_chunk_size=row_chunk_size,
+            lag_block_size=lag_block_size,
             assembly_vmap=assembly_vmap,
         )
 
@@ -796,6 +814,7 @@ def wdm_time_shift_variable_batch(
     assembly_backend=None,
     assembly_precision="complex64",
     row_chunk_size=128,
+    lag_block_size=1,
     assembly_vmap=None,
     jax_pad_last_chunk=False,
 ):
@@ -835,13 +854,16 @@ def wdm_time_shift_variable_batch(
         Backend used for interpolation gather/blend in ``tl_tp_mode='interp'``.
         ``"numpy"`` preserves legacy behavior. ``"jax"`` uses JAX arrays for
         interpolation arithmetic. ``"auto"`` selects JAX when available.
-    assembly_backend : {"lagfirst_chunked", "legacy", "row", "lagfirst_row", "vmap", "auto"}
+    assembly_backend : {"lagfirst_chunked", "lagfirst_chunked_lagblock", "legacy", "row", "lagfirst_row", "vmap", "auto"}
         Selects the target-mode assembly backend. When omitted, the default is
-        ``"lagfirst_chunked"``. ``"legacy"``/``"row"`` keep the older path.
+        ``"lagfirst_chunked"``. ``"lagfirst_chunked_lagblock"`` (alias ``"lagblock"``)
+        processes lags in blocks. ``"legacy"``/``"row"`` keep the older path.
     assembly_precision : {"complex64", "complex128", "float32", "float64"}
         Precision used by the chunked backend.
     row_chunk_size : int, optional
         Row chunk size used by the chunked backend.
+    lag_block_size : int, optional
+        Lag block size used by the lag-blocked backend (default 1).
     assembly_vmap : bool or None, optional
         Legacy flag selecting vmap assembly when ``assembly_backend`` is not
         provided.
@@ -882,6 +904,7 @@ def wdm_time_shift_variable_batch(
     resolved_backend = _resolve_assembly_backend(assembly_backend, assembly_vmap)
     precision = _normalize_assembly_precision(assembly_precision)
     row_chunk_size = _validate_row_chunk_size(row_chunk_size)
+    lag_block_size = _validate_lag_block_size(lag_block_size)
     cnm_dtype = np.complex64 if precision == "complex64" else np.complex128
     Cnm = _get_Cnm_parity(Nt, Nm, dtype=cnm_dtype)
 
@@ -969,6 +992,7 @@ def wdm_time_shift_variable_batch(
             assembly_backend=resolved_backend,
             assembly_precision=precision,
             row_chunk_size=row_chunk_size,
+            lag_block_size=lag_block_size,
             assembly_vmap=assembly_vmap,
         )
         for j in range(true_batch):

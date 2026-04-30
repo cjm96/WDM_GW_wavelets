@@ -297,3 +297,350 @@ def test_variable_shift_chunked_batch_matches_loop():
     for batch_arr, single_arr in zip(batch_out, single_out):
         assert np.allclose(batch_arr, single_arr, atol=1e-6, rtol=1e-5)
 
+
+# Tests for the new lagblock backend
+def test_lagblock_backend_single_job_c128():
+    """Lagblock backend should match lagfirst_chunked baseline in complex128 mode."""
+    if not getattr(tsf, "_JAX_AVAILABLE", False):
+        pytest.skip("JAX assembly backend is not available.")
+
+    wdm = WDM.WDM_transform(
+        dt=0.5,
+        Nf=16,
+        N=256,
+        q=4,
+        calc_m0=True,
+    )
+
+    rng = np.random.default_rng(5000)
+    w_xi = rng.normal(size=(wdm.Nt, wdm.Nf)) + 1j * rng.normal(size=(wdm.Nt, wdm.Nf))
+    t_shift = 0.12 * np.sin(np.linspace(0.0, 2.0 * np.pi, wdm.Nt))
+
+    # Reference: current lagfirst_chunked
+    out_reference = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked",
+        assembly_precision="complex128",
+        row_chunk_size=32,
+    )
+
+    # Test: lagblock with lag_block_size=1 (should match reference)
+    out_lagblock_1 = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked_lagblock",
+        assembly_precision="complex128",
+        row_chunk_size=32,
+        lag_block_size=1,
+    )
+
+    # Should be near machine precision
+    rel_l2 = np.linalg.norm(out_lagblock_1 - out_reference) / np.linalg.norm(out_reference)
+    max_abs = np.max(np.abs(out_lagblock_1 - out_reference))
+    assert rel_l2 < 1e-12, f"lag_block_size=1: rel_l2={rel_l2:.2e} exceeds 1e-12"
+    assert max_abs < 1e-11, f"lag_block_size=1: max_abs={max_abs:.2e} exceeds 1e-11"
+
+    # Test with various lag block sizes
+    for lag_block_size in [2, 4, 8]:
+        out_lagblock = tsf.wdm_time_shift_variable(
+            wdm,
+            w_xi.astype(np.complex128),
+            t_shift.astype(np.float64),
+            Nf=wdm.Nf,
+            L_trunc=3,
+            tl_tp_mode="exact",
+            assembly_backend="lagfirst_chunked_lagblock",
+            assembly_precision="complex128",
+            row_chunk_size=32,
+            lag_block_size=lag_block_size,
+        )
+        rel_l2 = np.linalg.norm(out_lagblock - out_reference) / np.linalg.norm(out_reference)
+        max_abs = np.max(np.abs(out_lagblock - out_reference))
+        assert rel_l2 < 1e-12, f"lag_block_size={lag_block_size}: rel_l2={rel_l2:.2e} exceeds 1e-12"
+        assert max_abs < 1e-11, f"lag_block_size={lag_block_size}: max_abs={max_abs:.2e} exceeds 1e-11"
+
+
+def test_lagblock_backend_single_job_c64():
+    """Lagblock backend should match lagfirst_chunked baseline in complex64 mode."""
+    if not getattr(tsf, "_JAX_AVAILABLE", False):
+        pytest.skip("JAX assembly backend is not available.")
+
+    wdm = WDM.WDM_transform(
+        dt=0.5,
+        Nf=16,
+        N=256,
+        q=4,
+        calc_m0=True,
+    )
+
+    rng = np.random.default_rng(5001)
+    w_xi = rng.normal(size=(wdm.Nt, wdm.Nf)) + 1j * rng.normal(size=(wdm.Nt, wdm.Nf))
+    t_shift = 0.12 * np.sin(np.linspace(0.0, 2.0 * np.pi, wdm.Nt))
+
+    # Reference: current lagfirst_chunked in complex64
+    out_reference = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked",
+        assembly_precision="complex64",
+        row_chunk_size=32,
+    )
+
+    # Test: lagblock with lag_block_size=1 in complex64
+    out_lagblock = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked_lagblock",
+        assembly_precision="complex64",
+        row_chunk_size=32,
+        lag_block_size=1,
+    )
+
+    # Should be close in float32 precision
+    rel_l2 = np.linalg.norm(out_lagblock - out_reference) / np.linalg.norm(out_reference)
+    max_abs = np.max(np.abs(out_lagblock - out_reference))
+    assert rel_l2 < 1e-5, f"lag_block_size=1 c64: rel_l2={rel_l2:.2e} exceeds 1e-5"
+    assert max_abs < 1e-4, f"lag_block_size=1 c64: max_abs={max_abs:.2e} exceeds 1e-4"
+
+    # Test with larger lag block size
+    out_lagblock_large = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked_lagblock",
+        assembly_precision="complex64",
+        row_chunk_size=32,
+        lag_block_size=4,
+    )
+    rel_l2 = np.linalg.norm(out_lagblock_large - out_reference) / np.linalg.norm(out_reference)
+    assert rel_l2 < 1e-5, f"lag_block_size=4 c64: rel_l2={rel_l2:.2e} exceeds 1e-5"
+
+
+def test_lagblock_backend_odd_lag_block_boundary():
+    """Lagblock backend should handle partial (non-divisible) lag blocks correctly."""
+    if not getattr(tsf, "_JAX_AVAILABLE", False):
+        pytest.skip("JAX assembly backend is not available.")
+
+    wdm = WDM.WDM_transform(
+        dt=0.5,
+        Nf=16,
+        N=256,
+        q=4,
+        calc_m0=True,
+    )
+
+    rng = np.random.default_rng(5002)
+    w_xi = rng.normal(size=(wdm.Nt, wdm.Nf)) + 1j * rng.normal(size=(wdm.Nt, wdm.Nf))
+    t_shift = 0.12 * np.sin(np.linspace(0.0, 2.0 * np.pi, wdm.Nt))
+
+    # L_trunc=5 gives n_lag=11, not divisible by 4 or 8
+    out_reference = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=5,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked",
+        assembly_precision="complex128",
+        row_chunk_size=32,
+    )
+
+    # Test with lag_block_size that doesn't divide n_lag evenly
+    for lag_block_size in [4, 8]:
+        out_lagblock = tsf.wdm_time_shift_variable(
+            wdm,
+            w_xi.astype(np.complex128),
+            t_shift.astype(np.float64),
+            Nf=wdm.Nf,
+            L_trunc=5,
+            tl_tp_mode="exact",
+            assembly_backend="lagfirst_chunked_lagblock",
+            assembly_precision="complex128",
+            row_chunk_size=32,
+            lag_block_size=lag_block_size,
+        )
+        rel_l2 = np.linalg.norm(out_lagblock - out_reference) / np.linalg.norm(out_reference)
+        max_abs = np.max(np.abs(out_lagblock - out_reference))
+        assert rel_l2 < 1e-12, f"boundary test lag_block_size={lag_block_size}: rel_l2={rel_l2:.2e}"
+        assert max_abs < 1e-11, f"boundary test lag_block_size={lag_block_size}: max_abs={max_abs:.2e}"
+
+
+def test_lagblock_backend_alias_names():
+    """Lagblock backend aliases should all work."""
+    if not getattr(tsf, "_JAX_AVAILABLE", False):
+        pytest.skip("JAX assembly backend is not available.")
+
+    wdm = WDM.WDM_transform(
+        dt=0.5,
+        Nf=8,
+        N=128,
+        q=4,
+        calc_m0=True,
+    )
+
+    rng = np.random.default_rng(5003)
+    w_xi = rng.normal(size=(wdm.Nt, wdm.Nf)) + 1j * rng.normal(size=(wdm.Nt, wdm.Nf))
+    t_shift = 0.1 * np.sin(np.linspace(0.0, 2.0 * np.pi, wdm.Nt))
+
+    # Test that all aliases produce the same result
+    out_full_name = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=2,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked_lagblock",
+        assembly_precision="complex128",
+        row_chunk_size=16,
+        lag_block_size=2,
+    )
+
+    out_alias_lagblock = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=2,
+        tl_tp_mode="exact",
+        assembly_backend="lagblock",
+        assembly_precision="complex128",
+        row_chunk_size=16,
+        lag_block_size=2,
+    )
+
+    out_alias_lagfirst = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=2,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_lagblock",
+        assembly_precision="complex128",
+        row_chunk_size=16,
+        lag_block_size=2,
+    )
+
+    assert np.allclose(out_full_name, out_alias_lagblock, atol=1e-12)
+    assert np.allclose(out_full_name, out_alias_lagfirst, atol=1e-12)
+
+
+def test_lagblock_backend_validation():
+    """Lagblock backend should validate lag_block_size correctly."""
+    if not getattr(tsf, "_JAX_AVAILABLE", False):
+        pytest.skip("JAX assembly backend is not available.")
+
+    wdm = WDM.WDM_transform(
+        dt=0.5,
+        Nf=8,
+        N=128,
+        q=4,
+        calc_m0=True,
+    )
+
+    w_xi = np.ones((wdm.Nt, wdm.Nf), dtype=np.complex128)
+    t_shift = np.zeros(wdm.Nt, dtype=np.float64)
+
+    # Test lag_block_size=0 should raise ValueError
+    with pytest.raises(ValueError, match="lag_block_size must be >= 1"):
+        tsf.wdm_time_shift_variable(
+            wdm,
+            w_xi,
+            t_shift,
+            Nf=wdm.Nf,
+            L_trunc=2,
+            assembly_backend="lagfirst_chunked_lagblock",
+            lag_block_size=0,
+        )
+
+    # Test lag_block_size<0 should raise ValueError
+    with pytest.raises(ValueError, match="lag_block_size must be >= 1"):
+        tsf.wdm_time_shift_variable(
+            wdm,
+            w_xi,
+            t_shift,
+            Nf=wdm.Nf,
+            L_trunc=2,
+            assembly_backend="lagfirst_chunked_lagblock",
+            lag_block_size=-1,
+        )
+
+
+def test_lagblock_backend_batch_job():
+    """Lagblock batch shifting should match single-job calls."""
+    if not getattr(tsf, "_JAX_AVAILABLE", False):
+        pytest.skip("JAX assembly backend is not available.")
+
+    wdm = WDM.WDM_transform(
+        dt=0.5,
+        Nf=16,
+        N=256,
+        q=4,
+        calc_m0=True,
+    )
+
+    rng = np.random.default_rng(5004)
+    jobs = []
+    for phase in (0.0, 0.3):
+        w_xi = rng.normal(size=(wdm.Nt, wdm.Nf)) + 1j * rng.normal(size=(wdm.Nt, wdm.Nf))
+        t_shift = 0.12 * np.sin(np.linspace(0.0, 2.0 * np.pi, wdm.Nt) + phase)
+        jobs.append((w_xi.astype(np.complex128), t_shift.astype(np.float64)))
+
+    # Batch call with lagblock
+    batch_out = tsf.wdm_time_shift_variable_batch(
+        wdm,
+        jobs,
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked_lagblock",
+        assembly_precision="complex128",
+        row_chunk_size=32,
+        lag_block_size=2,
+        batch_chunk=2,
+    )
+
+    # Single job calls with lagblock
+    single_out = [
+        tsf.wdm_time_shift_variable(
+            wdm,
+            w_xi,
+            t_shift,
+            Nf=wdm.Nf,
+            L_trunc=3,
+            tl_tp_mode="exact",
+            assembly_backend="lagfirst_chunked_lagblock",
+            assembly_precision="complex128",
+            row_chunk_size=32,
+            lag_block_size=2,
+        )
+        for w_xi, t_shift in jobs
+    ]
+
+    assert len(batch_out) == len(single_out)
+    for batch_arr, single_arr in zip(batch_out, single_out):
+        rel_l2 = np.linalg.norm(batch_arr - single_arr) / np.linalg.norm(single_arr)
+        assert rel_l2 < 1e-12, f"batch/single mismatch: rel_l2={rel_l2:.2e}"
+

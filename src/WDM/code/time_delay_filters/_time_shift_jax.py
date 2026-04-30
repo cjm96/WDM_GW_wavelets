@@ -748,6 +748,500 @@ _assemble_shift_target_batch_chunked_core_c64 = jax.jit(
 )
 
 
+def _assemble_shift_target_chunked_lagblock_impl_c128(
+    w_xi,
+    t_shift,
+    ell_all,
+    offset,
+    Tl_all,
+    Tp_all,
+    Cnm,
+    dF,
+    row_chunk_size,
+    lag_block_size,
+):
+    """Chunked lag-blocked target-mode assembly (complex128/float64).
+    
+    Processes rows in chunks and lags in blocks within each chunk.
+    """
+    w_xi = jnp.asarray(w_xi, dtype=jnp.complex128)
+    t_shift = jnp.asarray(t_shift, dtype=jnp.float64)
+    ell_all = jnp.asarray(ell_all, dtype=jnp.int64)
+    Tl_all = jnp.asarray(Tl_all, dtype=jnp.complex128)
+    Tp_all = jnp.asarray(Tp_all, dtype=jnp.complex128)
+    Cnm = jnp.asarray(Cnm, dtype=jnp.complex128)
+    dF = jnp.asarray(dF, dtype=jnp.float64)
+
+    Nt, Nm = w_xi.shape
+    n_lag = ell_all.shape[0]
+
+    m_full = jnp.arange(Nm, dtype=jnp.float64)
+    m_mid = jnp.arange(max(Nm - 1, 0), dtype=jnp.float64) + 0.5
+    one_j = jnp.asarray(1j, dtype=jnp.complex128)
+    two_pi = jnp.asarray(2.0 * np.pi, dtype=jnp.float64)
+
+    ph_m_all = jnp.exp(one_j * two_pi * (m_full[None, :] * dF) * t_shift[:, None])
+    ph_mid_all = jnp.exp(one_j * two_pi * (m_mid[None, :] * dF) * t_shift[:, None])
+
+    minus1_to_m = jnp.where(
+        (jnp.arange(Nm) % 2) == 0,
+        jnp.asarray(1.0, dtype=jnp.float64),
+        jnp.asarray(-1.0, dtype=jnp.float64),
+    )
+    ell_even = (ell_all % 2) == 0
+    parity_all = jnp.where(
+        ell_even[:, None],
+        jnp.ones((n_lag, Nm), dtype=jnp.float64),
+        minus1_to_m[None, :],
+    )
+
+    neg_i = jnp.asarray(-1j, dtype=jnp.complex128)
+    pos_i = jnp.asarray(1j, dtype=jnp.complex128)
+    low_phase = jnp.power(neg_i, -ell_all)
+    up_phase = jnp.power(pos_i, -ell_all)
+
+    n_chunks = (Nt + row_chunk_size - 1) // row_chunk_size
+    Nt_pad = n_chunks * row_chunk_size
+
+    out0 = jnp.zeros((Nt_pad, Nm), dtype=jnp.complex128)
+    zero_col = jnp.zeros((row_chunk_size, 1), dtype=jnp.complex128)
+
+    def chunk_body(chunk_id, out_acc):
+        start = chunk_id * row_chunk_size
+        rows = start + jnp.arange(row_chunk_size, dtype=jnp.int64)
+        valid_row = rows < Nt
+        rows_safe = jnp.clip(rows, 0, Nt - 1)
+
+        carrier_prefac = jnp.conj(Cnm[rows_safe, :]) * ph_m_all[rows_safe, :]
+        ph_mid = ph_mid_all[rows_safe, :]
+
+        out_chunk0 = jnp.zeros((row_chunk_size, Nm), dtype=jnp.complex128)
+
+        def lag_block_body(lag_block_id, chunk_out):
+            lag_start = lag_block_id * lag_block_size
+            lag_indices = lag_start + jnp.arange(lag_block_size, dtype=jnp.int64)
+            valid_lag = lag_indices < n_lag
+            lag_indices_safe = jnp.clip(lag_indices, 0, n_lag - 1)
+
+            ell_block = ell_all[lag_indices_safe]
+            parity_block = parity_all[lag_indices_safe]
+            j_neg_block = -ell_block + offset
+            low_phase_block = low_phase[lag_indices_safe]
+            up_phase_block = up_phase[lag_indices_safe]
+
+            nprime = rows[:, None] + ell_block[None, :]
+            valid_n = valid_row[:, None] & valid_lag[None, :] & (nprime >= 0) & (nprime < Nt)
+            nprime_safe = jnp.clip(nprime, 0, Nt - 1)
+
+            Tl_row_block = Tl_all[rows_safe, :][:, j_neg_block]
+            Tp_row_block = Tp_all[rows_safe, :][:, j_neg_block]
+            Cn_block = Cnm[nprime_safe, :]
+            w_n_block = w_xi[nprime_safe, :]
+
+            main = (parity_block[None, :, :] * carrier_prefac[:, None, :] * Cn_block * Tl_row_block[:, :, None]).real * w_n_block
+            main = jnp.where(valid_n[:, :, None], main, jnp.zeros_like(main))
+            main_sum = jnp.sum(main, axis=1)
+
+            def add_sidebands(main_acc):
+                low = (
+                    parity_block[:, :-1][None, :, :]
+                    * low_phase_block[None, :, None]
+                    * jnp.conj(Cnm[rows_safe, 1:])[:, None, :]
+                    * Cn_block[:, :, :-1]
+                    * Tp_row_block[:, :, None]
+                    * ph_mid[:, None, :]
+                ).real * w_n_block[:, :, :-1]
+
+                up = (
+                    parity_block[:, 1:][None, :, :]
+                    * up_phase_block[None, :, None]
+                    * jnp.conj(Cnm[rows_safe, :-1])[:, None, :]
+                    * Cn_block[:, :, 1:]
+                    * Tp_row_block[:, :, None]
+                    * ph_mid[:, None, :]
+                ).real * w_n_block[:, :, 1:]
+
+                low = jnp.where(valid_n[:, :, None], low, jnp.zeros_like(low))
+                up = jnp.where(valid_n[:, :, None], up, jnp.zeros_like(up))
+
+                low_sum = jnp.sum(low, axis=1)
+                up_sum = jnp.sum(up, axis=1)
+
+                low_pad = jnp.concatenate((zero_col, low_sum), axis=1)
+                up_pad = jnp.concatenate((up_sum, zero_col), axis=1)
+                side = low_pad + up_pad
+                return main_acc + side
+
+            chunk_next = jax.lax.cond(Nm > 1, add_sidebands, lambda x: x, main_sum)
+            return chunk_out + chunk_next
+
+        n_lag_blocks = (n_lag + lag_block_size - 1) // lag_block_size
+        out_chunk = jax.lax.fori_loop(0, n_lag_blocks, lag_block_body, out_chunk0)
+        return jax.lax.dynamic_update_slice(out_acc, out_chunk, (start, 0))
+
+    out_padded = jax.lax.fori_loop(0, n_chunks, chunk_body, out0)
+    return out_padded[:Nt, :]
+
+
+def _assemble_shift_target_chunked_lagblock_impl_c64(
+    w_xi,
+    t_shift,
+    ell_all,
+    offset,
+    Tl_all,
+    Tp_all,
+    Cnm,
+    dF,
+    row_chunk_size,
+    lag_block_size,
+):
+    """Chunked lag-blocked target-mode assembly (complex64/float32).
+    
+    Processes rows in chunks and lags in blocks within each chunk.
+    """
+    w_xi = jnp.asarray(w_xi, dtype=jnp.complex64)
+    t_shift = jnp.asarray(t_shift, dtype=jnp.float32)
+    ell_all = jnp.asarray(ell_all, dtype=jnp.int64)
+    Tl_all = jnp.asarray(Tl_all, dtype=jnp.complex64)
+    Tp_all = jnp.asarray(Tp_all, dtype=jnp.complex64)
+    Cnm = jnp.asarray(Cnm, dtype=jnp.complex64)
+    dF = jnp.asarray(dF, dtype=jnp.float32)
+
+    Nt, Nm = w_xi.shape
+    n_lag = ell_all.shape[0]
+
+    m_full = jnp.arange(Nm, dtype=jnp.float32)
+    m_mid = jnp.arange(max(Nm - 1, 0), dtype=jnp.float32) + jnp.asarray(0.5, dtype=jnp.float32)
+    one_j = jnp.asarray(1j, dtype=jnp.complex64)
+    two_pi = jnp.asarray(2.0 * np.pi, dtype=jnp.float32)
+
+    ph_m_all = jnp.exp(one_j * two_pi * (m_full[None, :] * dF) * t_shift[:, None])
+    ph_mid_all = jnp.exp(one_j * two_pi * (m_mid[None, :] * dF) * t_shift[:, None])
+
+    minus1_to_m = jnp.where(
+        (jnp.arange(Nm) % 2) == 0,
+        jnp.asarray(1.0, dtype=jnp.float32),
+        jnp.asarray(-1.0, dtype=jnp.float32),
+    )
+    ell_even = (ell_all % 2) == 0
+    parity_all = jnp.where(
+        ell_even[:, None],
+        jnp.ones((n_lag, Nm), dtype=jnp.float32),
+        minus1_to_m[None, :],
+    )
+
+    neg_i = jnp.asarray(-1j, dtype=jnp.complex64)
+    pos_i = jnp.asarray(1j, dtype=jnp.complex64)
+    low_phase = jnp.power(neg_i, -ell_all)
+    up_phase = jnp.power(pos_i, -ell_all)
+
+    n_chunks = (Nt + row_chunk_size - 1) // row_chunk_size
+    Nt_pad = n_chunks * row_chunk_size
+
+    out0 = jnp.zeros((Nt_pad, Nm), dtype=jnp.complex64)
+    zero_col = jnp.zeros((row_chunk_size, 1), dtype=jnp.complex64)
+
+    def chunk_body(chunk_id, out_acc):
+        start = chunk_id * row_chunk_size
+        rows = start + jnp.arange(row_chunk_size, dtype=jnp.int64)
+        valid_row = rows < Nt
+        rows_safe = jnp.clip(rows, 0, Nt - 1)
+
+        carrier_prefac = jnp.conj(Cnm[rows_safe, :]) * ph_m_all[rows_safe, :]
+        ph_mid = ph_mid_all[rows_safe, :]
+
+        out_chunk0 = jnp.zeros((row_chunk_size, Nm), dtype=jnp.complex64)
+
+        def lag_block_body(lag_block_id, chunk_out):
+            lag_start = lag_block_id * lag_block_size
+            lag_indices = lag_start + jnp.arange(lag_block_size, dtype=jnp.int64)
+            valid_lag = lag_indices < n_lag
+            lag_indices_safe = jnp.clip(lag_indices, 0, n_lag - 1)
+
+            ell_block = ell_all[lag_indices_safe]
+            parity_block = parity_all[lag_indices_safe]
+            j_neg_block = -ell_block + offset
+            low_phase_block = low_phase[lag_indices_safe]
+            up_phase_block = up_phase[lag_indices_safe]
+
+            nprime = rows[:, None] + ell_block[None, :]
+            valid_n = valid_row[:, None] & valid_lag[None, :] & (nprime >= 0) & (nprime < Nt)
+            nprime_safe = jnp.clip(nprime, 0, Nt - 1)
+
+            Tl_row_block = Tl_all[rows_safe, :][:, j_neg_block]
+            Tp_row_block = Tp_all[rows_safe, :][:, j_neg_block]
+            Cn_block = Cnm[nprime_safe, :]
+            w_n_block = w_xi[nprime_safe, :]
+
+            main = (parity_block[None, :, :] * carrier_prefac[:, None, :] * Cn_block * Tl_row_block[:, :, None]).real * w_n_block
+            main = jnp.where(valid_n[:, :, None], main, jnp.zeros_like(main))
+            main_sum = jnp.sum(main, axis=1)
+
+            def add_sidebands(main_acc):
+                low = (
+                    parity_block[:, :-1][None, :, :]
+                    * low_phase_block[None, :, None]
+                    * jnp.conj(Cnm[rows_safe, 1:])[:, None, :]
+                    * Cn_block[:, :, :-1]
+                    * Tp_row_block[:, :, None]
+                    * ph_mid[:, None, :]
+                ).real * w_n_block[:, :, :-1]
+
+                up = (
+                    parity_block[:, 1:][None, :, :]
+                    * up_phase_block[None, :, None]
+                    * jnp.conj(Cnm[rows_safe, :-1])[:, None, :]
+                    * Cn_block[:, :, 1:]
+                    * Tp_row_block[:, :, None]
+                    * ph_mid[:, None, :]
+                ).real * w_n_block[:, :, 1:]
+
+                low = jnp.where(valid_n[:, :, None], low, jnp.zeros_like(low))
+                up = jnp.where(valid_n[:, :, None], up, jnp.zeros_like(up))
+
+                low_sum = jnp.sum(low, axis=1)
+                up_sum = jnp.sum(up, axis=1)
+
+                low_pad = jnp.concatenate((zero_col, low_sum), axis=1)
+                up_pad = jnp.concatenate((up_sum, zero_col), axis=1)
+                side = low_pad + up_pad
+                return main_acc + side
+
+            chunk_next = jax.lax.cond(Nm > 1, add_sidebands, lambda x: x, main_sum)
+            return chunk_out + chunk_next
+
+        n_lag_blocks = (n_lag + lag_block_size - 1) // lag_block_size
+        out_chunk = jax.lax.fori_loop(0, n_lag_blocks, lag_block_body, out_chunk0)
+        return jax.lax.dynamic_update_slice(out_acc, out_chunk, (start, 0))
+
+    out_padded = jax.lax.fori_loop(0, n_chunks, chunk_body, out0)
+    return out_padded[:Nt, :]
+
+
+_assemble_shift_target_chunked_lagblock_core_c128 = jax.jit(
+    _assemble_shift_target_chunked_lagblock_impl_c128,
+    static_argnums=(3, 8, 9),
+)
+
+_assemble_shift_target_chunked_lagblock_core_c64 = jax.jit(
+    _assemble_shift_target_chunked_lagblock_impl_c64,
+    static_argnums=(3, 8, 9),
+)
+
+
+def _assemble_shift_target_batch_chunked_lagblock_impl_c128(
+    w_xi_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    Cnm,
+    dF,
+    row_chunk_size,
+    lag_block_size,
+):
+    """Batch chunked lag-blocked target-mode assembly (complex128/float64)."""
+    B, Nt, Nm = w_xi_batch.shape
+    out0 = jnp.zeros((B, Nt, Nm), dtype=jnp.complex128)
+
+    def body(i, out):
+        row = _assemble_shift_target_chunked_lagblock_impl_c128(
+            w_xi_batch[i],
+            t_shift_batch[i],
+            ell_all,
+            offset,
+            Tl_batch[i],
+            Tp_batch[i],
+            Cnm,
+            dF,
+            row_chunk_size,
+            lag_block_size,
+        )
+        return out.at[i, :, :].set(row)
+
+    return jax.lax.fori_loop(0, B, body, out0)
+
+
+def _assemble_shift_target_batch_chunked_lagblock_impl_c64(
+    w_xi_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    Cnm,
+    dF,
+    row_chunk_size,
+    lag_block_size,
+):
+    """Batch chunked lag-blocked target-mode assembly (complex64/float32)."""
+    B, Nt, Nm = w_xi_batch.shape
+    out0 = jnp.zeros((B, Nt, Nm), dtype=jnp.complex64)
+
+    def body(i, out):
+        row = _assemble_shift_target_chunked_lagblock_impl_c64(
+            w_xi_batch[i],
+            t_shift_batch[i],
+            ell_all,
+            offset,
+            Tl_batch[i],
+            Tp_batch[i],
+            Cnm,
+            dF,
+            row_chunk_size,
+            lag_block_size,
+        )
+        return out.at[i, :, :].set(row)
+
+    return jax.lax.fori_loop(0, B, body, out0)
+
+
+_assemble_shift_target_batch_chunked_lagblock_core_c128 = jax.jit(
+    _assemble_shift_target_batch_chunked_lagblock_impl_c128,
+    static_argnums=(3, 8, 9),
+)
+
+_assemble_shift_target_batch_chunked_lagblock_core_c64 = jax.jit(
+    _assemble_shift_target_batch_chunked_lagblock_impl_c64,
+    static_argnums=(3, 8, 9),
+)
+
+
+def assemble_shift_target_chunked_lagblock_jax(
+    w_xi,
+    t_shift,
+    ell_all,
+    offset,
+    Tl_all,
+    Tp_all,
+    Cnm,
+    dF,
+    row_chunk_size=128,
+    lag_block_size=1,
+    precision="complex128",
+):
+    """Assemble target-mode variable-delay shift using chunked lag-blocked kernels.
+    
+    Parameters
+    ----------
+    row_chunk_size : int
+        Number of rows to process together.
+    lag_block_size : int
+        Number of lags to process together within each row chunk.
+    precision : {"complex128", "complex64", "float64", "float32"}
+        Internal arithmetic precision.
+    
+    Returns
+    -------
+    numpy.ndarray
+        Shifted WDM coefficients with the same shape as ``w_xi``.
+    """
+    precision = _normalize_chunked_precision(precision)
+    row_chunk_size = int(row_chunk_size)
+    lag_block_size = int(lag_block_size)
+    if row_chunk_size < 1:
+        raise ValueError("row_chunk_size must be >= 1.")
+    if lag_block_size < 1:
+        raise ValueError("lag_block_size must be >= 1.")
+
+    if precision == "complex64":
+        out = _assemble_shift_target_chunked_lagblock_core_c64(
+            jnp.asarray(w_xi, dtype=jnp.complex64),
+            jnp.asarray(t_shift, dtype=jnp.float32),
+            jnp.asarray(ell_all, dtype=jnp.int64),
+            int(offset),
+            jnp.asarray(Tl_all, dtype=jnp.complex64),
+            jnp.asarray(Tp_all, dtype=jnp.complex64),
+            jnp.asarray(Cnm, dtype=jnp.complex64),
+            jnp.asarray(dF, dtype=jnp.float32),
+            row_chunk_size,
+            lag_block_size,
+        )
+        return np.asarray(out)
+
+    out = _assemble_shift_target_chunked_lagblock_core_c128(
+        jnp.asarray(w_xi, dtype=jnp.complex128),
+        jnp.asarray(t_shift, dtype=jnp.float64),
+        jnp.asarray(ell_all, dtype=jnp.int64),
+        int(offset),
+        jnp.asarray(Tl_all, dtype=jnp.complex128),
+        jnp.asarray(Tp_all, dtype=jnp.complex128),
+        jnp.asarray(Cnm, dtype=jnp.complex128),
+        jnp.asarray(dF, dtype=jnp.float64),
+        row_chunk_size,
+        lag_block_size,
+    )
+    return np.asarray(out)
+
+
+def assemble_shift_target_batch_chunked_lagblock_jax(
+    w_xi_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    Cnm,
+    dF,
+    row_chunk_size=128,
+    lag_block_size=1,
+    precision="complex128",
+):
+    """Assemble batched target-mode shifts using chunked lag-blocked kernels.
+    
+    Parameters
+    ----------
+    row_chunk_size : int
+        Number of rows to process together.
+    lag_block_size : int
+        Number of lags to process together within each row chunk.
+    precision : {"complex128", "complex64", "float64", "float32"}
+        Internal arithmetic precision.
+    
+    Returns
+    -------
+    numpy.ndarray
+        Shifted WDM coefficients with shape ``(B, Nt, Nm)``.
+    """
+    precision = _normalize_chunked_precision(precision)
+    row_chunk_size = int(row_chunk_size)
+    lag_block_size = int(lag_block_size)
+    if row_chunk_size < 1:
+        raise ValueError("row_chunk_size must be >= 1.")
+    if lag_block_size < 1:
+        raise ValueError("lag_block_size must be >= 1.")
+
+    if precision == "complex64":
+        out = _assemble_shift_target_batch_chunked_lagblock_core_c64(
+            jnp.asarray(w_xi_batch, dtype=jnp.complex64),
+            jnp.asarray(t_shift_batch, dtype=jnp.float32),
+            jnp.asarray(ell_all, dtype=jnp.int64),
+            int(offset),
+            jnp.asarray(Tl_batch, dtype=jnp.complex64),
+            jnp.asarray(Tp_batch, dtype=jnp.complex64),
+            jnp.asarray(Cnm, dtype=jnp.complex64),
+            jnp.asarray(dF, dtype=jnp.float32),
+            row_chunk_size,
+            lag_block_size,
+        )
+        return np.asarray(out)
+
+    out = _assemble_shift_target_batch_chunked_lagblock_core_c128(
+        jnp.asarray(w_xi_batch, dtype=jnp.complex128),
+        jnp.asarray(t_shift_batch, dtype=jnp.float64),
+        jnp.asarray(ell_all, dtype=jnp.int64),
+        int(offset),
+        jnp.asarray(Tl_batch, dtype=jnp.complex128),
+        jnp.asarray(Tp_batch, dtype=jnp.complex128),
+        jnp.asarray(Cnm, dtype=jnp.complex128),
+        jnp.asarray(dF, dtype=jnp.float64),
+        row_chunk_size,
+        lag_block_size,
+    )
+    return np.asarray(out)
+
+
 def assemble_shift_target_jax(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF, assembly_vmap=False):
     """Assemble target-mode variable-delay shift using JAX kernels.
 
