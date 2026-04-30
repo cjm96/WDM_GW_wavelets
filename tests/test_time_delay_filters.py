@@ -162,3 +162,138 @@ def test_variable_shift_batch_matches_single_calls():
     for batch_arr, single_arr in zip(batch_out, single_out):
         assert np.allclose(batch_arr, single_arr, atol=1e-5, rtol=1e-8)
 
+
+def test_variable_shift_chunked_matches_legacy():
+    """Chunked target-mode backend should match legacy assembly in exact mode."""
+    if not getattr(tsf, "_JAX_AVAILABLE", False):
+        pytest.skip("JAX assembly backend is not available.")
+
+    wdm = WDM.WDM_transform(
+        dt=0.5,
+        Nf=8,
+        N=64,
+        q=4,
+        calc_m0=True,
+    )
+
+    rng = np.random.default_rng(2024)
+    w_xi = rng.normal(size=(wdm.Nt, wdm.Nf)) + 1j * rng.normal(size=(wdm.Nt, wdm.Nf))
+    t_shift = 0.1 * np.sin(np.linspace(0.0, 2.0 * np.pi, wdm.Nt))
+
+    out_chunked = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked",
+        assembly_precision="complex128",
+        row_chunk_size=8,
+    )
+    out_legacy = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_backend="legacy",
+    )
+
+    assert np.allclose(out_chunked, out_legacy, atol=1e-12, rtol=1e-12)
+
+
+def test_variable_shift_chunked_fast_precision():
+    """Complex64 chunked backend should be close to complex128 chunked output."""
+    if not getattr(tsf, "_JAX_AVAILABLE", False):
+        pytest.skip("JAX assembly backend is not available.")
+
+    wdm = WDM.WDM_transform(
+        dt=0.5,
+        Nf=8,
+        N=64,
+        q=4,
+        calc_m0=True,
+    )
+
+    rng = np.random.default_rng(2025)
+    w_xi = rng.normal(size=(wdm.Nt, wdm.Nf)) + 1j * rng.normal(size=(wdm.Nt, wdm.Nf))
+    t_shift = 0.12 * np.sin(np.linspace(0.0, 2.0 * np.pi, wdm.Nt))
+
+    out_c128 = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked",
+        assembly_precision="complex128",
+        row_chunk_size=8,
+    )
+    out_c64 = tsf.wdm_time_shift_variable(
+        wdm,
+        w_xi.astype(np.complex128),
+        t_shift.astype(np.float64),
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked",
+        assembly_precision="complex64",
+        row_chunk_size=8,
+    )
+
+    assert np.allclose(out_c64, out_c128, atol=1e-6, rtol=1e-5)
+
+
+def test_variable_shift_chunked_batch_matches_loop():
+    """Chunked batch route should match looping over single chunked calls."""
+    if not getattr(tsf, "_JAX_AVAILABLE", False):
+        pytest.skip("JAX assembly backend is not available.")
+
+    wdm = WDM.WDM_transform(
+        dt=0.5,
+        Nf=8,
+        N=64,
+        q=4,
+        calc_m0=True,
+    )
+
+    rng = np.random.default_rng(2026)
+    jobs = []
+    for phase in (0.0, 0.4):
+        w_xi = rng.normal(size=(wdm.Nt, wdm.Nf)) + 1j * rng.normal(size=(wdm.Nt, wdm.Nf))
+        t_shift = 0.1 * np.sin(np.linspace(0.0, 2.0 * np.pi, wdm.Nt) + phase)
+        jobs.append((w_xi.astype(np.complex128), t_shift.astype(np.float64)))
+
+    batch_out = tsf.wdm_time_shift_variable_batch(
+        wdm,
+        jobs,
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_backend="lagfirst_chunked",
+        assembly_precision="complex64",
+        row_chunk_size=8,
+        batch_chunk=2,
+    )
+    single_out = [
+        tsf.wdm_time_shift_variable(
+            wdm,
+            w_xi,
+            t_shift,
+            Nf=wdm.Nf,
+            L_trunc=3,
+            tl_tp_mode="exact",
+            assembly_backend="lagfirst_chunked",
+            assembly_precision="complex64",
+            row_chunk_size=8,
+        )
+        for w_xi, t_shift in jobs
+    ]
+
+    assert len(batch_out) == len(single_out)
+    for batch_arr, single_arr in zip(batch_out, single_out):
+        assert np.allclose(batch_arr, single_arr, atol=1e-6, rtol=1e-5)
+

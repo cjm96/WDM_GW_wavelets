@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 
 try:
@@ -57,6 +59,48 @@ def _resolve_use_jax(use_jax=None):
     # Kept for API compatibility with older call sites; all paths are JAX now.
     _ = use_jax
     return True
+
+
+def _normalize_assembly_precision(precision):
+    if precision is None:
+        return "complex64"
+    key = str(precision).lower()
+    if key in ("complex128", "float64", "c128", "64"):
+        return "complex128"
+    if key in ("complex64", "float32", "c64", "32"):
+        return "complex64"
+    raise ValueError("assembly_precision must be complex128/float64 or complex64/float32.")
+
+
+def _normalize_assembly_backend(backend):
+    if backend is None:
+        return None
+    key = str(backend).lower()
+    if key in ("lagfirst_chunked", "chunked", "auto"):
+        return "lagfirst_chunked"
+    if key in ("legacy", "row", "lagfirst_row"):
+        return "legacy"
+    if key == "vmap":
+        return "vmap"
+    raise ValueError("assembly_backend must be lagfirst_chunked, legacy, row, lagfirst_row, vmap, or auto.")
+
+
+def _resolve_assembly_backend(assembly_backend, assembly_vmap):
+    if assembly_backend is None:
+        if assembly_vmap is True:
+            return "vmap"
+        return "lagfirst_chunked"
+    return _normalize_assembly_backend(assembly_backend)
+
+
+def _validate_row_chunk_size(row_chunk_size):
+    try:
+        row_chunk_size = int(row_chunk_size)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("row_chunk_size must be a positive integer.") from exc
+    if row_chunk_size < 1:
+        raise ValueError("row_chunk_size must be >= 1.")
+    return row_chunk_size
 
 
 def _kernel_cache_key(wdm_data, Nker, Nf, d, q, calc_m0, extra_kwargs):
@@ -583,7 +627,10 @@ def wdm_time_shift_variable(
     tl_tp_interp_pad=0.0,
     tl_tp_interp_kind="linear",
     tl_tp_interp_backend="numpy",
-    assembly_vmap=False,
+    assembly_backend=None,
+    assembly_precision="complex64",
+    row_chunk_size=128,
+    assembly_vmap=None,
 ):
     """
     Apply variable-delay WDM time shifting with optional interpolated ``Tl/Tp``.
@@ -607,10 +654,19 @@ def wdm_time_shift_variable(
         Backend used for interpolation gather/blend in ``tl_tp_mode='interp'``.
         ``"numpy"`` preserves legacy behavior. ``"jax"`` uses JAX arrays for
         interpolation arithmetic. ``"auto"`` selects JAX when available.
-    assembly_vmap : bool
-        If ``True``, JAX assembly maps rows with ``vmap`` for maximum throughput.
-        If ``False`` (default), assembly uses a row loop to reduce peak memory
-        usage on constrained machines.
+    assembly_backend : {"lagfirst_chunked", "legacy", "row", "lagfirst_row", "vmap", "auto"}
+        Selects the target-mode assembly backend. When omitted, the default
+        is ``"lagfirst_chunked"`` (fastest dense backend). ``"legacy"``/``"row"``
+        keep the older row-first implementation. ``"vmap"`` uses the older
+        vmap-based route.
+    assembly_precision : {"complex64", "complex128", "float32", "float64"}
+        Precision used for the chunked backend. ``"complex64"`` is the fast
+        mode; ``"complex128"`` is the faithful exact mode.
+    row_chunk_size : int
+        Row chunk size used by the chunked backend (default 128).
+    assembly_vmap : bool or None
+        Legacy flag selecting vmap assembly when ``assembly_backend`` is not
+        provided. When ``assembly_backend`` is set, this flag is ignored.
 
     Notes
     -----
@@ -677,8 +733,13 @@ def wdm_time_shift_variable(
     Tl_all = Tl_all_mat[0]
     Tp_all = Tp_all_mat[0]
 
-    Cnm = _get_Cnm_parity(Nt, Nm, dtype=np.complex128)
+    resolved_backend = _resolve_assembly_backend(assembly_backend, assembly_vmap)
+    precision = _normalize_assembly_precision(assembly_precision)
+    row_chunk_size = _validate_row_chunk_size(row_chunk_size)
+
     if delta_mode == "target":
+        cnm_dtype = np.complex64 if precision == "complex64" else np.complex128
+        Cnm = _get_Cnm_parity(Nt, Nm, dtype=cnm_dtype)
         return _assemble_shift_target_dispatch(
             wdm,
             w_xi,
@@ -689,9 +750,19 @@ def wdm_time_shift_variable(
             Tp_all,
             Cnm=Cnm,
             use_jax=use_jax,
+            assembly_backend=resolved_backend,
+            assembly_precision=precision,
+            row_chunk_size=row_chunk_size,
             assembly_vmap=assembly_vmap,
         )
 
+    if resolved_backend == "lagfirst_chunked":
+        warnings.warn(
+            "lagfirst_chunked backend only applies to delta_mode='target'; using legacy path instead.",
+            RuntimeWarning,
+        )
+
+    Cnm = _get_Cnm_parity(Nt, Nm, dtype=np.complex128)
     return _assemble_shift_variable_mode_dispatch(
         wdm,
         w_xi,
@@ -722,7 +793,10 @@ def wdm_time_shift_variable_batch(
     tl_tp_interp_pad=0.0,
     tl_tp_interp_kind="linear",
     tl_tp_interp_backend="numpy",
-    assembly_vmap=False,
+    assembly_backend=None,
+    assembly_precision="complex64",
+    row_chunk_size=128,
+    assembly_vmap=None,
     jax_pad_last_chunk=False,
 ):
     """Apply variable target-mode WDM time shifts for multiple jobs at once.
@@ -761,9 +835,16 @@ def wdm_time_shift_variable_batch(
         Backend used for interpolation gather/blend in ``tl_tp_mode='interp'``.
         ``"numpy"`` preserves legacy behavior. ``"jax"`` uses JAX arrays for
         interpolation arithmetic. ``"auto"`` selects JAX when available.
-    assembly_vmap : bool, optional
-        If ``True``, JAX assembly maps rows with ``vmap``. ``False`` (default)
-        reduces peak memory usage at the cost of some throughput.
+    assembly_backend : {"lagfirst_chunked", "legacy", "row", "lagfirst_row", "vmap", "auto"}
+        Selects the target-mode assembly backend. When omitted, the default is
+        ``"lagfirst_chunked"``. ``"legacy"``/``"row"`` keep the older path.
+    assembly_precision : {"complex64", "complex128", "float32", "float64"}
+        Precision used by the chunked backend.
+    row_chunk_size : int, optional
+        Row chunk size used by the chunked backend.
+    assembly_vmap : bool or None, optional
+        Legacy flag selecting vmap assembly when ``assembly_backend`` is not
+        provided.
     jax_pad_last_chunk : bool, optional
         When using JAX with ``assembly_vmap=True``, pad the final short chunk to
         ``batch_chunk`` rows by repeating the last row so every chunk keeps the
@@ -798,7 +879,11 @@ def wdm_time_shift_variable_batch(
         kernel_kwargs=kernel_kwargs,
     )
     idx = _build_signed_lag_idx(ell_all, Nf, int(wdm_ker.N))
-    Cnm = _get_Cnm_parity(Nt, Nm, dtype=np.complex128)
+    resolved_backend = _resolve_assembly_backend(assembly_backend, assembly_vmap)
+    precision = _normalize_assembly_precision(assembly_precision)
+    row_chunk_size = _validate_row_chunk_size(row_chunk_size)
+    cnm_dtype = np.complex64 if precision == "complex64" else np.complex128
+    Cnm = _get_Cnm_parity(Nt, Nm, dtype=cnm_dtype)
 
     w_arrays = []
     t_arrays = []
@@ -881,6 +966,9 @@ def wdm_time_shift_variable_batch(
             Tp_batch,
             Cnm=Cnm,
             use_jax=use_jax,
+            assembly_backend=resolved_backend,
+            assembly_precision=precision,
+            row_chunk_size=row_chunk_size,
             assembly_vmap=assembly_vmap,
         )
         for j in range(true_batch):
