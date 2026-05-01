@@ -13,6 +13,7 @@ from ._time_shift_jax import (
     assemble_shift_target_batch_chunked_jax,
     assemble_shift_target_chunked_lagblock_jax,
     assemble_shift_target_batch_chunked_lagblock_jax,
+    assemble_shift_target_batch_chunked_lagblock_jobblock_jax,
     assemble_shift_variable_mode_jax,
 )
 
@@ -112,6 +113,7 @@ def _assemble_shift_target_batch_dispatch(
     assembly_precision="complex64",
     row_chunk_size=128,
     lag_block_size=1,
+    job_block_size=1,
     assembly_vmap=False,
 ):
     """Dispatch batched target-mode assembly to the JAX backend."""
@@ -143,6 +145,22 @@ def _assemble_shift_target_batch_dispatch(
             float(wdm.dF),
             row_chunk_size=row_chunk_size,
             lag_block_size=lag_block_size,
+            precision=assembly_precision,
+        )
+
+    if backend in ("lagfirst_chunked_lagblock_jobblock", "lagblock_jobblock", "jobblock"):
+        return assemble_shift_target_batch_chunked_lagblock_jobblock_jax(
+            w_xi_batch,
+            t_shift_batch,
+            ell_all,
+            offset,
+            Tl_batch,
+            Tp_batch,
+            Cnm,
+            float(wdm.dF),
+            row_chunk_size=row_chunk_size,
+            lag_block_size=lag_block_size,
+            job_block_size=job_block_size,
             precision=assembly_precision,
         )
 

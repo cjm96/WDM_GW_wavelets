@@ -1,4 +1,5 @@
 import warnings
+import time
 
 import numpy as np
 
@@ -80,11 +81,21 @@ def _normalize_assembly_backend(backend):
         return "lagfirst_chunked"
     if key in ("lagfirst_chunked_lagblock", "lagblock", "lagfirst_lagblock"):
         return "lagfirst_chunked_lagblock"
+    if key in (
+        "lagfirst_chunked_lagblock_jobblock",
+        "lagblock_jobblock",
+        "jobblock",
+        "lagfirst_lagblock_jobblock",
+    ):
+        return "lagfirst_chunked_lagblock_jobblock"
     if key in ("legacy", "row", "lagfirst_row"):
         return "legacy"
     if key == "vmap":
         return "vmap"
-    raise ValueError("assembly_backend must be lagfirst_chunked, lagfirst_chunked_lagblock, legacy, row, lagfirst_row, vmap, or auto.")
+    raise ValueError(
+        "assembly_backend must be lagfirst_chunked, lagfirst_chunked_lagblock, "
+        "lagfirst_chunked_lagblock_jobblock, legacy, row, lagfirst_row, vmap, or auto."
+    )
 
 
 def _resolve_assembly_backend(assembly_backend, assembly_vmap):
@@ -815,8 +826,12 @@ def wdm_time_shift_variable_batch(
     assembly_precision="complex64",
     row_chunk_size=128,
     lag_block_size=1,
+    job_block_size=1,
     assembly_vmap=None,
     jax_pad_last_chunk=False,
+    # Profiling hooks (opt-in, backwards compatible)
+    profile_shift_stages=False,
+    profile_label=None,
 ):
     """Apply variable target-mode WDM time shifts for multiple jobs at once.
 
@@ -884,6 +899,25 @@ def wdm_time_shift_variable_batch(
     shift_jobs = list(shift_jobs)
     use_jax = _resolve_use_jax(use_jax=use_jax)
     if len(shift_jobs) == 0:
+        if profile_shift_stages:
+            profile = {
+                "n_jobs": 0,
+                "batch_chunk": None,
+                "job_block_size": None,
+                "assembly_backend": None,
+                "assembly_precision": None,
+                "row_chunk_size": None,
+                "lag_block_size": None,
+                "tl_tp_mode": None,
+                "tl_tp_interp_points": None,
+                "total_s": 0.0,
+                "tl_tp_prepare_s": 0.0,
+                "jax_assembly_s": 0.0,
+                "postprocess_s": 0.0,
+                "other_s": 0.0,
+                "label": profile_label,
+            }
+            return [], profile
         return []
 
     w0, s0 = shift_jobs[0]
@@ -924,6 +958,24 @@ def wdm_time_shift_variable_batch(
     chunk = len(shift_jobs) if batch_chunk is None else max(1, int(batch_chunk))
     interp_backend = _resolve_interp_backend(tl_tp_interp_backend, use_jax=use_jax)
 
+    # Profiling accumulators
+    if profile_shift_stages:
+        prof_n_jobs = len(shift_jobs)
+        prof_batch_chunk = chunk
+        prof_job_block_size = job_block_size
+        prof_assembly_backend = resolved_backend
+        prof_assembly_precision = precision
+        prof_row_chunk_size = row_chunk_size
+        prof_lag_block_size = lag_block_size
+        prof_tl_tp_mode = tl_tp_mode
+        prof_tl_tp_interp_points = tl_tp_interp_points
+        prof_tl_tp_prepare_s = 0.0
+        prof_jax_assembly_s = 0.0
+        prof_postprocess_s = 0.0
+        prof_other_s = 0.0
+        prof_chunk_profiles = []
+        t_total_start = time.perf_counter()
+
     for k0 in range(0, len(shift_jobs), chunk):
         k1 = min(k0 + chunk, len(shift_jobs))
         t_shift_mat = np.stack(t_arrays[k0:k1], axis=0)
@@ -948,11 +1000,15 @@ def wdm_time_shift_variable_batch(
             w_work = w_chunk
 
         if tl_tp_mode == "exact":
+            t0 = time.perf_counter() if profile_shift_stages else None
             Tl_batch, Tp_batch = _build_TlTp_from_shift_matrix(
                 t_shift_work, freqs_u, W0_u, W1_u, scale, idx
             )
+            if profile_shift_stages:
+                prof_tl_tp_prepare_s += time.perf_counter() - t0
         elif tl_tp_mode == "interp":
             if interp_backend == "jax":
+                t0 = time.perf_counter() if profile_shift_stages else None
                 Tl_batch, Tp_batch = _build_TlTp_from_shift_matrix_interp_jax(
                     t_shift_work,
                     freqs_u,
@@ -964,7 +1020,10 @@ def wdm_time_shift_variable_batch(
                     interp_pad=tl_tp_interp_pad,
                     interp_kind=tl_tp_interp_kind,
                 )
+                if profile_shift_stages:
+                    prof_tl_tp_prepare_s += time.perf_counter() - t0
             else:
+                t0 = time.perf_counter() if profile_shift_stages else None
                 Tl_batch, Tp_batch = _build_TlTp_from_shift_matrix_interp(
                     t_shift_work,
                     freqs_u,
@@ -976,9 +1035,11 @@ def wdm_time_shift_variable_batch(
                     interp_pad=tl_tp_interp_pad,
                     interp_kind=tl_tp_interp_kind,
                 )
+                if profile_shift_stages:
+                    prof_tl_tp_prepare_s += time.perf_counter() - t0
         else:
             raise ValueError("tl_tp_mode must be 'exact' or 'interp'.")
-
+        t1 = time.perf_counter() if profile_shift_stages else None
         shifted_chunk = _assemble_shift_target_batch_dispatch(
             wdm,
             w_work,
@@ -993,10 +1054,46 @@ def wdm_time_shift_variable_batch(
             assembly_precision=precision,
             row_chunk_size=row_chunk_size,
             lag_block_size=lag_block_size,
+            job_block_size=job_block_size,
             assembly_vmap=assembly_vmap,
         )
+        if profile_shift_stages:
+            # Ensure JAX kernels complete before stopping the timer
+            try:
+                for arr in np.asarray(shifted_chunk):
+                    if hasattr(arr, "block_until_ready"):
+                        arr.block_until_ready()
+            except Exception:
+                pass
+            prof_jax_assembly_s += time.perf_counter() - t1
         for j in range(true_batch):
+            t2 = time.perf_counter() if profile_shift_stages else None
             out[k0 + j] = shifted_chunk[j]
+            if profile_shift_stages:
+                prof_postprocess_s += time.perf_counter() - t2
+
+    if profile_shift_stages:
+        t_total_end = time.perf_counter()
+        prof_total_s = t_total_end - t_total_start
+        prof_other_s = prof_total_s - (prof_tl_tp_prepare_s + prof_jax_assembly_s + prof_postprocess_s)
+        profile = {
+            "n_jobs": prof_n_jobs,
+            "batch_chunk": prof_batch_chunk,
+            "job_block_size": int(prof_job_block_size),
+            "assembly_backend": str(prof_assembly_backend),
+            "assembly_precision": str(prof_assembly_precision),
+            "row_chunk_size": int(prof_row_chunk_size),
+            "lag_block_size": int(prof_lag_block_size),
+            "tl_tp_mode": str(prof_tl_tp_mode),
+            "tl_tp_interp_points": int(prof_tl_tp_interp_points),
+            "total_s": float(prof_total_s),
+            "tl_tp_prepare_s": float(prof_tl_tp_prepare_s),
+            "jax_assembly_s": float(prof_jax_assembly_s),
+            "postprocess_s": float(prof_postprocess_s),
+            "other_s": float(prof_other_s),
+            "label": profile_label,
+        }
+        return out, profile
 
     return out
 

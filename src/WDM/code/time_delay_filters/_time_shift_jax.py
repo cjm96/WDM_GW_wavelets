@@ -1242,6 +1242,220 @@ def assemble_shift_target_batch_chunked_lagblock_jax(
     return np.asarray(out)
 
 
+def _assemble_shift_target_batch_chunked_lagblock_jobblock_impl_c128(
+    w_xi_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    Cnm,
+    dF,
+    row_chunk_size,
+    lag_block_size,
+    job_block_size,
+):
+    """Batch chunked lag-blocked target-mode assembly with job-block vectorization (complex128/float64)."""
+    B, Nt, Nm = w_xi_batch.shape
+    job_block_size = int(max(1, job_block_size))
+    
+    # Pad batch to be a multiple of job_block_size for clean reshaping
+    B_padded = ((B + job_block_size - 1) // job_block_size) * job_block_size
+    if B_padded > B:
+        pad_width = ((0, B_padded - B), (0, 0), (0, 0))
+        w_xi_batch = jnp.pad(w_xi_batch, pad_width, mode='constant', constant_values=0.0)
+        t_shift_batch = jnp.pad(t_shift_batch, ((0, B_padded - B), (0, 0)), mode='constant', constant_values=0.0)
+        Tl_batch = jnp.pad(Tl_batch, ((0, B_padded - B), (0, 0), (0, 0)), mode='constant', constant_values=0.0)
+        Tp_batch = jnp.pad(Tp_batch, ((0, B_padded - B), (0, 0), (0, 0)), mode='constant', constant_values=0.0)
+    
+    # Reshape to separate job blocks (n_job_blocks, job_block_size, ...)
+    n_job_blocks = B_padded // job_block_size
+    w_xi_blocks = w_xi_batch.reshape(n_job_blocks, job_block_size, Nt, Nm)
+    t_shift_blocks = t_shift_batch.reshape(n_job_blocks, job_block_size, Nt)
+    Tl_blocks = Tl_batch.reshape(n_job_blocks, job_block_size, Nt, -1)
+    Tp_blocks = Tp_batch.reshape(n_job_blocks, job_block_size, Nt, -1)
+    
+    def process_one_block(w_xi_jb, t_shift_jb, Tl_jb, Tp_jb):
+        """Process one job block: vmap over job_block_size jobs."""
+        def one_job(w_xi, t_shift, Tl_all, Tp_all):
+            return _assemble_shift_target_chunked_lagblock_impl_c128(
+                w_xi,
+                t_shift,
+                ell_all,
+                offset,
+                Tl_all,
+                Tp_all,
+                Cnm,
+                dF,
+                row_chunk_size,
+                lag_block_size,
+            )
+        
+        return jax.vmap(one_job)(w_xi_jb, t_shift_jb, Tl_jb, Tp_jb)
+    
+    # vmap over job blocks to process in parallel
+    out_blocks = jax.vmap(process_one_block)(w_xi_blocks, t_shift_blocks, Tl_blocks, Tp_blocks)
+    # out_blocks shape: (n_job_blocks, job_block_size, Nt, Nm)
+    
+    # Reshape back to (B_padded, Nt, Nm)
+    result = out_blocks.reshape(B_padded, Nt, Nm)
+    
+    # Return only the original batch (strip padding)
+    return result[:B, :, :]
+
+
+def _assemble_shift_target_batch_chunked_lagblock_jobblock_impl_c64(
+    w_xi_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    Cnm,
+    dF,
+    row_chunk_size,
+    lag_block_size,
+    job_block_size,
+):
+    """Batch chunked lag-blocked target-mode assembly with job-block vectorization (complex64/float32)."""
+    B, Nt, Nm = w_xi_batch.shape
+    job_block_size = int(max(1, job_block_size))
+    
+    # Pad batch to be a multiple of job_block_size for clean reshaping
+    B_padded = ((B + job_block_size - 1) // job_block_size) * job_block_size
+    if B_padded > B:
+        pad_width = ((0, B_padded - B), (0, 0), (0, 0))
+        w_xi_batch = jnp.pad(w_xi_batch, pad_width, mode='constant', constant_values=0.0)
+        t_shift_batch = jnp.pad(t_shift_batch, ((0, B_padded - B), (0, 0)), mode='constant', constant_values=0.0)
+        Tl_batch = jnp.pad(Tl_batch, ((0, B_padded - B), (0, 0), (0, 0)), mode='constant', constant_values=0.0)
+        Tp_batch = jnp.pad(Tp_batch, ((0, B_padded - B), (0, 0), (0, 0)), mode='constant', constant_values=0.0)
+    
+    # Reshape to separate job blocks (n_job_blocks, job_block_size, ...)
+    n_job_blocks = B_padded // job_block_size
+    w_xi_blocks = w_xi_batch.reshape(n_job_blocks, job_block_size, Nt, Nm)
+    t_shift_blocks = t_shift_batch.reshape(n_job_blocks, job_block_size, Nt)
+    Tl_blocks = Tl_batch.reshape(n_job_blocks, job_block_size, Nt, -1)
+    Tp_blocks = Tp_batch.reshape(n_job_blocks, job_block_size, Nt, -1)
+    
+    def process_one_block(w_xi_jb, t_shift_jb, Tl_jb, Tp_jb):
+        """Process one job block: vmap over job_block_size jobs."""
+        def one_job(w_xi, t_shift, Tl_all, Tp_all):
+            return _assemble_shift_target_chunked_lagblock_impl_c64(
+                w_xi,
+                t_shift,
+                ell_all,
+                offset,
+                Tl_all,
+                Tp_all,
+                Cnm,
+                dF,
+                row_chunk_size,
+                lag_block_size,
+            )
+        
+        return jax.vmap(one_job)(w_xi_jb, t_shift_jb, Tl_jb, Tp_jb)
+    
+    # vmap over job blocks to process in parallel
+    out_blocks = jax.vmap(process_one_block)(w_xi_blocks, t_shift_blocks, Tl_blocks, Tp_blocks)
+    # out_blocks shape: (n_job_blocks, job_block_size, Nt, Nm)
+    
+    # Reshape back to (B_padded, Nt, Nm)
+    result = out_blocks.reshape(B_padded, Nt, Nm)
+    
+    # Return only the original batch (strip padding)
+    return result[:B, :, :]
+
+
+_assemble_shift_target_batch_chunked_lagblock_jobblock_core_c128 = jax.jit(
+    _assemble_shift_target_batch_chunked_lagblock_jobblock_impl_c128,
+    static_argnums=(3, 8, 9, 10),
+)
+
+_assemble_shift_target_batch_chunked_lagblock_jobblock_core_c64 = jax.jit(
+    _assemble_shift_target_batch_chunked_lagblock_jobblock_impl_c64,
+    static_argnums=(3, 8, 9, 10),
+)
+
+
+def assemble_shift_target_batch_chunked_lagblock_jobblock_jax(
+    w_xi_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    Cnm,
+    dF,
+    row_chunk_size=128,
+    lag_block_size=1,
+    job_block_size=1,
+    precision="complex128",
+):
+    """Assemble batched target-mode shifts using job-block vectorized lag-blocked kernels.
+    
+    This backend fuses multiple jobs into a single JAX vmap computation to
+    improve memory efficiency and reduce kernel overhead.
+    
+    Parameters
+    ----------
+    job_block_size : int
+        Number of jobs to process together in one vmap batch.
+    row_chunk_size : int
+        Number of rows to process together within each job.
+    lag_block_size : int
+        Number of lags to process together within each row chunk.
+    precision : {"complex128", "complex64", "float64", "float32"}
+        Internal arithmetic precision.
+    
+    Returns
+    -------
+    numpy.ndarray
+        Shifted WDM coefficients with shape ``(B, Nt, Nm)``.
+    """
+    precision = _normalize_chunked_precision(precision)
+    row_chunk_size = int(row_chunk_size)
+    lag_block_size = int(lag_block_size)
+    job_block_size = int(max(1, job_block_size))
+    
+    if row_chunk_size < 1:
+        raise ValueError("row_chunk_size must be >= 1.")
+    if lag_block_size < 1:
+        raise ValueError("lag_block_size must be >= 1.")
+    if job_block_size < 1:
+        raise ValueError("job_block_size must be >= 1.")
+
+    if precision == "complex64":
+        out = _assemble_shift_target_batch_chunked_lagblock_jobblock_core_c64(
+            jnp.asarray(w_xi_batch, dtype=jnp.complex64),
+            jnp.asarray(t_shift_batch, dtype=jnp.float32),
+            jnp.asarray(ell_all, dtype=jnp.int64),
+            int(offset),
+            jnp.asarray(Tl_batch, dtype=jnp.complex64),
+            jnp.asarray(Tp_batch, dtype=jnp.complex64),
+            jnp.asarray(Cnm, dtype=jnp.complex64),
+            jnp.asarray(dF, dtype=jnp.float32),
+            row_chunk_size,
+            lag_block_size,
+            job_block_size,
+        )
+        return np.asarray(out)
+
+    out = _assemble_shift_target_batch_chunked_lagblock_jobblock_core_c128(
+        jnp.asarray(w_xi_batch, dtype=jnp.complex128),
+        jnp.asarray(t_shift_batch, dtype=jnp.float64),
+        jnp.asarray(ell_all, dtype=jnp.int64),
+        int(offset),
+        jnp.asarray(Tl_batch, dtype=jnp.complex128),
+        jnp.asarray(Tp_batch, dtype=jnp.complex128),
+        jnp.asarray(Cnm, dtype=jnp.complex128),
+        jnp.asarray(dF, dtype=jnp.float64),
+        row_chunk_size,
+        lag_block_size,
+        job_block_size,
+    )
+    return np.asarray(out)
+
+
 def assemble_shift_target_jax(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF, assembly_vmap=False):
     """Assemble target-mode variable-delay shift using JAX kernels.
 
