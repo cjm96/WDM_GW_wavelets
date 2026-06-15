@@ -48,6 +48,19 @@ def _normalise_kernel_kwargs(kernel_kwargs):
     return dict(kernel_kwargs)
 
 
+def _inherit_kernel_wdm_kwargs(wdm_data, kernel_kwargs):
+    """
+    Ensure kernel-WDM construction inherits WDM window/basis parameters from
+    the data WDM object unless the caller explicitly overrides them.
+    """
+    out = _normalise_kernel_kwargs(kernel_kwargs)
+
+    if "A_frac" not in out and hasattr(wdm_data, "A_frac"):
+        out["A_frac"] = float(getattr(wdm_data, "A_frac"))
+
+    return out
+
+
 def _resolve_use_jax(use_jax=None):
     """Resolve JAX usage for assembly.
 
@@ -266,6 +279,8 @@ def _build_kernel_wdm_like(wdm_data, Nker, Nf=None, d=None, q=None, calc_m0=True
         # Many of your constructors used q explicitly; require it if absent
         raise ValueError("q not found on wdm_data; pass q explicitly (e.g. q=0.5*Nt).")
 
+    extra_kwargs = _inherit_kernel_wdm_kwargs(wdm_data, extra_kwargs)
+
     cache_key = _kernel_cache_key(
         wdm_data=wdm_data,
         Nker=Nker,
@@ -292,7 +307,7 @@ def _get_kernel_precomputes(wdm, Nker, Nf, kernel_kwargs):
     ``W0`` and ``W1`` window products shared across repeated shift operations
     for the same kernel-WDM configuration.
     """
-    kernel_kwargs = _normalise_kernel_kwargs(kernel_kwargs)
+    kernel_kwargs = _inherit_kernel_wdm_kwargs(wdm, kernel_kwargs)
     wdm_ker = _build_kernel_wdm_like(wdm, Nker, Nf=Nf, calc_m0=True, **kernel_kwargs)
 
     if abs(float(wdm_ker.dF) - float(wdm.dF)) > 1e-30:

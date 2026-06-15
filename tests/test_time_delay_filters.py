@@ -34,6 +34,52 @@ def test_filter_functions():
     assert isinstance(Tprimel, float), "oh dear"
 
 
+def test_kernel_wdm_inherits_A_frac():
+    tsf._KERNEL_WDM_CACHE.clear()
+    tsf._KERNEL_PRECOMP_CACHE.clear()
+
+    wdm_data_020 = WDM.WDM_transform(
+        dt=10.0,
+        Nf=100,
+        N=20000,
+        q=1,
+        calc_m0=False,
+        d=4,
+        A_frac=0.20,
+    )
+
+    wdm_ker_020 = tsf._build_kernel_wdm_like(
+        wdm_data_020,
+        Nker=5200,
+        Nf=100,
+        d=4,
+        calc_m0=True,
+    )
+
+    assert np.isclose(float(wdm_ker_020.A_frac), 0.20)
+
+    wdm_data_030 = WDM.WDM_transform(
+        dt=10.0,
+        Nf=100,
+        N=20000,
+        q=1,
+        calc_m0=False,
+        d=4,
+        A_frac=0.30,
+    )
+
+    wdm_ker_030 = tsf._build_kernel_wdm_like(
+        wdm_data_030,
+        Nker=5200,
+        Nf=100,
+        d=4,
+        calc_m0=True,
+    )
+
+    assert np.isclose(float(wdm_ker_030.A_frac), 0.30)
+    assert wdm_ker_020 is not wdm_ker_030
+
+
 def test_filter_X_orthogonality():
     r"""
     Test the orthogonality of the time-delay matrix elements. We should have 
