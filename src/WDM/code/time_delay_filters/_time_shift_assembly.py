@@ -115,6 +115,7 @@ def _assemble_shift_target_batch_dispatch(
     lag_block_size=1,
     job_block_size=1,
     assembly_vmap=False,
+    return_device=False,
 ):
     """Dispatch batched target-mode assembly to the JAX backend."""
     _ = wdm, use_jax
@@ -131,6 +132,7 @@ def _assemble_shift_target_batch_dispatch(
             float(wdm.dF),
             row_chunk_size=row_chunk_size,
             precision=assembly_precision,
+            return_device=return_device,
         )
 
     if backend in ("lagfirst_chunked_lagblock", "lagblock", "lagfirst_lagblock"):
@@ -146,6 +148,7 @@ def _assemble_shift_target_batch_dispatch(
             row_chunk_size=row_chunk_size,
             lag_block_size=lag_block_size,
             precision=assembly_precision,
+            return_device=return_device,
         )
 
     if backend in ("lagfirst_chunked_lagblock_jobblock", "lagblock_jobblock", "jobblock"):
@@ -162,6 +165,7 @@ def _assemble_shift_target_batch_dispatch(
             lag_block_size=lag_block_size,
             job_block_size=job_block_size,
             precision=assembly_precision,
+            return_device=return_device,
         )
 
     return assemble_shift_target_batch_jax(
@@ -174,6 +178,7 @@ def _assemble_shift_target_batch_dispatch(
         Cnm,
         float(wdm.dF),
         assembly_vmap=assembly_vmap,
+        return_device=return_device,
     )
 
 

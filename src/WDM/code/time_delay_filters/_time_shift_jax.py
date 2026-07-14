@@ -1187,6 +1187,7 @@ def assemble_shift_target_batch_chunked_lagblock_jax(
     row_chunk_size=128,
     lag_block_size=1,
     precision="complex128",
+    return_device=False,
 ):
     """Assemble batched target-mode shifts using chunked lag-blocked kernels.
     
@@ -1225,7 +1226,7 @@ def assemble_shift_target_batch_chunked_lagblock_jax(
             row_chunk_size,
             lag_block_size,
         )
-        return np.asarray(out)
+        return out if return_device else np.asarray(out)
 
     out = _assemble_shift_target_batch_chunked_lagblock_core_c128(
         jnp.asarray(w_xi_batch, dtype=jnp.complex128),
@@ -1239,7 +1240,7 @@ def assemble_shift_target_batch_chunked_lagblock_jax(
         row_chunk_size,
         lag_block_size,
     )
-    return np.asarray(out)
+    return out if return_device else np.asarray(out)
 
 
 def _assemble_shift_target_batch_chunked_lagblock_jobblock_impl_c128(
@@ -1390,6 +1391,7 @@ def assemble_shift_target_batch_chunked_lagblock_jobblock_jax(
     lag_block_size=1,
     job_block_size=1,
     precision="complex128",
+    return_device=False,
 ):
     """Assemble batched target-mode shifts using job-block vectorized lag-blocked kernels.
     
@@ -1438,7 +1440,7 @@ def assemble_shift_target_batch_chunked_lagblock_jobblock_jax(
             lag_block_size,
             job_block_size,
         )
-        return np.asarray(out)
+        return out if return_device else np.asarray(out)
 
     out = _assemble_shift_target_batch_chunked_lagblock_jobblock_core_c128(
         jnp.asarray(w_xi_batch, dtype=jnp.complex128),
@@ -1453,7 +1455,7 @@ def assemble_shift_target_batch_chunked_lagblock_jobblock_jax(
         lag_block_size,
         job_block_size,
     )
-    return np.asarray(out)
+    return out if return_device else np.asarray(out)
 
 
 def assemble_shift_target_jax(w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, Cnm, dF, assembly_vmap=False):
@@ -1578,7 +1580,18 @@ def _assemble_shift_target_batch_impl(w_xi_batch, t_shift_batch, ell_all, offset
 _assemble_shift_target_batch_core = jax.jit(_assemble_shift_target_batch_impl, static_argnums=(3, 8))
 
 
-def assemble_shift_target_batch_jax(w_xi_batch, t_shift_batch, ell_all, offset, Tl_batch, Tp_batch, Cnm, dF, assembly_vmap=False):
+def assemble_shift_target_batch_jax(
+    w_xi_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    Cnm,
+    dF,
+    assembly_vmap=False,
+    return_device=False,
+):
     """Assemble batched target-mode variable-delay shifts using JAX kernels.
 
     Returns
@@ -1597,7 +1610,7 @@ def assemble_shift_target_batch_jax(w_xi_batch, t_shift_batch, ell_all, offset, 
         float(dF),
         bool(assembly_vmap),
     )
-    return np.asarray(out)
+    return out if return_device else np.asarray(out)
 
 
 def assemble_shift_target_batch_chunked_jax(
@@ -1611,6 +1624,7 @@ def assemble_shift_target_batch_chunked_jax(
     dF,
     row_chunk_size=128,
     precision="complex128",
+    return_device=False,
 ):
     """Assemble batched target-mode shifts using chunked lag-first kernels."""
     precision = _normalize_chunked_precision(precision)
@@ -1630,7 +1644,7 @@ def assemble_shift_target_batch_chunked_jax(
             jnp.asarray(dF, dtype=jnp.float32),
             row_chunk_size,
         )
-        return np.asarray(out)
+        return out if return_device else np.asarray(out)
 
     out = _assemble_shift_target_batch_chunked_core_c128(
         jnp.asarray(w_xi_batch, dtype=jnp.complex128),
@@ -1643,7 +1657,7 @@ def assemble_shift_target_batch_chunked_jax(
         jnp.asarray(dF, dtype=jnp.float64),
         row_chunk_size,
     )
-    return np.asarray(out)
+    return out if return_device else np.asarray(out)
 
 
 def assemble_shift_fixed_jax(w_xi, delta, ell_all, offset, Tl_vec, Tp_vec, Cnm, dF, assembly_vmap=False):
