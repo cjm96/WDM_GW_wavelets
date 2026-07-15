@@ -15,6 +15,8 @@ from ._time_shift_jax import (
     assemble_shift_target_batch_chunked_lagblock_jax,
     assemble_shift_target_batch_chunked_lagblock_jobblock_jax,
     assemble_shift_variable_mode_jax,
+    assemble_shift_target_batch_weighted_chunked_jax,
+    assemble_shift_target_batch_weighted_chunked_lagblock_jax,
 )
 
 
@@ -181,6 +183,74 @@ def _assemble_shift_target_batch_dispatch(
         return_device=return_device,
     )
 
+def _assemble_shift_target_batch_weighted_dispatch(
+    wdm,
+    source_coefficients,
+    source_weights_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    Cnm,
+    use_jax,
+    assembly_backend="lagfirst_chunked",
+    assembly_precision="complex64",
+    row_chunk_size=128,
+    lag_block_size=1,
+    return_device=False,
+):
+    """Dispatch fused weighted-source target-mode assembly."""
+
+    _ = use_jax
+    backend = (
+        str(assembly_backend).lower()
+        if assembly_backend is not None
+        else "lagfirst_chunked"
+    )
+
+    if backend in ("lagfirst_chunked", "chunked", "auto"):
+        return assemble_shift_target_batch_weighted_chunked_jax(
+            source_coefficients,
+            source_weights_batch,
+            t_shift_batch,
+            ell_all,
+            offset,
+            Tl_batch,
+            Tp_batch,
+            Cnm,
+            float(wdm.dF),
+            row_chunk_size=row_chunk_size,
+            precision=assembly_precision,
+            return_device=return_device,
+        )
+
+    if backend in (
+        "lagfirst_chunked_lagblock",
+        "lagblock",
+        "lagfirst_lagblock",
+    ):
+        return assemble_shift_target_batch_weighted_chunked_lagblock_jax(
+            source_coefficients,
+            source_weights_batch,
+            t_shift_batch,
+            ell_all,
+            offset,
+            Tl_batch,
+            Tp_batch,
+            Cnm,
+            float(wdm.dF),
+            row_chunk_size=row_chunk_size,
+            lag_block_size=lag_block_size,
+            precision=assembly_precision,
+            return_device=return_device,
+        )
+
+    raise NotImplementedError(
+        "Fused weighted-source assembly supports only "
+        "lagfirst_chunked and lagfirst_chunked_lagblock; "
+        f"got {backend!r}."
+    )
 
 def _assemble_shift_fixed_dispatch(wdm, w_xi, delta, ell_all, offset, Tl_vec, Tp_vec, Cnm, use_jax, assembly_vmap=False):
     """Dispatch fixed-delay assembly to the JAX backend."""

@@ -23,7 +23,10 @@ from typing import Any
 import numpy as np
 
 from .config import VariableShiftPlanConfig
-from ._time_shift_assembly import _assemble_shift_target_batch_dispatch
+from ._time_shift_assembly import (
+    _assemble_shift_target_batch_dispatch,
+    _assemble_shift_target_batch_weighted_dispatch,
+)
 from .time_shift_fast import (
     _build_signed_lag_idx,
     _build_TlTp_from_shift_matrix,
@@ -592,6 +595,252 @@ class VariableShiftBatchPlan:
             "device_plan_memory_bytes": int(
                 self.device_plan_memory_bytes
             ),
+            "returned_on_device": True,
+        }
+        return result_device, profile
+    
+    def apply_weighted_sources_device(
+        self,
+        source_coefficients,
+        source_weights,
+        *,
+        return_profile: bool = False,
+        cache_device_plan: bool = True,
+    ):
+        """Shift weighted combinations of shared sources without materialising them.
+
+        Parameters
+        ----------
+        source_coefficients : array-like, shape (num_sources, Nt, Nm)
+            Shared WDM coefficient grids.
+        source_weights : array-like, shape (num_jobs, num_sources, Nt, Nm)
+            Job-specific source weights. The weighted ``(num_jobs, Nt, Nm)``
+            coefficient batch is formed only for rows required by the active
+            row/lag block inside the JAX kernel.
+        return_profile : bool, optional
+            Synchronise and return timing metadata.
+        cache_device_plan : bool, optional
+            Reuse device copies of the persistent shift-plan arrays.
+        """
+
+        import jax.numpy as jnp
+
+        if self.resolved_assembly_backend not in (
+            "lagfirst_chunked",
+            "lagfirst_chunked_lagblock",
+        ):
+            raise NotImplementedError(
+                "Weighted-source fusion supports only the "
+                "lagfirst_chunked and lagfirst_chunked_lagblock backends; "
+                f"the prepared plan resolved to "
+                f"{self.resolved_assembly_backend!r}."
+            )
+
+        started = perf_counter()
+
+        sources_device = jnp.asarray(source_coefficients)
+        weights_device = jnp.asarray(source_weights)
+
+        if sources_device.ndim != 3:
+            raise ValueError(
+                "source_coefficients must have shape "
+                "(num_sources, Nt, Nm); got "
+                f"{tuple(sources_device.shape)}."
+            )
+        if weights_device.ndim != 4:
+            raise ValueError(
+                "source_weights must have shape "
+                "(num_jobs, num_sources, Nt, Nm); got "
+                f"{tuple(weights_device.shape)}."
+            )
+
+        num_sources = int(sources_device.shape[0])
+        expected_sources = (num_sources, self.Nt, self.Nm)
+        expected_weights = (
+            self.num_jobs,
+            num_sources,
+            self.Nt,
+            self.Nm,
+        )
+
+        if num_sources < 1:
+            raise ValueError("At least one source coefficient grid is required.")
+        if tuple(sources_device.shape) != expected_sources:
+            raise ValueError(
+                f"Expected source_coefficients shape {expected_sources}, "
+                f"got {tuple(sources_device.shape)}."
+            )
+        if tuple(weights_device.shape) != expected_weights:
+            raise ValueError(
+                f"Expected source_weights shape {expected_weights}, "
+                f"got {tuple(weights_device.shape)}."
+            )
+
+        complex_dtype = (
+            jnp.complex64
+            if self.resolved_assembly_precision == "complex64"
+            else jnp.complex128
+        )
+        real_dtype = (
+            jnp.float32
+            if self.resolved_assembly_precision == "complex64"
+            else jnp.float64
+        )
+
+        if cache_device_plan:
+            device_plan = self._device_plan_arrays()
+            delays_device = device_plan["delays"]
+            ell_device = device_plan["ell_all"]
+            Tl_device = device_plan["Tl_all"]
+            Tp_device = device_plan["Tp_all"]
+            Cnm_device = device_plan["Cnm"]
+        else:
+            delays_device = jnp.asarray(
+                self.delays,
+                dtype=real_dtype,
+            )
+            ell_device = jnp.asarray(
+                self.ell_all,
+                dtype=jnp.int64,
+            )
+            Tl_device = jnp.asarray(
+                self.Tl_all,
+                dtype=complex_dtype,
+            )
+            Tp_device = jnp.asarray(
+                self.Tp_all,
+                dtype=complex_dtype,
+            )
+            Cnm_device = jnp.asarray(
+                self.Cnm,
+                dtype=complex_dtype,
+            )
+
+        chunk_size = (
+            self.num_jobs
+            if self.config.batch_chunk is None
+            else min(self.num_jobs, int(self.config.batch_chunk))
+        )
+
+        output_chunks = []
+        assembly_started = perf_counter()
+
+        for start in range(0, self.num_jobs, chunk_size):
+            stop = min(start + chunk_size, self.num_jobs)
+            true_batch = stop - start
+
+            weights_work = weights_device[start:stop]
+            delay_work = delays_device[start:stop]
+            Tl_work = Tl_device[start:stop]
+            Tp_work = Tp_device[start:stop]
+
+            should_pad = (
+                self.resolved_use_jax
+                and bool(self.config.assembly_vmap)
+                and self.config.jax_pad_last_chunk
+                and self.num_jobs > chunk_size
+                and true_batch < chunk_size
+            )
+
+            if should_pad:
+                pad_rows = chunk_size - true_batch
+                weights_work = jnp.concatenate(
+                    (
+                        weights_work,
+                        jnp.repeat(
+                            weights_work[-1:],
+                            pad_rows,
+                            axis=0,
+                        ),
+                    ),
+                    axis=0,
+                )
+                delay_work = jnp.concatenate(
+                    (
+                        delay_work,
+                        jnp.repeat(
+                            delay_work[-1:],
+                            pad_rows,
+                            axis=0,
+                        ),
+                    ),
+                    axis=0,
+                )
+                Tl_work = jnp.concatenate(
+                    (
+                        Tl_work,
+                        jnp.repeat(
+                            Tl_work[-1:],
+                            pad_rows,
+                            axis=0,
+                        ),
+                    ),
+                    axis=0,
+                )
+                Tp_work = jnp.concatenate(
+                    (
+                        Tp_work,
+                        jnp.repeat(
+                            Tp_work[-1:],
+                            pad_rows,
+                            axis=0,
+                        ),
+                    ),
+                    axis=0,
+                )
+
+            shifted_device = (
+                _assemble_shift_target_batch_weighted_dispatch(
+                    self.wdm,
+                    sources_device,
+                    weights_work,
+                    delay_work,
+                    ell_device,
+                    self.offset,
+                    Tl_work,
+                    Tp_work,
+                    Cnm=Cnm_device,
+                    use_jax=self.resolved_use_jax,
+                    assembly_backend=self.resolved_assembly_backend,
+                    assembly_precision=(
+                        self.resolved_assembly_precision
+                    ),
+                    row_chunk_size=self.config.row_chunk_size,
+                    lag_block_size=self.config.lag_block_size,
+                    return_device=True,
+                )
+            )
+            output_chunks.append(shifted_device[:true_batch])
+
+        if len(output_chunks) == 1:
+            result_device = output_chunks[0]
+        else:
+            result_device = jnp.concatenate(output_chunks, axis=0)
+
+        if return_profile:
+            result_device.block_until_ready()
+
+        assembly_seconds = perf_counter() - assembly_started
+        total_seconds = perf_counter() - started
+
+        if not return_profile:
+            return result_device
+
+        profile: dict[str, float | int | str | bool] = {
+            "n_jobs": int(self.num_jobs),
+            "n_sources": int(num_sources),
+            "batch_chunk": int(chunk_size),
+            "assembly_backend": self.resolved_assembly_backend,
+            "assembly_precision": self.resolved_assembly_precision,
+            "total_s": float(total_seconds),
+            "assembly_s": float(assembly_seconds),
+            "other_s": float(total_seconds - assembly_seconds),
+            "plan_build_s": float(self.build_seconds),
+            "device_plan_cached": bool(cache_device_plan),
+            "device_plan_memory_bytes": int(
+                self.device_plan_memory_bytes
+            ),
+            "weighted_source_fusion": True,
             "returned_on_device": True,
         }
         return result_device, profile

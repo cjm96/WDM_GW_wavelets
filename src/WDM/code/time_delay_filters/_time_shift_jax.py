@@ -790,6 +790,851 @@ _assemble_shift_target_batch_chunked_core_c64 = jax.jit(
     static_argnums=(3, 8),
 )
 
+def _combine_weighted_source_rows(
+    source_coefficients,
+    source_weights,
+    row_indices,
+):
+    """Combine source rows without materialising a full job-major batch.
+
+    ``source_coefficients`` has shape ``(num_sources, Nt, Nm)`` and
+    ``source_weights`` has shape ``(num_sources, Nt, Nm)`` for one shift job.
+    ``row_indices`` may be one- or multi-dimensional; the returned array has
+    shape ``row_indices.shape + (Nm,)``.
+    """
+
+    source_rows = source_coefficients[:, row_indices, :]
+    weight_rows = source_weights[:, row_indices, :]
+
+    combined = weight_rows[0] * source_rows[0]
+
+    def source_body(source_index, value):
+        return value + weight_rows[source_index] * source_rows[source_index]
+
+    return jax.lax.fori_loop(
+        1,
+        source_coefficients.shape[0],
+        source_body,
+        combined,
+    )
+
+
+def _make_shift_target_weighted_chunked_impl(
+    *,
+    complex_dtype,
+    real_dtype,
+):
+    """Create one weighted-source row-chunked target-mode kernel."""
+
+    def impl(
+        source_coefficients,
+        source_weights,
+        t_shift,
+        ell_all,
+        offset,
+        Tl_all,
+        Tp_all,
+        Cnm,
+        dF,
+        row_chunk_size,
+    ):
+        # Preserve the source/weight input precision during modulation.  The
+        # combined rows are cast only after the weighted sum, matching the
+        # materialised route: combine first, then cast for shift assembly.
+        source_coefficients = jnp.asarray(source_coefficients)
+        source_weights = jnp.asarray(source_weights)
+        t_shift = jnp.asarray(t_shift, dtype=real_dtype)
+        ell_all = jnp.asarray(ell_all, dtype=jnp.int64)
+        Tl_all = jnp.asarray(Tl_all, dtype=complex_dtype)
+        Tp_all = jnp.asarray(Tp_all, dtype=complex_dtype)
+        Cnm = jnp.asarray(Cnm, dtype=complex_dtype)
+        dF = jnp.asarray(dF, dtype=real_dtype)
+
+        Nt = t_shift.shape[0]
+        Nm = source_coefficients.shape[-1]
+        n_lag = ell_all.shape[0]
+
+        m_full = jnp.arange(Nm, dtype=real_dtype)
+        one_j = jnp.asarray(1j, dtype=complex_dtype)
+        two_pi = jnp.asarray(2.0 * np.pi, dtype=real_dtype)
+        pi = jnp.asarray(np.pi, dtype=real_dtype)
+
+        ph_m_all = jnp.exp(
+            one_j
+            * two_pi
+            * (m_full[None, :] * dF)
+            * t_shift[:, None]
+        )
+        half_bin_phase = jnp.exp(
+            one_j
+            * pi
+            * dF
+            * t_shift
+        )
+        ph_mid_all = (
+            ph_m_all[:, :-1]
+            * half_bin_phase[:, None]
+        )
+
+        minus1_to_m = jnp.where(
+            (jnp.arange(Nm) % 2) == 0,
+            jnp.asarray(1.0, dtype=real_dtype),
+            jnp.asarray(-1.0, dtype=real_dtype),
+        )
+        ell_even = (ell_all % 2) == 0
+        parity_all = jnp.where(
+            ell_even[:, None],
+            jnp.ones((n_lag, Nm), dtype=real_dtype),
+            minus1_to_m[None, :],
+        )
+
+        neg_i = jnp.asarray(-1j, dtype=complex_dtype)
+        pos_i = jnp.asarray(1j, dtype=complex_dtype)
+        low_phase = jnp.power(neg_i, -ell_all)
+        up_phase = jnp.power(pos_i, -ell_all)
+
+        n_chunks = (Nt + row_chunk_size - 1) // row_chunk_size
+        Nt_pad = n_chunks * row_chunk_size
+
+        out0 = jnp.zeros((Nt_pad, Nm), dtype=complex_dtype)
+        zero_col = jnp.zeros((row_chunk_size, 1), dtype=complex_dtype)
+
+        # A target-row chunk can read source rows up to ``offset`` rows on
+        # either side. Build one weighted halo per chunk and reuse it for all
+        # lags, rather than recomputing the polarization combination inside
+        # every lag iteration.
+        row_offsets = jnp.arange(row_chunk_size, dtype=jnp.int64)
+        halo_size = row_chunk_size + 2 * offset
+        halo_offsets = jnp.arange(halo_size, dtype=jnp.int64)
+
+        def chunk_body(chunk_id, out_acc):
+            start = chunk_id * row_chunk_size
+            rows = start + row_offsets
+            valid_row = rows < Nt
+            rows_safe = jnp.clip(rows, 0, Nt - 1)
+
+            carrier_prefac = (
+                jnp.conj(Cnm[rows_safe, :])
+                * ph_m_all[rows_safe, :]
+            )
+            ph_mid = ph_mid_all[rows_safe, :]
+
+            # Required source rows for this target chunk span
+            # [start - offset, start + row_chunk_size - 1 + offset].
+            # Clipped boundary entries are harmless because ``valid_n`` masks
+            # their contributions in the lag loop.
+            halo_start = start - offset
+            halo_rows = halo_start + halo_offsets
+            halo_rows_safe = jnp.clip(halo_rows, 0, Nt - 1)
+
+            weighted_halo = _combine_weighted_source_rows(
+                source_coefficients,
+                source_weights,
+                halo_rows_safe,
+            ).astype(complex_dtype)
+
+            out_chunk0 = jnp.zeros(
+                (row_chunk_size, Nm),
+                dtype=complex_dtype,
+            )
+
+            def lag_body(i, chunk_out):
+                ell = ell_all[i]
+                j_neg = -ell + offset
+                nprime = rows + ell
+                valid_n = (
+                    valid_row
+                    & (nprime >= 0)
+                    & (nprime < Nt)
+                )
+                nprime_safe = jnp.clip(nprime, 0, Nt - 1)
+
+                parity = parity_all[i]
+                Tl_row = Tl_all[rows_safe, j_neg]
+                Tp_row = Tp_all[rows_safe, j_neg]
+                Cn = Cnm[nprime_safe, :]
+
+                # Reuse the weighted source halo built once for this row
+                # chunk. Since
+                #   nprime = start + row_offset + ell
+                # and
+                #   halo_start = start - offset,
+                # the corresponding halo index is row_offset + ell + offset.
+                local_source_rows = row_offsets + ell + offset
+                w_n = weighted_halo[local_source_rows, :]
+
+                main = (
+                    parity[None, :]
+                    * carrier_prefac
+                    * Cn
+                    * Tl_row[:, None]
+                ).real * w_n
+                main = jnp.where(
+                    valid_n[:, None],
+                    main,
+                    jnp.zeros_like(main),
+                )
+
+                def add_sidebands(main_acc):
+                    low = (
+                        parity[:-1][None, :]
+                        * low_phase[i]
+                        * jnp.conj(Cnm[rows_safe, 1:])
+                        * Cn[:, :-1]
+                        * Tp_row[:, None]
+                        * ph_mid
+                    ).real * w_n[:, :-1]
+
+                    up = (
+                        parity[1:][None, :]
+                        * up_phase[i]
+                        * jnp.conj(Cnm[rows_safe, :-1])
+                        * Cn[:, 1:]
+                        * Tp_row[:, None]
+                        * ph_mid
+                    ).real * w_n[:, 1:]
+
+                    low_pad = jnp.concatenate(
+                        (zero_col, low),
+                        axis=1,
+                    )
+                    up_pad = jnp.concatenate(
+                        (up, zero_col),
+                        axis=1,
+                    )
+                    side = low_pad + up_pad
+                    side = jnp.where(
+                        valid_n[:, None],
+                        side,
+                        jnp.zeros_like(side),
+                    )
+                    return main_acc + side
+
+                chunk_next = jax.lax.cond(
+                    Nm > 1,
+                    add_sidebands,
+                    lambda value: value,
+                    main,
+                )
+                return chunk_out + chunk_next
+
+            out_chunk = jax.lax.fori_loop(
+                0,
+                n_lag,
+                lag_body,
+                out_chunk0,
+            )
+            return jax.lax.dynamic_update_slice(
+                out_acc,
+                out_chunk,
+                (start, 0),
+            )
+
+        out_padded = jax.lax.fori_loop(
+            0,
+            n_chunks,
+            chunk_body,
+            out0,
+        )
+        return out_padded[:Nt, :]
+
+    return impl
+
+
+_assemble_shift_target_weighted_chunked_impl_c128 = (
+    _make_shift_target_weighted_chunked_impl(
+        complex_dtype=jnp.complex128,
+        real_dtype=jnp.float64,
+    )
+)
+
+_assemble_shift_target_weighted_chunked_impl_c64 = (
+    _make_shift_target_weighted_chunked_impl(
+        complex_dtype=jnp.complex64,
+        real_dtype=jnp.float32,
+    )
+)
+
+
+def _make_shift_target_batch_weighted_chunked_impl(
+    *,
+    single_job_impl,
+    complex_dtype,
+):
+    """Create the batched weighted-source row-chunked kernel."""
+
+    def impl(
+        source_coefficients,
+        source_weights_batch,
+        t_shift_batch,
+        ell_all,
+        offset,
+        Tl_batch,
+        Tp_batch,
+        Cnm,
+        dF,
+        row_chunk_size,
+    ):
+        B = source_weights_batch.shape[0]
+        Nt = source_coefficients.shape[1]
+        Nm = source_coefficients.shape[2]
+        out0 = jnp.zeros((B, Nt, Nm), dtype=complex_dtype)
+
+        def body(i, out):
+            shifted = single_job_impl(
+                source_coefficients,
+                source_weights_batch[i],
+                t_shift_batch[i],
+                ell_all,
+                offset,
+                Tl_batch[i],
+                Tp_batch[i],
+                Cnm,
+                dF,
+                row_chunk_size,
+            )
+            return out.at[i, :, :].set(shifted)
+
+        return jax.lax.fori_loop(0, B, body, out0)
+
+    return impl
+
+
+_assemble_shift_target_batch_weighted_chunked_impl_c128 = (
+    _make_shift_target_batch_weighted_chunked_impl(
+        single_job_impl=(
+            _assemble_shift_target_weighted_chunked_impl_c128
+        ),
+        complex_dtype=jnp.complex128,
+    )
+)
+
+_assemble_shift_target_batch_weighted_chunked_impl_c64 = (
+    _make_shift_target_batch_weighted_chunked_impl(
+        single_job_impl=(
+            _assemble_shift_target_weighted_chunked_impl_c64
+        ),
+        complex_dtype=jnp.complex64,
+    )
+)
+
+
+_assemble_shift_target_batch_weighted_chunked_core_c128 = jax.jit(
+    _assemble_shift_target_batch_weighted_chunked_impl_c128,
+    static_argnums=(4, 9),
+)
+
+_assemble_shift_target_batch_weighted_chunked_core_c64 = jax.jit(
+    _assemble_shift_target_batch_weighted_chunked_impl_c64,
+    static_argnums=(4, 9),
+)
+
+
+def assemble_shift_target_batch_weighted_chunked_jax(
+    source_coefficients,
+    source_weights_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    Cnm,
+    dF,
+    row_chunk_size=128,
+    precision="complex128",
+    return_device=False,
+):
+    """Shift job-specific weighted combinations of shared source arrays.
+
+    Parameters
+    ----------
+    source_coefficients : array-like, shape (num_sources, Nt, Nm)
+        Shared source coefficient grids.
+    source_weights_batch : array-like, shape (num_jobs, num_sources, Nt, Nm)
+        Job-specific weights applied to the shared sources.
+
+    Notes
+    -----
+    The full ``(num_jobs, Nt, Nm)`` weighted coefficient batch is never
+    constructed. Weighted source rows are formed inside each target-row/lag
+    block immediately before shift accumulation.
+    """
+
+    precision = _normalize_chunked_precision(precision)
+    row_chunk_size = int(row_chunk_size)
+    if row_chunk_size < 1:
+        raise ValueError("row_chunk_size must be >= 1.")
+
+    source_coefficients = jnp.asarray(source_coefficients)
+    source_weights_batch = jnp.asarray(source_weights_batch)
+
+    if source_coefficients.ndim != 3:
+        raise ValueError(
+            "source_coefficients must have shape "
+            "(num_sources, Nt, Nm)."
+        )
+    if source_weights_batch.ndim != 4:
+        raise ValueError(
+            "source_weights_batch must have shape "
+            "(num_jobs, num_sources, Nt, Nm)."
+        )
+
+    num_sources, Nt, Nm = source_coefficients.shape
+    num_jobs = source_weights_batch.shape[0]
+    expected_weights = (num_jobs, num_sources, Nt, Nm)
+    if tuple(source_weights_batch.shape) != expected_weights:
+        raise ValueError(
+            f"Expected source_weights_batch shape {expected_weights}, "
+            f"got {tuple(source_weights_batch.shape)}."
+        )
+    if num_sources < 1:
+        raise ValueError("At least one weighted source is required.")
+
+    if precision == "complex64":
+        out = _assemble_shift_target_batch_weighted_chunked_core_c64(
+            source_coefficients,
+            source_weights_batch,
+            jnp.asarray(t_shift_batch, dtype=jnp.float32),
+            jnp.asarray(ell_all, dtype=jnp.int64),
+            int(offset),
+            jnp.asarray(Tl_batch, dtype=jnp.complex64),
+            jnp.asarray(Tp_batch, dtype=jnp.complex64),
+            jnp.asarray(Cnm, dtype=jnp.complex64),
+            jnp.asarray(dF, dtype=jnp.float32),
+            row_chunk_size,
+        )
+        return out if return_device else np.asarray(out)
+
+    out = _assemble_shift_target_batch_weighted_chunked_core_c128(
+        source_coefficients,
+        source_weights_batch,
+        jnp.asarray(t_shift_batch, dtype=jnp.float64),
+        jnp.asarray(ell_all, dtype=jnp.int64),
+        int(offset),
+        jnp.asarray(Tl_batch, dtype=jnp.complex128),
+        jnp.asarray(Tp_batch, dtype=jnp.complex128),
+        jnp.asarray(Cnm, dtype=jnp.complex128),
+        jnp.asarray(dF, dtype=jnp.float64),
+        row_chunk_size,
+    )
+    return out if return_device else np.asarray(out)
+
+
+
+def _make_shift_target_weighted_chunked_lagblock_impl(
+    *,
+    complex_dtype,
+    real_dtype,
+):
+    """Create one weighted-source row-chunked, lag-blocked kernel."""
+
+    def impl(
+        source_coefficients,
+        source_weights,
+        t_shift,
+        ell_all,
+        offset,
+        Tl_all,
+        Tp_all,
+        Cnm,
+        dF,
+        row_chunk_size,
+        lag_block_size,
+    ):
+        # Preserve source/weight precision during modulation, then cast the
+        # combined halo to the requested shift-assembly precision.
+        source_coefficients = jnp.asarray(source_coefficients)
+        source_weights = jnp.asarray(source_weights)
+        t_shift = jnp.asarray(t_shift, dtype=real_dtype)
+        ell_all = jnp.asarray(ell_all, dtype=jnp.int64)
+        Tl_all = jnp.asarray(Tl_all, dtype=complex_dtype)
+        Tp_all = jnp.asarray(Tp_all, dtype=complex_dtype)
+        Cnm = jnp.asarray(Cnm, dtype=complex_dtype)
+        dF = jnp.asarray(dF, dtype=real_dtype)
+
+        Nt = t_shift.shape[0]
+        Nm = source_coefficients.shape[-1]
+        n_lag = ell_all.shape[0]
+
+        m_full = jnp.arange(Nm, dtype=real_dtype)
+        one_j = jnp.asarray(1j, dtype=complex_dtype)
+        two_pi = jnp.asarray(2.0 * np.pi, dtype=real_dtype)
+        pi = jnp.asarray(np.pi, dtype=real_dtype)
+
+        ph_m_all = jnp.exp(
+            one_j
+            * two_pi
+            * (m_full[None, :] * dF)
+            * t_shift[:, None]
+        )
+        half_bin_phase = jnp.exp(
+            one_j
+            * pi
+            * dF
+            * t_shift
+        )
+        ph_mid_all = ph_m_all[:, :-1] * half_bin_phase[:, None]
+
+        minus1_to_m = jnp.where(
+            (jnp.arange(Nm) % 2) == 0,
+            jnp.asarray(1.0, dtype=real_dtype),
+            jnp.asarray(-1.0, dtype=real_dtype),
+        )
+        ell_even = (ell_all % 2) == 0
+        parity_all = jnp.where(
+            ell_even[:, None],
+            jnp.ones((n_lag, Nm), dtype=real_dtype),
+            minus1_to_m[None, :],
+        )
+
+        neg_i = jnp.asarray(-1j, dtype=complex_dtype)
+        pos_i = jnp.asarray(1j, dtype=complex_dtype)
+        low_phase = jnp.power(neg_i, -ell_all)
+        up_phase = jnp.power(pos_i, -ell_all)
+
+        n_chunks = (Nt + row_chunk_size - 1) // row_chunk_size
+        Nt_pad = n_chunks * row_chunk_size
+
+        out0 = jnp.zeros((Nt_pad, Nm), dtype=complex_dtype)
+        zero_col = jnp.zeros((row_chunk_size, 1), dtype=complex_dtype)
+
+        row_offsets = jnp.arange(row_chunk_size, dtype=jnp.int64)
+        halo_size = row_chunk_size + 2 * offset
+        halo_offsets = jnp.arange(halo_size, dtype=jnp.int64)
+
+        def chunk_body(chunk_id, out_acc):
+            start = chunk_id * row_chunk_size
+            rows = start + row_offsets
+            valid_row = rows < Nt
+            rows_safe = jnp.clip(rows, 0, Nt - 1)
+
+            carrier_prefac = (
+                jnp.conj(Cnm[rows_safe, :])
+                * ph_m_all[rows_safe, :]
+            )
+            ph_mid = ph_mid_all[rows_safe, :]
+
+            # Build the weighted source only once for all source rows that can
+            # be reached by this target-row chunk. Every lag block reuses it.
+            halo_start = start - offset
+            halo_rows = halo_start + halo_offsets
+            halo_rows_safe = jnp.clip(halo_rows, 0, Nt - 1)
+            weighted_halo = _combine_weighted_source_rows(
+                source_coefficients,
+                source_weights,
+                halo_rows_safe,
+            ).astype(complex_dtype)
+
+            out_chunk0 = jnp.zeros(
+                (row_chunk_size, Nm),
+                dtype=complex_dtype,
+            )
+
+            def lag_block_body(lag_block_id, chunk_out):
+                lag_start = lag_block_id * lag_block_size
+                lag_indices = lag_start + jnp.arange(
+                    lag_block_size,
+                    dtype=jnp.int64,
+                )
+                valid_lag = lag_indices < n_lag
+                lag_indices_safe = jnp.clip(
+                    lag_indices,
+                    0,
+                    n_lag - 1,
+                )
+
+                ell_block = ell_all[lag_indices_safe]
+                parity_block = parity_all[lag_indices_safe]
+                j_neg_block = -ell_block + offset
+                low_phase_block = low_phase[lag_indices_safe]
+                up_phase_block = up_phase[lag_indices_safe]
+
+                nprime = rows[:, None] + ell_block[None, :]
+                valid_n = (
+                    valid_row[:, None]
+                    & valid_lag[None, :]
+                    & (nprime >= 0)
+                    & (nprime < Nt)
+                )
+                nprime_safe = jnp.clip(nprime, 0, Nt - 1)
+
+                Tl_row_block = Tl_all[rows_safe, :][:, j_neg_block]
+                Tp_row_block = Tp_all[rows_safe, :][:, j_neg_block]
+                Cn_block = Cnm[nprime_safe, :]
+
+                # nprime - halo_start = row_offset + ell + offset.
+                local_source_rows = (
+                    row_offsets[:, None]
+                    + ell_block[None, :]
+                    + offset
+                )
+                w_n_block = weighted_halo[local_source_rows, :]
+
+                main = (
+                    parity_block[None, :, :]
+                    * carrier_prefac[:, None, :]
+                    * Cn_block
+                    * Tl_row_block[:, :, None]
+                ).real * w_n_block
+                main = jnp.where(
+                    valid_n[:, :, None],
+                    main,
+                    jnp.zeros_like(main),
+                )
+                main_sum = jnp.sum(main, axis=1)
+
+                def add_sidebands(main_acc):
+                    low = (
+                        parity_block[:, :-1][None, :, :]
+                        * low_phase_block[None, :, None]
+                        * jnp.conj(Cnm[rows_safe, 1:])[:, None, :]
+                        * Cn_block[:, :, :-1]
+                        * Tp_row_block[:, :, None]
+                        * ph_mid[:, None, :]
+                    ).real * w_n_block[:, :, :-1]
+
+                    up = (
+                        parity_block[:, 1:][None, :, :]
+                        * up_phase_block[None, :, None]
+                        * jnp.conj(Cnm[rows_safe, :-1])[:, None, :]
+                        * Cn_block[:, :, 1:]
+                        * Tp_row_block[:, :, None]
+                        * ph_mid[:, None, :]
+                    ).real * w_n_block[:, :, 1:]
+
+                    low = jnp.where(
+                        valid_n[:, :, None],
+                        low,
+                        jnp.zeros_like(low),
+                    )
+                    up = jnp.where(
+                        valid_n[:, :, None],
+                        up,
+                        jnp.zeros_like(up),
+                    )
+
+                    low_sum = jnp.sum(low, axis=1)
+                    up_sum = jnp.sum(up, axis=1)
+
+                    low_pad = jnp.concatenate(
+                        (zero_col, low_sum),
+                        axis=1,
+                    )
+                    up_pad = jnp.concatenate(
+                        (up_sum, zero_col),
+                        axis=1,
+                    )
+                    return main_acc + low_pad + up_pad
+
+                chunk_next = jax.lax.cond(
+                    Nm > 1,
+                    add_sidebands,
+                    lambda value: value,
+                    main_sum,
+                )
+                return chunk_out + chunk_next
+
+            n_lag_blocks = (
+                n_lag + lag_block_size - 1
+            ) // lag_block_size
+            out_chunk = jax.lax.fori_loop(
+                0,
+                n_lag_blocks,
+                lag_block_body,
+                out_chunk0,
+            )
+            return jax.lax.dynamic_update_slice(
+                out_acc,
+                out_chunk,
+                (start, 0),
+            )
+
+        out_padded = jax.lax.fori_loop(
+            0,
+            n_chunks,
+            chunk_body,
+            out0,
+        )
+        return out_padded[:Nt, :]
+
+    return impl
+
+
+_assemble_shift_target_weighted_chunked_lagblock_impl_c128 = (
+    _make_shift_target_weighted_chunked_lagblock_impl(
+        complex_dtype=jnp.complex128,
+        real_dtype=jnp.float64,
+    )
+)
+
+_assemble_shift_target_weighted_chunked_lagblock_impl_c64 = (
+    _make_shift_target_weighted_chunked_lagblock_impl(
+        complex_dtype=jnp.complex64,
+        real_dtype=jnp.float32,
+    )
+)
+
+
+def _make_shift_target_batch_weighted_chunked_lagblock_impl(
+    *,
+    single_job_impl,
+    complex_dtype,
+):
+    """Create the batched weighted-source lag-blocked kernel."""
+
+    def impl(
+        source_coefficients,
+        source_weights_batch,
+        t_shift_batch,
+        ell_all,
+        offset,
+        Tl_batch,
+        Tp_batch,
+        Cnm,
+        dF,
+        row_chunk_size,
+        lag_block_size,
+    ):
+        B = source_weights_batch.shape[0]
+        Nt = source_coefficients.shape[1]
+        Nm = source_coefficients.shape[2]
+        out0 = jnp.zeros((B, Nt, Nm), dtype=complex_dtype)
+
+        def body(i, out):
+            shifted = single_job_impl(
+                source_coefficients,
+                source_weights_batch[i],
+                t_shift_batch[i],
+                ell_all,
+                offset,
+                Tl_batch[i],
+                Tp_batch[i],
+                Cnm,
+                dF,
+                row_chunk_size,
+                lag_block_size,
+            )
+            return out.at[i, :, :].set(shifted)
+
+        return jax.lax.fori_loop(0, B, body, out0)
+
+    return impl
+
+
+_assemble_shift_target_batch_weighted_chunked_lagblock_impl_c128 = (
+    _make_shift_target_batch_weighted_chunked_lagblock_impl(
+        single_job_impl=(
+            _assemble_shift_target_weighted_chunked_lagblock_impl_c128
+        ),
+        complex_dtype=jnp.complex128,
+    )
+)
+
+_assemble_shift_target_batch_weighted_chunked_lagblock_impl_c64 = (
+    _make_shift_target_batch_weighted_chunked_lagblock_impl(
+        single_job_impl=(
+            _assemble_shift_target_weighted_chunked_lagblock_impl_c64
+        ),
+        complex_dtype=jnp.complex64,
+    )
+)
+
+
+_assemble_shift_target_batch_weighted_chunked_lagblock_core_c128 = jax.jit(
+    _assemble_shift_target_batch_weighted_chunked_lagblock_impl_c128,
+    static_argnums=(4, 9, 10),
+)
+
+_assemble_shift_target_batch_weighted_chunked_lagblock_core_c64 = jax.jit(
+    _assemble_shift_target_batch_weighted_chunked_lagblock_impl_c64,
+    static_argnums=(4, 9, 10),
+)
+
+
+def assemble_shift_target_batch_weighted_chunked_lagblock_jax(
+    source_coefficients,
+    source_weights_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    Cnm,
+    dF,
+    row_chunk_size=128,
+    lag_block_size=1,
+    precision="complex128",
+    return_device=False,
+):
+    """Shift weighted shared sources with row-chunked lag blocking."""
+
+    precision = _normalize_chunked_precision(precision)
+    row_chunk_size = int(row_chunk_size)
+    lag_block_size = int(lag_block_size)
+
+    if row_chunk_size < 1:
+        raise ValueError("row_chunk_size must be >= 1.")
+    if lag_block_size < 1:
+        raise ValueError("lag_block_size must be >= 1.")
+
+    source_coefficients = jnp.asarray(source_coefficients)
+    source_weights_batch = jnp.asarray(source_weights_batch)
+
+    if source_coefficients.ndim != 3:
+        raise ValueError(
+            "source_coefficients must have shape "
+            "(num_sources, Nt, Nm)."
+        )
+    if source_weights_batch.ndim != 4:
+        raise ValueError(
+            "source_weights_batch must have shape "
+            "(num_jobs, num_sources, Nt, Nm)."
+        )
+
+    num_sources, Nt, Nm = source_coefficients.shape
+    num_jobs = source_weights_batch.shape[0]
+    expected_weights = (num_jobs, num_sources, Nt, Nm)
+
+    if tuple(source_weights_batch.shape) != expected_weights:
+        raise ValueError(
+            f"Expected source_weights_batch shape {expected_weights}, "
+            f"got {tuple(source_weights_batch.shape)}."
+        )
+    if num_sources < 1:
+        raise ValueError("At least one weighted source is required.")
+
+    if precision == "complex64":
+        out = (
+            _assemble_shift_target_batch_weighted_chunked_lagblock_core_c64(
+                source_coefficients,
+                source_weights_batch,
+                jnp.asarray(t_shift_batch, dtype=jnp.float32),
+                jnp.asarray(ell_all, dtype=jnp.int64),
+                int(offset),
+                jnp.asarray(Tl_batch, dtype=jnp.complex64),
+                jnp.asarray(Tp_batch, dtype=jnp.complex64),
+                jnp.asarray(Cnm, dtype=jnp.complex64),
+                jnp.asarray(dF, dtype=jnp.float32),
+                row_chunk_size,
+                lag_block_size,
+            )
+        )
+        return out if return_device else np.asarray(out)
+
+    out = _assemble_shift_target_batch_weighted_chunked_lagblock_core_c128(
+        source_coefficients,
+        source_weights_batch,
+        jnp.asarray(t_shift_batch, dtype=jnp.float64),
+        jnp.asarray(ell_all, dtype=jnp.int64),
+        int(offset),
+        jnp.asarray(Tl_batch, dtype=jnp.complex128),
+        jnp.asarray(Tp_batch, dtype=jnp.complex128),
+        jnp.asarray(Cnm, dtype=jnp.complex128),
+        jnp.asarray(dF, dtype=jnp.float64),
+        row_chunk_size,
+        lag_block_size,
+    )
+    return out if return_device else np.asarray(out)
 
 def _assemble_shift_target_chunked_lagblock_impl_c128(
     w_xi,
