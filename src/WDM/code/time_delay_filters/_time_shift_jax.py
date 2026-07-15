@@ -454,12 +454,34 @@ def _assemble_shift_target_chunked_impl_c128(
     n_lag = ell_all.shape[0]
 
     m_full = jnp.arange(Nm, dtype=jnp.float64)
-    m_mid = jnp.arange(max(Nm - 1, 0), dtype=jnp.float64) + 0.5
     one_j = jnp.asarray(1j, dtype=jnp.complex128)
     two_pi = jnp.asarray(2.0 * np.pi, dtype=jnp.float64)
+    pi = jnp.asarray(np.pi, dtype=jnp.float64)
 
-    ph_m_all = jnp.exp(one_j * two_pi * (m_full[None, :] * dF) * t_shift[:, None])
-    ph_mid_all = jnp.exp(one_j * two_pi * (m_mid[None, :] * dF) * t_shift[:, None])
+    # Full-bin phases:
+    # exp(i 2 pi m dF Delta)
+    ph_m_all = jnp.exp(
+        one_j
+        * two_pi
+        * (m_full[None, :] * dF)
+        * t_shift[:, None]
+    )
+
+    # Half-bin correction:
+    # exp(i pi dF Delta)
+    half_bin_phase = jnp.exp(
+        one_j
+        * pi
+        * dF
+        * t_shift
+    )
+
+    # exp[i 2 pi (m + 1/2) dF Delta]
+    # = exp(i 2 pi m dF Delta) exp(i pi dF Delta)
+    ph_mid_all = (
+        ph_m_all[:, :-1]
+        * half_bin_phase[:, None]
+    )
 
     minus1_to_m = jnp.where(
         (jnp.arange(Nm) % 2) == 0,
@@ -570,13 +592,34 @@ def _assemble_shift_target_chunked_impl_c64(
     n_lag = ell_all.shape[0]
 
     m_full = jnp.arange(Nm, dtype=jnp.float32)
-    m_mid = jnp.arange(max(Nm - 1, 0), dtype=jnp.float32) + jnp.asarray(0.5, dtype=jnp.float32)
     one_j = jnp.asarray(1j, dtype=jnp.complex64)
     two_pi = jnp.asarray(2.0 * np.pi, dtype=jnp.float32)
+    pi = jnp.asarray(np.pi, dtype=jnp.float32)
 
-    ph_m_all = jnp.exp(one_j * two_pi * (m_full[None, :] * dF) * t_shift[:, None])
-    ph_mid_all = jnp.exp(one_j * two_pi * (m_mid[None, :] * dF) * t_shift[:, None])
+    # Full-bin phases:
+    # exp(i 2 pi m dF Delta)
+    ph_m_all = jnp.exp(
+        one_j
+        * two_pi
+        * (m_full[None, :] * dF)
+        * t_shift[:, None]
+    )
 
+    # Half-bin correction:
+    # exp(i pi dF Delta)
+    half_bin_phase = jnp.exp(
+        one_j
+        * pi
+        * dF
+        * t_shift
+    )
+
+    # exp[i 2 pi (m + 1/2) dF Delta]
+    # = exp(i 2 pi m dF Delta) exp(i pi dF Delta)
+    ph_mid_all = (
+        ph_m_all[:, :-1]
+        * half_bin_phase[:, None]
+    )
     minus1_to_m = jnp.where(
         (jnp.arange(Nm) % 2) == 0,
         jnp.asarray(1.0, dtype=jnp.float32),
@@ -776,12 +819,34 @@ def _assemble_shift_target_chunked_lagblock_impl_c128(
     n_lag = ell_all.shape[0]
 
     m_full = jnp.arange(Nm, dtype=jnp.float64)
-    m_mid = jnp.arange(max(Nm - 1, 0), dtype=jnp.float64) + 0.5
     one_j = jnp.asarray(1j, dtype=jnp.complex128)
     two_pi = jnp.asarray(2.0 * np.pi, dtype=jnp.float64)
+    pi = jnp.asarray(np.pi, dtype=jnp.float64)
 
-    ph_m_all = jnp.exp(one_j * two_pi * (m_full[None, :] * dF) * t_shift[:, None])
-    ph_mid_all = jnp.exp(one_j * two_pi * (m_mid[None, :] * dF) * t_shift[:, None])
+    # Full-bin phases:
+    # exp(i 2 pi m dF Delta)
+    ph_m_all = jnp.exp(
+        one_j
+        * two_pi
+        * (m_full[None, :] * dF)
+        * t_shift[:, None]
+    )
+
+    # Half-bin correction:
+    # exp(i pi dF Delta)
+    half_bin_phase = jnp.exp(
+        one_j
+        * pi
+        * dF
+        * t_shift
+    )
+
+    # exp[i 2 pi (m + 1/2) dF Delta]
+    # = exp(i 2 pi m dF Delta) exp(i pi dF Delta)
+    ph_mid_all = (
+        ph_m_all[:, :-1]
+        * half_bin_phase[:, None]
+    )
 
     minus1_to_m = jnp.where(
         (jnp.arange(Nm) % 2) == 0,
@@ -911,13 +976,34 @@ def _assemble_shift_target_chunked_lagblock_impl_c64(
     n_lag = ell_all.shape[0]
 
     m_full = jnp.arange(Nm, dtype=jnp.float32)
-    m_mid = jnp.arange(max(Nm - 1, 0), dtype=jnp.float32) + jnp.asarray(0.5, dtype=jnp.float32)
     one_j = jnp.asarray(1j, dtype=jnp.complex64)
     two_pi = jnp.asarray(2.0 * np.pi, dtype=jnp.float32)
+    pi = jnp.asarray(np.pi, dtype=jnp.float32)
 
-    ph_m_all = jnp.exp(one_j * two_pi * (m_full[None, :] * dF) * t_shift[:, None])
-    ph_mid_all = jnp.exp(one_j * two_pi * (m_mid[None, :] * dF) * t_shift[:, None])
+    # Full-bin phases:
+    # exp(i 2 pi m dF Delta)
+    ph_m_all = jnp.exp(
+        one_j
+        * two_pi
+        * (m_full[None, :] * dF)
+        * t_shift[:, None]
+    )
 
+    # Half-bin correction:
+    # exp(i pi dF Delta)
+    half_bin_phase = jnp.exp(
+        one_j
+        * pi
+        * dF
+        * t_shift
+    )
+
+    # exp[i 2 pi (m + 1/2) dF Delta]
+    # = exp(i 2 pi m dF Delta) exp(i pi dF Delta)
+    ph_mid_all = (
+        ph_m_all[:, :-1]
+        * half_bin_phase[:, None]
+    )
     minus1_to_m = jnp.where(
         (jnp.arange(Nm) % 2) == 0,
         jnp.asarray(1.0, dtype=jnp.float32),
