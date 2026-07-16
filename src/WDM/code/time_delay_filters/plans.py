@@ -27,6 +27,9 @@ from ._time_shift_assembly import (
     _assemble_shift_target_batch_dispatch,
     _assemble_shift_target_batch_weighted_dispatch,
 )
+from ._time_shift_jax import (
+    assemble_shift_target_batch_chunked_lagblock_prephased_jax,
+)
 from .time_shift_fast import (
     _build_signed_lag_idx,
     _build_TlTp_from_shift_matrix,
@@ -599,6 +602,272 @@ class VariableShiftBatchPlan:
         }
         return result_device, profile
     
+    def _device_phase_arrays(self) -> dict[str, Any]:
+        """Return lazily cached delay-dependent WDM frequency phases.
+
+        These arrays depend on the prepared delay fields and WDM grid, but not
+        on waveform coefficients.  They can therefore be reused across
+        repeated applications of the same plan.
+
+        Only the full-bin phase and one half-bin factor are stored.  The
+        sideband phase grid is formed inside the shift kernel as
+        ``ph_m_all[..., :-1] * half_bin_phase[..., None]`` so that a second
+        full-size persistent complex array is not required.
+        """
+
+        import jax.numpy as jnp
+
+        if (
+            "ph_m_all" in self._device_cache
+            and "half_bin_phase" in self._device_cache
+        ):
+            return {
+                "ph_m_all": self._device_cache["ph_m_all"],
+                "half_bin_phase": self._device_cache["half_bin_phase"],
+            }
+
+        device_plan = self._device_plan_arrays()
+
+        if self.resolved_assembly_precision == "complex64":
+            complex_dtype = jnp.complex64
+            real_dtype = jnp.float32
+        else:
+            complex_dtype = jnp.complex128
+            real_dtype = jnp.float64
+
+        delays_device = device_plan["delays"]
+        dF_device = jnp.asarray(float(self.wdm.dF), dtype=real_dtype)
+        m_full = jnp.arange(self.Nm, dtype=real_dtype)
+        one_j = jnp.asarray(1j, dtype=complex_dtype)
+        two_pi = jnp.asarray(2.0 * np.pi, dtype=real_dtype)
+        pi = jnp.asarray(np.pi, dtype=real_dtype)
+
+        ph_m_all = jnp.exp(
+            one_j
+            * two_pi
+            * delays_device[:, :, None]
+            * (m_full[None, None, :] * dF_device)
+        )
+        half_bin_phase = jnp.exp(
+            one_j
+            * pi
+            * dF_device
+            * delays_device
+        )
+
+        self._device_cache.update(
+            {
+                "ph_m_all": ph_m_all,
+                "half_bin_phase": half_bin_phase,
+            }
+        )
+        return {
+            "ph_m_all": ph_m_all,
+            "half_bin_phase": half_bin_phase,
+        }
+
+    def prepare_device_phases(
+        self,
+        *,
+        synchronise: bool = False,
+    ) -> dict[str, Any]:
+        """Build and cache the experimental prephased-kernel inputs.
+
+        Parameters
+        ----------
+        synchronise : bool, optional
+            Block until phase construction is complete.  This is useful when
+            timing the one-time phase-cache build in a benchmark.
+        """
+
+        phases = self._device_phase_arrays()
+        if synchronise:
+            phases["ph_m_all"].block_until_ready()
+            phases["half_bin_phase"].block_until_ready()
+        return phases
+
+    def apply_device_prephased(
+        self,
+        coefficients,
+        *,
+        return_profile: bool = False,
+        cache_device_plan: bool = True,
+    ):
+        """Apply the experimental lag-blocked shift with cached phases.
+
+        This method leaves :meth:`apply_device` unchanged.  It is intended for
+        controlled benchmarking of the hypothesis that moving the
+        delay-dependent complex exponentials out of repeated waveform
+        applications improves the warmed one-arm runtime.
+        """
+
+        import jax.numpy as jnp
+
+        if not self.resolved_use_jax:
+            raise NotImplementedError(
+                "The prephased experiment requires a JAX-backed plan."
+            )
+        if self.resolved_assembly_backend != "lagfirst_chunked_lagblock":
+            raise NotImplementedError(
+                "The prephased experiment currently supports only "
+                "assembly_backend='lagfirst_chunked_lagblock'; got "
+                f"{self.resolved_assembly_backend!r}."
+            )
+
+        started = perf_counter()
+
+        complex_dtype = (
+            jnp.complex64
+            if self.resolved_assembly_precision == "complex64"
+            else jnp.complex128
+        )
+        real_dtype = (
+            jnp.float32
+            if self.resolved_assembly_precision == "complex64"
+            else jnp.float64
+        )
+
+        coefficients_device = jnp.asarray(
+            coefficients,
+            dtype=complex_dtype,
+        )
+        if coefficients_device.ndim == 2:
+            coefficients_device = coefficients_device[None, :, :]
+
+        expected = (self.num_jobs, self.Nt, self.Nm)
+        if tuple(coefficients_device.shape) != expected:
+            raise ValueError(
+                f"Expected coefficients with shape {expected}, "
+                f"got {tuple(coefficients_device.shape)}."
+            )
+
+        if cache_device_plan:
+            device_plan = self._device_plan_arrays()
+            ell_device = device_plan["ell_all"]
+            Tl_device = device_plan["Tl_all"]
+            Tp_device = device_plan["Tp_all"]
+            Cnm_device = device_plan["Cnm"]
+            phase_plan = self._device_phase_arrays()
+            ph_m_device = phase_plan["ph_m_all"]
+            half_bin_device = phase_plan["half_bin_phase"]
+        else:
+            ell_device = jnp.asarray(self.ell_all, dtype=jnp.int64)
+            Tl_device = jnp.asarray(self.Tl_all, dtype=complex_dtype)
+            Tp_device = jnp.asarray(self.Tp_all, dtype=complex_dtype)
+            Cnm_device = jnp.asarray(self.Cnm, dtype=complex_dtype)
+
+            delays_device = jnp.asarray(self.delays, dtype=real_dtype)
+            dF_device = jnp.asarray(float(self.wdm.dF), dtype=real_dtype)
+            m_full = jnp.arange(self.Nm, dtype=real_dtype)
+            one_j = jnp.asarray(1j, dtype=complex_dtype)
+            ph_m_device = jnp.exp(
+                one_j
+                * jnp.asarray(2.0 * np.pi, dtype=real_dtype)
+                * delays_device[:, :, None]
+                * (m_full[None, None, :] * dF_device)
+            )
+            half_bin_device = jnp.exp(
+                one_j
+                * jnp.asarray(np.pi, dtype=real_dtype)
+                * dF_device
+                * delays_device
+            )
+
+        chunk_size = (
+            self.num_jobs
+            if self.config.batch_chunk is None
+            else min(self.num_jobs, int(self.config.batch_chunk))
+        )
+
+        output_chunks = []
+        assembly_started = perf_counter()
+
+        for start in range(0, self.num_jobs, chunk_size):
+            stop = min(start + chunk_size, self.num_jobs)
+            true_batch = stop - start
+
+            coefficient_work = coefficients_device[start:stop]
+            ph_m_work = ph_m_device[start:stop]
+            half_bin_work = half_bin_device[start:stop]
+            Tl_work = Tl_device[start:stop]
+            Tp_work = Tp_device[start:stop]
+
+            should_pad = (
+                bool(self.config.assembly_vmap)
+                and self.config.jax_pad_last_chunk
+                and self.num_jobs > chunk_size
+                and true_batch < chunk_size
+            )
+
+            if should_pad:
+                pad_rows = chunk_size - true_batch
+
+                def pad_last(values):
+                    return jnp.concatenate(
+                        (
+                            values,
+                            jnp.repeat(values[-1:], pad_rows, axis=0),
+                        ),
+                        axis=0,
+                    )
+
+                coefficient_work = pad_last(coefficient_work)
+                ph_m_work = pad_last(ph_m_work)
+                half_bin_work = pad_last(half_bin_work)
+                Tl_work = pad_last(Tl_work)
+                Tp_work = pad_last(Tp_work)
+
+            shifted_device = (
+                assemble_shift_target_batch_chunked_lagblock_prephased_jax(
+                    coefficient_work,
+                    ph_m_work,
+                    half_bin_work,
+                    ell_device,
+                    self.offset,
+                    Tl_work,
+                    Tp_work,
+                    Cnm_device,
+                    row_chunk_size=self.config.row_chunk_size,
+                    lag_block_size=self.config.lag_block_size,
+                    precision=self.resolved_assembly_precision,
+                    return_device=True,
+                )
+            )
+            output_chunks.append(shifted_device[:true_batch])
+
+        if len(output_chunks) == 1:
+            result_device = output_chunks[0]
+        else:
+            result_device = jnp.concatenate(output_chunks, axis=0)
+
+        if return_profile:
+            result_device.block_until_ready()
+
+        assembly_seconds = perf_counter() - assembly_started
+        total_seconds = perf_counter() - started
+
+        if not return_profile:
+            return result_device
+
+        profile: dict[str, float | int | str | bool] = {
+            "n_jobs": int(self.num_jobs),
+            "batch_chunk": int(chunk_size),
+            "assembly_backend": self.resolved_assembly_backend,
+            "assembly_precision": self.resolved_assembly_precision,
+            "total_s": float(total_seconds),
+            "assembly_s": float(assembly_seconds),
+            "other_s": float(total_seconds - assembly_seconds),
+            "plan_build_s": float(self.build_seconds),
+            "device_plan_cached": bool(cache_device_plan),
+            "phase_cache_memory_bytes": int(self.phase_cache_memory_bytes),
+            "device_plan_with_phase_memory_bytes": int(
+                self.device_plan_with_phase_memory_bytes
+            ),
+            "prephased": True,
+            "returned_on_device": True,
+        }
+        return result_device, profile
+
     def apply_weighted_sources_device(
         self,
         source_coefficients,
@@ -1139,6 +1408,29 @@ class VariableShiftBatchPlan:
             + self.Tl_all.nbytes
             + self.Tp_all.nbytes
             + self.Cnm.nbytes
+        )
+
+    @property
+    def phase_cache_memory_bytes(self) -> int:
+        """Persistent device memory required by the experimental phases."""
+
+        itemsize = np.dtype(
+            np.complex64
+            if self.resolved_assembly_precision == "complex64"
+            else np.complex128
+        ).itemsize
+        return int(
+            self.num_jobs * self.Nt * self.Nm * itemsize
+            + self.num_jobs * self.Nt * itemsize
+        )
+
+    @property
+    def device_plan_with_phase_memory_bytes(self) -> int:
+        """Estimated persistent plan memory after phase caching."""
+
+        return int(
+            self.device_plan_memory_bytes
+            + self.phase_cache_memory_bytes
         )
 
     @property
