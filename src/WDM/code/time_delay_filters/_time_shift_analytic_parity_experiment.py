@@ -1,18 +1,16 @@
-"""Experimental analytic-parity WDM variable-shift kernel.
+"""Lean experimental analytic-parity WDM shift kernel.
 
-This module is intentionally separate from the production dispatcher.
+Version 2 keeps the compact complex arithmetic structure of the production
+row-chunked, lag-blocked kernel while eliminating the deterministic ``Cnm``
+checkerboard array.
 
-It removes the deterministic checkerboard ``Cnm`` array and the associated
-row/lag/frequency gather from the lag-blocked target-mode kernel.  The exact
-products of ``Cnm`` and the existing parity/sideband phase factors are replaced
-by analytic signs depending only on:
+The exact products involving ``Cnm`` and the existing parity/sideband phase
+factors reduce to compact row-, lag-, and frequency-parity factors.  Unlike
+the first experiment, this implementation does not create shared full-size
+real/imaginary coefficient tensors.  It applies the compact analytic factors
+directly inside the carrier, lower-sideband, and upper-sideband expressions.
 
-- target-row parity,
-- frequency-bin parity,
-- lag parity and lag modulo four.
-
-The numerical operator is unchanged apart from ordinary floating-point
-reassociation.
+The production dispatcher and plan are intentionally unchanged.
 """
 
 from __future__ import annotations
@@ -23,7 +21,12 @@ import jax
 import jax.numpy as jnp
 
 
+ANALYTIC_PARITY_EXPERIMENT_VERSION = 2
+
+
 def _normalize_precision(precision: str | None) -> str:
+    """Normalize precision labels to the two supported complex dtypes."""
+
     if precision is None:
         return "complex128"
 
@@ -57,7 +60,7 @@ def _make_shift_target_chunked_lagblock_analytic_parity_impl(
     complex_dtype,
     real_dtype,
 ):
-    """Create one analytic-parity row-chunked, lag-blocked kernel."""
+    """Create one lean analytic-parity lag-blocked shift kernel."""
 
     def impl(
         w_xi,
@@ -80,10 +83,12 @@ def _make_shift_target_chunked_lagblock_analytic_parity_impl(
         Nt, Nm = w_xi.shape
         n_lag = ell_all.shape[0]
 
-        m_full = jnp.arange(Nm, dtype=real_dtype)
         one_j = jnp.asarray(1j, dtype=complex_dtype)
+        one_complex = jnp.asarray(1.0 + 0.0j, dtype=complex_dtype)
         two_pi = jnp.asarray(2.0 * np.pi, dtype=real_dtype)
         pi = jnp.asarray(np.pi, dtype=real_dtype)
+
+        m_full = jnp.arange(Nm, dtype=real_dtype)
 
         ph_m_all = jnp.exp(
             one_j
@@ -102,6 +107,31 @@ def _make_shift_target_chunked_lagblock_analytic_parity_impl(
         ph_mid_all = (
             ph_m_all[:, :-1]
             * half_bin_phase[:, None]
+        )
+
+        # All compact parity data are built once outside the row/lag loops.
+        row_sign_all = _pm_one_from_integer(
+            jnp.arange(Nt, dtype=jnp.int64),
+            real_dtype,
+        )
+
+        lag_even_all = (
+            jnp.mod(ell_all, 2) == 0
+        )
+
+        even_half_sign_all = _pm_one_from_integer(
+            jnp.floor_divide(ell_all, 2),
+            real_dtype,
+        )
+
+        odd_half_sign_all = _pm_one_from_integer(
+            jnp.floor_divide(ell_all - 1, 2),
+            real_dtype,
+        )
+
+        sideband_frequency_sign = _pm_one_from_integer(
+            jnp.arange(max(Nm - 1, 0), dtype=jnp.int64),
+            real_dtype,
         )
 
         n_chunks = (
@@ -130,12 +160,6 @@ def _make_shift_target_chunked_lagblock_analytic_parity_impl(
             dtype=jnp.int64,
         )
 
-        # Sideband frequency parity uses m=0,...,Nm-2.
-        sideband_frequency_sign = _pm_one_from_integer(
-            jnp.arange(max(Nm - 1, 0), dtype=jnp.int64),
-            real_dtype,
-        )
-
         n_lag_blocks = (
             n_lag + lag_block_size - 1
         ) // lag_block_size
@@ -145,16 +169,16 @@ def _make_shift_target_chunked_lagblock_analytic_parity_impl(
             rows = start + row_offsets
 
             valid_row = rows < Nt
+
             rows_safe = jnp.clip(
                 rows,
                 0,
                 Nt - 1,
             )
 
-            row_sign = _pm_one_from_integer(
-                rows_safe,
-                real_dtype,
-            )
+            row_sign = row_sign_all[
+                rows_safe
+            ]
 
             ph_m = ph_m_all[
                 rows_safe,
@@ -199,28 +223,17 @@ def _make_shift_target_chunked_lagblock_analytic_parity_impl(
                     lag_indices_safe
                 ]
 
-                lag_even = (
-                    jnp.mod(ell_block, 2)
-                    == 0
-                )
+                lag_even = lag_even_all[
+                    lag_indices_safe
+                ]
 
-                # For even ell, b_even = (-1)^(ell/2).
-                even_half_sign = _pm_one_from_integer(
-                    jnp.floor_divide(
-                        ell_block,
-                        2,
-                    ),
-                    real_dtype,
-                )
+                even_half_sign = even_half_sign_all[
+                    lag_indices_safe
+                ]
 
-                # For odd ell, b_odd = (-1)^((ell-1)/2).
-                odd_half_sign = _pm_one_from_integer(
-                    jnp.floor_divide(
-                        ell_block - 1,
-                        2,
-                    ),
-                    real_dtype,
-                )
+                odd_half_sign = odd_half_sign_all[
+                    lag_indices_safe
+                ]
 
                 j_neg_block = (
                     -ell_block
@@ -263,38 +276,27 @@ def _make_shift_target_chunked_lagblock_analytic_parity_impl(
                 # ---------------------------------------------------------
                 # Carrier
                 #
-                # Existing factor:
-                #   parity(ell,m) * conj(C[p,m]) * C[p+ell,m]
+                # parity(ell,m) * conj(C[p,m]) * C[p+ell,m]
                 #
-                # Exact simplification:
-                #   1                      for even ell
-                #   i * (-1)^p            for odd ell
+                #   = 1                    for even ell
+                #   = i * (-1)^p          for odd ell
+                #
+                # The select is only (row, lag, 1), not a full
+                # (row, lag, frequency) real/imaginary selection.
                 # ---------------------------------------------------------
 
-                carrier_base = (
-                    ph_m[:, None, :]
-                    * Tl_row_block[:, :, None]
-                )
-
-                carrier_real_even = jnp.real(
-                    carrier_base
-                )
-
-                carrier_real_odd = (
-                    -row_sign[:, None, None]
-                    * jnp.imag(carrier_base)
-                )
-
-                carrier_coefficient = jnp.where(
+                carrier_factor = jnp.where(
                     lag_even[None, :, None],
-                    carrier_real_even,
-                    carrier_real_odd,
+                    one_complex,
+                    one_j
+                    * row_sign[:, None, None],
                 )
 
                 main = (
-                    carrier_coefficient
-                    * w_n_block
-                )
+                    carrier_factor
+                    * ph_m[:, None, :]
+                    * Tl_row_block[:, :, None]
+                ).real * w_n_block
 
                 main = jnp.where(
                     valid_n[:, :, None],
@@ -311,77 +313,60 @@ def _make_shift_target_chunked_lagblock_analytic_parity_impl(
                     # -----------------------------------------------------
                     # Sidebands
                     #
-                    # All exact checkerboard/phase products are ±i.
-                    # For z complex:
-                    #   Re(i*s*z) = -s*Im(z), s in {+1,-1}.
+                    # The exact eliminated checkerboard factors are:
                     #
-                    # Even ell:
-                    #   low: -i*(-1)^(p+m+ell/2)
-                    #   up:  +i*(-1)^(p+m+ell/2)
+                    # even ell:
+                    #   low = -i*(-1)^(p+m+ell/2)
+                    #   up  = +i*(-1)^(p+m+ell/2)
                     #
-                    # Odd ell:
+                    # odd ell:
                     #   low = up = i*(-1)^(m+(ell-1)/2)
+                    #
+                    # Keep row/lag signs compact and multiply them directly
+                    # into each production-like complex expression.  Do not
+                    # share a full-size sideband_base/imaginary tensor.
                     # -----------------------------------------------------
 
-                    sideband_base = (
-                        ph_mid[:, None, :]
-                        * Tp_row_block[:, :, None]
+                    even_row_lag_sign = (
+                        row_sign[:, None]
+                        * even_half_sign[None, :]
                     )
 
-                    sideband_imag = jnp.imag(
-                        sideband_base
+                    low_row_lag_sign = jnp.where(
+                        lag_even[None, :],
+                        -even_row_lag_sign,
+                        odd_half_sign[None, :],
                     )
 
-                    even_common_sign = (
-                        row_sign[:, None, None]
-                        * even_half_sign[None, :, None]
-                        * sideband_frequency_sign[
-                            None,
-                            None,
-                            :,
-                        ]
-                    )
-
-                    odd_common_sign = (
-                        odd_half_sign[None, :, None]
-                        * sideband_frequency_sign[
-                            None,
-                            None,
-                            :,
-                        ]
-                    )
-
-                    low_i_sign = jnp.where(
-                        lag_even[None, :, None],
-                        -even_common_sign,
-                        odd_common_sign,
-                    )
-
-                    up_i_sign = jnp.where(
-                        lag_even[None, :, None],
-                        even_common_sign,
-                        odd_common_sign,
-                    )
-
-                    low_coefficient = (
-                        -low_i_sign
-                        * sideband_imag
-                    )
-
-                    up_coefficient = (
-                        -up_i_sign
-                        * sideband_imag
+                    up_row_lag_sign = jnp.where(
+                        lag_even[None, :],
+                        even_row_lag_sign,
+                        odd_half_sign[None, :],
                     )
 
                     low = (
-                        low_coefficient
-                        * w_n_block[:, :, :-1]
-                    )
+                        one_j
+                        * low_row_lag_sign[:, :, None]
+                        * sideband_frequency_sign[
+                            None,
+                            None,
+                            :,
+                        ]
+                        * ph_mid[:, None, :]
+                        * Tp_row_block[:, :, None]
+                    ).real * w_n_block[:, :, :-1]
 
                     up = (
-                        up_coefficient
-                        * w_n_block[:, :, 1:]
-                    )
+                        one_j
+                        * up_row_lag_sign[:, :, None]
+                        * sideband_frequency_sign[
+                            None,
+                            None,
+                            :,
+                        ]
+                        * ph_mid[:, None, :]
+                        * Tp_row_block[:, :, None]
+                    ).real * w_n_block[:, :, 1:]
 
                     low = jnp.where(
                         valid_n[:, :, None],
@@ -484,7 +469,7 @@ def _make_batch_impl(
     single_job_impl,
     complex_dtype,
 ):
-    """Create the batched analytic-parity diagnostic kernel."""
+    """Create the batched analytic-parity kernel."""
 
     def impl(
         w_xi_batch,
@@ -568,7 +553,7 @@ def assemble_shift_target_batch_chunked_lagblock_analytic_parity_jax(
     precision="complex128",
     return_device=False,
 ):
-    """Run the experimental batched analytic-parity shift."""
+    """Run the lean experimental batched analytic-parity shift."""
 
     precision = _normalize_precision(
         precision
