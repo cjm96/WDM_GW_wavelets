@@ -3017,3 +3017,554 @@ def assemble_shift_target_batch_chunked_lagblock_prephased_jax(
         )
     )
     return out if return_device else np.asarray(out)
+
+# ---------------------------------------------------------------------------
+# Experimental interior-row/source-halo lag-blocked backend
+# ---------------------------------------------------------------------------
+
+
+def _make_shift_target_chunked_lagblock_interior_impl(
+    *,
+    complex_dtype,
+    real_dtype,
+):
+    """Create a lag-blocked kernel with an interior source-halo fast path.
+
+    The production lag-blocked kernel applies row/source clipping and validity
+    masks to every row chunk.  For a full chunk wholly contained in
+    ``[offset, Nt - offset)``, every lagged source row is known to be valid.
+    Such chunks use one contiguous source/Cnm halo and omit row-boundary
+    clipping and masks. Boundary and padded chunks retain the validated general
+    calculation.
+    """
+
+    def impl(
+        w_xi,
+        t_shift,
+        ell_all,
+        offset,
+        Tl_all,
+        Tp_all,
+        Cnm,
+        dF,
+        row_chunk_size,
+        lag_block_size,
+    ):
+        w_xi = jnp.asarray(w_xi, dtype=complex_dtype)
+        t_shift = jnp.asarray(t_shift, dtype=real_dtype)
+        ell_all = jnp.asarray(ell_all, dtype=jnp.int64)
+        Tl_all = jnp.asarray(Tl_all, dtype=complex_dtype)
+        Tp_all = jnp.asarray(Tp_all, dtype=complex_dtype)
+        Cnm = jnp.asarray(Cnm, dtype=complex_dtype)
+        dF = jnp.asarray(dF, dtype=real_dtype)
+
+        Nt, Nm = w_xi.shape
+        n_lag = ell_all.shape[0]
+
+        m_full = jnp.arange(Nm, dtype=real_dtype)
+        one_j = jnp.asarray(1j, dtype=complex_dtype)
+        two_pi = jnp.asarray(2.0 * np.pi, dtype=real_dtype)
+        pi = jnp.asarray(np.pi, dtype=real_dtype)
+
+        ph_m_all = jnp.exp(
+            one_j
+            * two_pi
+            * (m_full[None, :] * dF)
+            * t_shift[:, None]
+        )
+        half_bin_phase = jnp.exp(
+            one_j
+            * pi
+            * dF
+            * t_shift
+        )
+        ph_mid_all = ph_m_all[:, :-1] * half_bin_phase[:, None]
+
+        minus1_to_m = jnp.where(
+            (jnp.arange(Nm) % 2) == 0,
+            jnp.asarray(1.0, dtype=real_dtype),
+            jnp.asarray(-1.0, dtype=real_dtype),
+        )
+        ell_even = (ell_all % 2) == 0
+        parity_all = jnp.where(
+            ell_even[:, None],
+            jnp.ones((n_lag, Nm), dtype=real_dtype),
+            minus1_to_m[None, :],
+        )
+
+        neg_i = jnp.asarray(-1j, dtype=complex_dtype)
+        pos_i = jnp.asarray(1j, dtype=complex_dtype)
+        low_phase = jnp.power(neg_i, -ell_all)
+        up_phase = jnp.power(pos_i, -ell_all)
+
+        n_chunks = (Nt + row_chunk_size - 1) // row_chunk_size
+        Nt_pad = n_chunks * row_chunk_size
+
+        out0 = jnp.zeros((Nt_pad, Nm), dtype=complex_dtype)
+        zero_col = jnp.zeros(
+            (row_chunk_size, 1),
+            dtype=complex_dtype,
+        )
+        row_offsets = jnp.arange(row_chunk_size, dtype=jnp.int64)
+        lag_offsets = jnp.arange(lag_block_size, dtype=jnp.int64)
+        n_lag_blocks = (
+            n_lag + lag_block_size - 1
+        ) // lag_block_size
+
+        # Static source-halo shape used only for full interior chunks.
+        halo_size = row_chunk_size + 2 * offset
+
+        def chunk_body(chunk_id, out_acc):
+            start = chunk_id * row_chunk_size
+            rows = start + row_offsets
+
+            is_full_interior = (
+                (start >= offset)
+                & (start + row_chunk_size <= Nt - offset)
+            )
+
+            def general_chunk(_):
+                """Validated boundary/padded calculation."""
+
+                valid_row = rows < Nt
+                rows_safe = jnp.clip(rows, 0, Nt - 1)
+                carrier_prefac = (
+                    jnp.conj(Cnm[rows_safe, :])
+                    * ph_m_all[rows_safe, :]
+                )
+                ph_mid = ph_mid_all[rows_safe, :]
+
+                out_chunk0 = jnp.zeros(
+                    (row_chunk_size, Nm),
+                    dtype=complex_dtype,
+                )
+
+                def lag_block_body(lag_block_id, chunk_out):
+                    lag_start = lag_block_id * lag_block_size
+                    lag_indices = lag_start + lag_offsets
+                    valid_lag = lag_indices < n_lag
+                    lag_indices_safe = jnp.clip(
+                        lag_indices,
+                        0,
+                        n_lag - 1,
+                    )
+
+                    ell_block = ell_all[lag_indices_safe]
+                    parity_block = parity_all[lag_indices_safe]
+                    j_neg_block = -ell_block + offset
+                    low_phase_block = low_phase[lag_indices_safe]
+                    up_phase_block = up_phase[lag_indices_safe]
+
+                    nprime = rows[:, None] + ell_block[None, :]
+                    valid_n = (
+                        valid_row[:, None]
+                        & valid_lag[None, :]
+                        & (nprime >= 0)
+                        & (nprime < Nt)
+                    )
+                    nprime_safe = jnp.clip(nprime, 0, Nt - 1)
+
+                    Tl_row_block = Tl_all[rows_safe, :][
+                        :, j_neg_block
+                    ]
+                    Tp_row_block = Tp_all[rows_safe, :][
+                        :, j_neg_block
+                    ]
+                    Cn_block = Cnm[nprime_safe, :]
+                    w_n_block = w_xi[nprime_safe, :]
+
+                    main = (
+                        parity_block[None, :, :]
+                        * carrier_prefac[:, None, :]
+                        * Cn_block
+                        * Tl_row_block[:, :, None]
+                    ).real * w_n_block
+                    main = jnp.where(
+                        valid_n[:, :, None],
+                        main,
+                        jnp.zeros_like(main),
+                    )
+                    main_sum = jnp.sum(main, axis=1)
+
+                    def add_sidebands(main_acc):
+                        low = (
+                            parity_block[:, :-1][None, :, :]
+                            * low_phase_block[None, :, None]
+                            * jnp.conj(Cnm[rows_safe, 1:])[:, None, :]
+                            * Cn_block[:, :, :-1]
+                            * Tp_row_block[:, :, None]
+                            * ph_mid[:, None, :]
+                        ).real * w_n_block[:, :, :-1]
+
+                        up = (
+                            parity_block[:, 1:][None, :, :]
+                            * up_phase_block[None, :, None]
+                            * jnp.conj(Cnm[rows_safe, :-1])[:, None, :]
+                            * Cn_block[:, :, 1:]
+                            * Tp_row_block[:, :, None]
+                            * ph_mid[:, None, :]
+                        ).real * w_n_block[:, :, 1:]
+
+                        low = jnp.where(
+                            valid_n[:, :, None],
+                            low,
+                            jnp.zeros_like(low),
+                        )
+                        up = jnp.where(
+                            valid_n[:, :, None],
+                            up,
+                            jnp.zeros_like(up),
+                        )
+
+                        low_sum = jnp.sum(low, axis=1)
+                        up_sum = jnp.sum(up, axis=1)
+                        low_pad = jnp.concatenate(
+                            (zero_col, low_sum),
+                            axis=1,
+                        )
+                        up_pad = jnp.concatenate(
+                            (up_sum, zero_col),
+                            axis=1,
+                        )
+                        return main_acc + low_pad + up_pad
+
+                    chunk_next = jax.lax.cond(
+                        Nm > 1,
+                        add_sidebands,
+                        lambda value: value,
+                        main_sum,
+                    )
+                    return chunk_out + chunk_next
+
+                return jax.lax.fori_loop(
+                    0,
+                    n_lag_blocks,
+                    lag_block_body,
+                    out_chunk0,
+                )
+
+            def interior_chunk(_):
+                """Fast path for one full target chunk and its source halo."""
+
+                carrier_prefac = (
+                    jnp.conj(Cnm[rows, :])
+                    * ph_m_all[rows, :]
+                )
+                ph_mid = ph_mid_all[rows, :]
+
+                halo_start = start - offset
+                source_halo = jax.lax.dynamic_slice(
+                    w_xi,
+                    (halo_start, 0),
+                    (halo_size, Nm),
+                )
+                cnm_halo = jax.lax.dynamic_slice(
+                    Cnm,
+                    (halo_start, 0),
+                    (halo_size, Nm),
+                )
+
+                out_chunk0 = jnp.zeros(
+                    (row_chunk_size, Nm),
+                    dtype=complex_dtype,
+                )
+
+                def lag_block_body(lag_block_id, chunk_out):
+                    lag_start = lag_block_id * lag_block_size
+                    lag_indices = lag_start + lag_offsets
+                    valid_lag = lag_indices < n_lag
+                    lag_indices_safe = jnp.clip(
+                        lag_indices,
+                        0,
+                        n_lag - 1,
+                    )
+
+                    ell_block = ell_all[lag_indices_safe]
+                    parity_block = parity_all[lag_indices_safe]
+                    j_neg_block = -ell_block + offset
+                    low_phase_block = low_phase[lag_indices_safe]
+                    up_phase_block = up_phase[lag_indices_safe]
+
+                    local_source_rows = (
+                        row_offsets[:, None]
+                        + ell_block[None, :]
+                        + offset
+                    )
+                    Cn_block = cnm_halo[local_source_rows, :]
+                    w_n_block = source_halo[local_source_rows, :]
+
+                    Tl_row_block = Tl_all[rows, :][
+                        :, j_neg_block
+                    ]
+                    Tp_row_block = Tp_all[rows, :][
+                        :, j_neg_block
+                    ]
+
+                    main = (
+                        parity_block[None, :, :]
+                        * carrier_prefac[:, None, :]
+                        * Cn_block
+                        * Tl_row_block[:, :, None]
+                    ).real * w_n_block
+                    main = jnp.where(
+                        valid_lag[None, :, None],
+                        main,
+                        jnp.zeros_like(main),
+                    )
+                    main_sum = jnp.sum(main, axis=1)
+
+                    def add_sidebands(main_acc):
+                        low = (
+                            parity_block[:, :-1][None, :, :]
+                            * low_phase_block[None, :, None]
+                            * jnp.conj(Cnm[rows, 1:])[:, None, :]
+                            * Cn_block[:, :, :-1]
+                            * Tp_row_block[:, :, None]
+                            * ph_mid[:, None, :]
+                        ).real * w_n_block[:, :, :-1]
+
+                        up = (
+                            parity_block[:, 1:][None, :, :]
+                            * up_phase_block[None, :, None]
+                            * jnp.conj(Cnm[rows, :-1])[:, None, :]
+                            * Cn_block[:, :, 1:]
+                            * Tp_row_block[:, :, None]
+                            * ph_mid[:, None, :]
+                        ).real * w_n_block[:, :, 1:]
+
+                        low = jnp.where(
+                            valid_lag[None, :, None],
+                            low,
+                            jnp.zeros_like(low),
+                        )
+                        up = jnp.where(
+                            valid_lag[None, :, None],
+                            up,
+                            jnp.zeros_like(up),
+                        )
+
+                        low_sum = jnp.sum(low, axis=1)
+                        up_sum = jnp.sum(up, axis=1)
+                        low_pad = jnp.concatenate(
+                            (zero_col, low_sum),
+                            axis=1,
+                        )
+                        up_pad = jnp.concatenate(
+                            (up_sum, zero_col),
+                            axis=1,
+                        )
+                        return main_acc + low_pad + up_pad
+
+                    chunk_next = jax.lax.cond(
+                        Nm > 1,
+                        add_sidebands,
+                        lambda value: value,
+                        main_sum,
+                    )
+                    return chunk_out + chunk_next
+
+                return jax.lax.fori_loop(
+                    0,
+                    n_lag_blocks,
+                    lag_block_body,
+                    out_chunk0,
+                )
+
+            out_chunk = jax.lax.cond(
+                is_full_interior,
+                interior_chunk,
+                general_chunk,
+                operand=None,
+            )
+            return jax.lax.dynamic_update_slice(
+                out_acc,
+                out_chunk,
+                (start, 0),
+            )
+
+        out_padded = jax.lax.fori_loop(
+            0,
+            n_chunks,
+            chunk_body,
+            out0,
+        )
+        return out_padded[:Nt, :]
+
+    return impl
+
+
+_assemble_shift_target_chunked_lagblock_interior_impl_c128 = (
+    _make_shift_target_chunked_lagblock_interior_impl(
+        complex_dtype=jnp.complex128,
+        real_dtype=jnp.float64,
+    )
+)
+_assemble_shift_target_chunked_lagblock_interior_impl_c64 = (
+    _make_shift_target_chunked_lagblock_interior_impl(
+        complex_dtype=jnp.complex64,
+        real_dtype=jnp.float32,
+    )
+)
+
+
+def _make_shift_target_batch_chunked_lagblock_interior_impl(
+    *,
+    single_job_impl,
+    complex_dtype,
+):
+    """Create the batched interior-fast-path lag-blocked kernel."""
+
+    def impl(
+        w_xi_batch,
+        t_shift_batch,
+        ell_all,
+        offset,
+        Tl_batch,
+        Tp_batch,
+        Cnm,
+        dF,
+        row_chunk_size,
+        lag_block_size,
+    ):
+        B, Nt, Nm = w_xi_batch.shape
+        out0 = jnp.zeros((B, Nt, Nm), dtype=complex_dtype)
+
+        def body(i, out):
+            shifted = single_job_impl(
+                w_xi_batch[i],
+                t_shift_batch[i],
+                ell_all,
+                offset,
+                Tl_batch[i],
+                Tp_batch[i],
+                Cnm,
+                dF,
+                row_chunk_size,
+                lag_block_size,
+            )
+            return out.at[i, :, :].set(shifted)
+
+        return jax.lax.fori_loop(0, B, body, out0)
+
+    return impl
+
+
+_assemble_shift_target_batch_chunked_lagblock_interior_impl_c128 = (
+    _make_shift_target_batch_chunked_lagblock_interior_impl(
+        single_job_impl=(
+            _assemble_shift_target_chunked_lagblock_interior_impl_c128
+        ),
+        complex_dtype=jnp.complex128,
+    )
+)
+_assemble_shift_target_batch_chunked_lagblock_interior_impl_c64 = (
+    _make_shift_target_batch_chunked_lagblock_interior_impl(
+        single_job_impl=(
+            _assemble_shift_target_chunked_lagblock_interior_impl_c64
+        ),
+        complex_dtype=jnp.complex64,
+    )
+)
+
+
+_assemble_shift_target_batch_chunked_lagblock_interior_core_c128 = jax.jit(
+    _assemble_shift_target_batch_chunked_lagblock_interior_impl_c128,
+    static_argnums=(3, 8, 9),
+)
+_assemble_shift_target_batch_chunked_lagblock_interior_core_c64 = jax.jit(
+    _assemble_shift_target_batch_chunked_lagblock_interior_impl_c64,
+    static_argnums=(3, 8, 9),
+)
+
+
+def assemble_shift_target_batch_chunked_lagblock_interior_jax(
+    w_xi_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    Cnm,
+    dF,
+    row_chunk_size=128,
+    lag_block_size=1,
+    precision="complex128",
+    return_device=False,
+):
+    """Experimental batched shift with an interior source-halo fast path.
+
+    This does not replace the production lag-blocked wrapper.  If the chosen
+    row chunk is too large to leave even one full interior chunk, the function
+    falls back to the existing production wrapper.
+    """
+
+    precision = _normalize_chunked_precision(precision)
+    row_chunk_size = int(row_chunk_size)
+    lag_block_size = int(lag_block_size)
+    offset = int(offset)
+
+    if row_chunk_size < 1:
+        raise ValueError("row_chunk_size must be >= 1.")
+    if lag_block_size < 1:
+        raise ValueError("lag_block_size must be >= 1.")
+    if offset < 0:
+        raise ValueError("offset must be >= 0.")
+
+    shape = tuple(np.shape(w_xi_batch))
+    if len(shape) != 3:
+        raise ValueError(
+            "w_xi_batch must have shape (num_jobs, Nt, Nm)."
+        )
+    Nt = int(shape[1])
+
+    # No full target chunk can use the interior halo in this case. Avoid
+    # compiling a dynamic_slice whose static halo size exceeds the operand.
+    if row_chunk_size + 2 * offset > Nt:
+        return assemble_shift_target_batch_chunked_lagblock_jax(
+            w_xi_batch,
+            t_shift_batch,
+            ell_all,
+            offset,
+            Tl_batch,
+            Tp_batch,
+            Cnm,
+            dF,
+            row_chunk_size=row_chunk_size,
+            lag_block_size=lag_block_size,
+            precision=precision,
+            return_device=return_device,
+        )
+
+    if precision == "complex64":
+        out = (
+            _assemble_shift_target_batch_chunked_lagblock_interior_core_c64(
+                jnp.asarray(w_xi_batch, dtype=jnp.complex64),
+                jnp.asarray(t_shift_batch, dtype=jnp.float32),
+                jnp.asarray(ell_all, dtype=jnp.int64),
+                offset,
+                jnp.asarray(Tl_batch, dtype=jnp.complex64),
+                jnp.asarray(Tp_batch, dtype=jnp.complex64),
+                jnp.asarray(Cnm, dtype=jnp.complex64),
+                jnp.asarray(dF, dtype=jnp.float32),
+                row_chunk_size,
+                lag_block_size,
+            )
+        )
+        return out if return_device else np.asarray(out)
+
+    out = (
+        _assemble_shift_target_batch_chunked_lagblock_interior_core_c128(
+            jnp.asarray(w_xi_batch, dtype=jnp.complex128),
+            jnp.asarray(t_shift_batch, dtype=jnp.float64),
+            jnp.asarray(ell_all, dtype=jnp.int64),
+            offset,
+            jnp.asarray(Tl_batch, dtype=jnp.complex128),
+            jnp.asarray(Tp_batch, dtype=jnp.complex128),
+            jnp.asarray(Cnm, dtype=jnp.complex128),
+            jnp.asarray(dF, dtype=jnp.float64),
+            row_chunk_size,
+            lag_block_size,
+        )
+    )
+    return out if return_device else np.asarray(out)
+
