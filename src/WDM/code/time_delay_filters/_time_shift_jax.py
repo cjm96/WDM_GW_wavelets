@@ -2628,6 +2628,424 @@ def assemble_shift_target_batch_chunked_lagblock_jax(
     return out if return_device else np.asarray(out)
 
 
+
+# ---------------------------------------------------------------------------
+# Experimental contiguous-Tl/Tp analytic-parity backend
+# ---------------------------------------------------------------------------
+#
+# The production analytic-parity kernel consumes lag indices in increasing
+# ``ell`` order but reads Tl/Tp columns through ``-ell + offset``.  For the
+# standard symmetric lag range this is exactly the reverse column order.  The
+# experimental route receives Tl/Tp arrays that have been reversed and padded
+# once by the prepared plan, then reads each lag block as a contiguous slice.
+# The existing production wrappers remain unchanged.
+
+
+def _make_shift_target_chunked_lagblock_contiguous_tltp_impl(
+    *,
+    complex_dtype,
+    real_dtype,
+):
+    """Create one analytic-parity kernel with contiguous Tl/Tp lag reads."""
+
+    def impl(
+        w_xi,
+        t_shift,
+        ell_all,
+        offset,
+        Tl_consumption,
+        Tp_consumption,
+        dF,
+        row_chunk_size,
+        lag_block_size,
+    ):
+        w_xi = jnp.asarray(w_xi, dtype=complex_dtype)
+        t_shift = jnp.asarray(t_shift, dtype=real_dtype)
+        ell_all = jnp.asarray(ell_all, dtype=jnp.int64)
+        Tl_consumption = jnp.asarray(
+            Tl_consumption,
+            dtype=complex_dtype,
+        )
+        Tp_consumption = jnp.asarray(
+            Tp_consumption,
+            dtype=complex_dtype,
+        )
+        dF = jnp.asarray(dF, dtype=real_dtype)
+
+        Nt, Nm = w_xi.shape
+        n_lag = ell_all.shape[0]
+        n_lag_blocks = (
+            n_lag + lag_block_size - 1
+        ) // lag_block_size
+        padded_n_lag = n_lag_blocks * lag_block_size
+
+        expected_kernel_shape = (Nt, padded_n_lag)
+        if Tl_consumption.shape != expected_kernel_shape:
+            raise ValueError(
+                "Tl_consumption must have shape "
+                f"{expected_kernel_shape}; got {Tl_consumption.shape}."
+            )
+        if Tp_consumption.shape != expected_kernel_shape:
+            raise ValueError(
+                "Tp_consumption must have shape "
+                f"{expected_kernel_shape}; got {Tp_consumption.shape}."
+            )
+
+        one_j = jnp.asarray(1j, dtype=complex_dtype)
+        one_complex = jnp.asarray(1.0 + 0.0j, dtype=complex_dtype)
+        two_pi = jnp.asarray(2.0 * np.pi, dtype=real_dtype)
+        pi = jnp.asarray(np.pi, dtype=real_dtype)
+
+        m_full = jnp.arange(Nm, dtype=real_dtype)
+        ph_m_all = jnp.exp(
+            one_j
+            * two_pi
+            * (m_full[None, :] * dF)
+            * t_shift[:, None]
+        )
+        half_bin_phase = jnp.exp(
+            one_j
+            * pi
+            * dF
+            * t_shift
+        )
+        ph_mid_all = ph_m_all[:, :-1] * half_bin_phase[:, None]
+
+        row_sign_all = _analytic_parity_pm_one(
+            jnp.arange(Nt, dtype=jnp.int64),
+            real_dtype,
+        )
+        lag_even_all = jnp.mod(ell_all, 2) == 0
+        even_half_sign_all = _analytic_parity_pm_one(
+            jnp.floor_divide(ell_all, 2),
+            real_dtype,
+        )
+        odd_half_sign_all = _analytic_parity_pm_one(
+            jnp.floor_divide(ell_all - 1, 2),
+            real_dtype,
+        )
+        sideband_frequency_sign = _analytic_parity_pm_one(
+            jnp.arange(max(Nm - 1, 0), dtype=jnp.int64),
+            real_dtype,
+        )
+
+        n_chunks = (Nt + row_chunk_size - 1) // row_chunk_size
+        Nt_pad = n_chunks * row_chunk_size
+
+        out0 = jnp.zeros((Nt_pad, Nm), dtype=complex_dtype)
+        zero_col = jnp.zeros((row_chunk_size, 1), dtype=complex_dtype)
+        row_offsets = jnp.arange(row_chunk_size, dtype=jnp.int64)
+        lag_offsets = jnp.arange(lag_block_size, dtype=jnp.int64)
+
+        def chunk_body(chunk_id, out_acc):
+            start = chunk_id * row_chunk_size
+            rows = start + row_offsets
+            valid_row = rows < Nt
+            rows_safe = jnp.clip(rows, 0, Nt - 1)
+
+            row_sign = row_sign_all[rows_safe]
+            ph_m = ph_m_all[rows_safe, :]
+            ph_mid = ph_mid_all[rows_safe, :]
+
+            # Gather the active row chunk once.  Lag blocks are then consumed
+            # through contiguous dynamic slices along the final dimension.
+            Tl_rows = Tl_consumption[rows_safe, :]
+            Tp_rows = Tp_consumption[rows_safe, :]
+
+            out_chunk0 = jnp.zeros(
+                (row_chunk_size, Nm),
+                dtype=complex_dtype,
+            )
+
+            def lag_block_body(lag_block_id, chunk_out):
+                lag_start = lag_block_id * lag_block_size
+                lag_indices = lag_start + lag_offsets
+                valid_lag = lag_indices < n_lag
+                lag_indices_safe = jnp.clip(lag_indices, 0, n_lag - 1)
+
+                ell_block = ell_all[lag_indices_safe]
+                lag_even = lag_even_all[lag_indices_safe]
+                even_half_sign = even_half_sign_all[lag_indices_safe]
+                odd_half_sign = odd_half_sign_all[lag_indices_safe]
+
+                nprime = rows[:, None] + ell_block[None, :]
+                valid_n = (
+                    valid_row[:, None]
+                    & valid_lag[None, :]
+                    & (nprime >= 0)
+                    & (nprime < Nt)
+                )
+                nprime_safe = jnp.clip(nprime, 0, Nt - 1)
+
+                Tl_row_block = jax.lax.dynamic_slice_in_dim(
+                    Tl_rows,
+                    lag_start,
+                    lag_block_size,
+                    axis=1,
+                )
+                Tp_row_block = jax.lax.dynamic_slice_in_dim(
+                    Tp_rows,
+                    lag_start,
+                    lag_block_size,
+                    axis=1,
+                )
+                w_n_block = w_xi[nprime_safe, :]
+
+                carrier_factor = jnp.where(
+                    lag_even[None, :, None],
+                    one_complex,
+                    one_j * row_sign[:, None, None],
+                )
+                main = (
+                    carrier_factor
+                    * ph_m[:, None, :]
+                    * Tl_row_block[:, :, None]
+                ).real * w_n_block
+                main = jnp.where(
+                    valid_n[:, :, None],
+                    main,
+                    jnp.zeros_like(main),
+                )
+                main_sum = jnp.sum(main, axis=1)
+
+                def add_sidebands(main_acc):
+                    even_row_lag_sign = (
+                        row_sign[:, None]
+                        * even_half_sign[None, :]
+                    )
+                    low_row_lag_sign = jnp.where(
+                        lag_even[None, :],
+                        -even_row_lag_sign,
+                        odd_half_sign[None, :],
+                    )
+                    up_row_lag_sign = jnp.where(
+                        lag_even[None, :],
+                        even_row_lag_sign,
+                        odd_half_sign[None, :],
+                    )
+
+                    low = (
+                        one_j
+                        * low_row_lag_sign[:, :, None]
+                        * sideband_frequency_sign[None, None, :]
+                        * ph_mid[:, None, :]
+                        * Tp_row_block[:, :, None]
+                    ).real * w_n_block[:, :, :-1]
+                    up = (
+                        one_j
+                        * up_row_lag_sign[:, :, None]
+                        * sideband_frequency_sign[None, None, :]
+                        * ph_mid[:, None, :]
+                        * Tp_row_block[:, :, None]
+                    ).real * w_n_block[:, :, 1:]
+
+                    low = jnp.where(
+                        valid_n[:, :, None],
+                        low,
+                        jnp.zeros_like(low),
+                    )
+                    up = jnp.where(
+                        valid_n[:, :, None],
+                        up,
+                        jnp.zeros_like(up),
+                    )
+
+                    low_sum = jnp.sum(low, axis=1)
+                    up_sum = jnp.sum(up, axis=1)
+                    low_pad = jnp.concatenate((zero_col, low_sum), axis=1)
+                    up_pad = jnp.concatenate((up_sum, zero_col), axis=1)
+                    return main_acc + low_pad + up_pad
+
+                chunk_next = jax.lax.cond(
+                    Nm > 1,
+                    add_sidebands,
+                    lambda value: value,
+                    main_sum,
+                )
+                return chunk_out + chunk_next
+
+            out_chunk = jax.lax.fori_loop(
+                0,
+                n_lag_blocks,
+                lag_block_body,
+                out_chunk0,
+            )
+            return jax.lax.dynamic_update_slice(
+                out_acc,
+                out_chunk,
+                (start, 0),
+            )
+
+        out_padded = jax.lax.fori_loop(
+            0,
+            n_chunks,
+            chunk_body,
+            out0,
+        )
+        return out_padded[:Nt, :]
+
+    return impl
+
+
+_assemble_shift_target_chunked_lagblock_contiguous_tltp_impl_c128 = (
+    _make_shift_target_chunked_lagblock_contiguous_tltp_impl(
+        complex_dtype=jnp.complex128,
+        real_dtype=jnp.float64,
+    )
+)
+_assemble_shift_target_chunked_lagblock_contiguous_tltp_impl_c64 = (
+    _make_shift_target_chunked_lagblock_contiguous_tltp_impl(
+        complex_dtype=jnp.complex64,
+        real_dtype=jnp.float32,
+    )
+)
+
+
+_assemble_shift_target_chunked_lagblock_contiguous_tltp_core_c128 = jax.jit(
+    _assemble_shift_target_chunked_lagblock_contiguous_tltp_impl_c128,
+    static_argnums=(3, 7, 8),
+)
+_assemble_shift_target_chunked_lagblock_contiguous_tltp_core_c64 = jax.jit(
+    _assemble_shift_target_chunked_lagblock_contiguous_tltp_impl_c64,
+    static_argnums=(3, 7, 8),
+)
+
+
+def _make_shift_target_batch_chunked_lagblock_contiguous_tltp_impl(
+    *,
+    single_job_impl,
+    complex_dtype,
+):
+    """Create the batched contiguous-Tl/Tp analytic-parity kernel."""
+
+    def impl(
+        w_xi_batch,
+        t_shift_batch,
+        ell_all,
+        offset,
+        Tl_consumption_batch,
+        Tp_consumption_batch,
+        dF,
+        row_chunk_size,
+        lag_block_size,
+    ):
+        B, Nt, Nm = w_xi_batch.shape
+        out0 = jnp.zeros((B, Nt, Nm), dtype=complex_dtype)
+
+        def body(job_index, out):
+            shifted = single_job_impl(
+                w_xi_batch[job_index],
+                t_shift_batch[job_index],
+                ell_all,
+                offset,
+                Tl_consumption_batch[job_index],
+                Tp_consumption_batch[job_index],
+                dF,
+                row_chunk_size,
+                lag_block_size,
+            )
+            return out.at[job_index, :, :].set(shifted)
+
+        return jax.lax.fori_loop(0, B, body, out0)
+
+    return impl
+
+
+_assemble_shift_target_batch_chunked_lagblock_contiguous_tltp_impl_c128 = (
+    _make_shift_target_batch_chunked_lagblock_contiguous_tltp_impl(
+        single_job_impl=(
+            _assemble_shift_target_chunked_lagblock_contiguous_tltp_impl_c128
+        ),
+        complex_dtype=jnp.complex128,
+    )
+)
+_assemble_shift_target_batch_chunked_lagblock_contiguous_tltp_impl_c64 = (
+    _make_shift_target_batch_chunked_lagblock_contiguous_tltp_impl(
+        single_job_impl=(
+            _assemble_shift_target_chunked_lagblock_contiguous_tltp_impl_c64
+        ),
+        complex_dtype=jnp.complex64,
+    )
+)
+
+
+_assemble_shift_target_batch_chunked_lagblock_contiguous_tltp_core_c128 = (
+    jax.jit(
+        _assemble_shift_target_batch_chunked_lagblock_contiguous_tltp_impl_c128,
+        static_argnums=(3, 7, 8),
+    )
+)
+_assemble_shift_target_batch_chunked_lagblock_contiguous_tltp_core_c64 = (
+    jax.jit(
+        _assemble_shift_target_batch_chunked_lagblock_contiguous_tltp_impl_c64,
+        static_argnums=(3, 7, 8),
+    )
+)
+
+
+def assemble_shift_target_batch_chunked_lagblock_contiguous_tltp_jax(
+    w_xi_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_consumption_batch,
+    Tp_consumption_batch,
+    Cnm,
+    dF,
+    row_chunk_size=128,
+    lag_block_size=1,
+    precision="complex128",
+    return_device=False,
+):
+    """Experimental analytic-parity shift with contiguous Tl/Tp lag blocks.
+
+    ``Tl_consumption_batch`` and ``Tp_consumption_batch`` must already be in
+    lag-consumption order and padded on the final axis to a multiple of
+    ``lag_block_size``.  ``Cnm`` remains in the signature for API symmetry but
+    is not read.
+    """
+
+    _ = Cnm
+    precision = _normalize_chunked_precision(precision)
+    row_chunk_size = int(row_chunk_size)
+    lag_block_size = int(lag_block_size)
+    if row_chunk_size < 1:
+        raise ValueError("row_chunk_size must be >= 1.")
+    if lag_block_size < 1:
+        raise ValueError("lag_block_size must be >= 1.")
+
+    if precision == "complex64":
+        out = (
+            _assemble_shift_target_batch_chunked_lagblock_contiguous_tltp_core_c64(
+                jnp.asarray(w_xi_batch, dtype=jnp.complex64),
+                jnp.asarray(t_shift_batch, dtype=jnp.float32),
+                jnp.asarray(ell_all, dtype=jnp.int64),
+                int(offset),
+                jnp.asarray(Tl_consumption_batch, dtype=jnp.complex64),
+                jnp.asarray(Tp_consumption_batch, dtype=jnp.complex64),
+                jnp.asarray(dF, dtype=jnp.float32),
+                row_chunk_size,
+                lag_block_size,
+            )
+        )
+        return out if return_device else np.asarray(out)
+
+    out = (
+        _assemble_shift_target_batch_chunked_lagblock_contiguous_tltp_core_c128(
+            jnp.asarray(w_xi_batch, dtype=jnp.complex128),
+            jnp.asarray(t_shift_batch, dtype=jnp.float64),
+            jnp.asarray(ell_all, dtype=jnp.int64),
+            int(offset),
+            jnp.asarray(Tl_consumption_batch, dtype=jnp.complex128),
+            jnp.asarray(Tp_consumption_batch, dtype=jnp.complex128),
+            jnp.asarray(dF, dtype=jnp.float64),
+            row_chunk_size,
+            lag_block_size,
+        )
+    )
+    return out if return_device else np.asarray(out)
+
+
 def _assemble_shift_target_batch_chunked_lagblock_jobblock_impl_c128(
     w_xi_batch,
     t_shift_batch,

@@ -28,6 +28,7 @@ from ._time_shift_assembly import (
     _assemble_shift_target_batch_weighted_dispatch,
 )
 from ._time_shift_jax import (
+    assemble_shift_target_batch_chunked_lagblock_contiguous_tltp_jax,
     assemble_shift_target_batch_chunked_lagblock_prephased_jax,
 )
 from .time_shift_fast import (
@@ -598,6 +599,313 @@ class VariableShiftBatchPlan:
             "device_plan_memory_bytes": int(
                 self.device_plan_memory_bytes
             ),
+            "returned_on_device": True,
+        }
+        return result_device, profile
+
+
+    def _device_tltp_consumption_arrays(self) -> dict[str, Any]:
+        """Return cached Tl/Tp arrays in contiguous lag-consumption order.
+
+        For the symmetric lag range produced by the current plan builder,
+        ``-ell + offset`` is exactly the reverse of the stored kernel-column
+        order.  The reversed arrays are padded once to a multiple of the
+        configured lag-block size so every block can be read with a contiguous
+        dynamic slice inside the experimental kernel.
+        """
+
+        import jax.numpy as jnp
+
+        cache_keys = (
+            "Tl_consumption",
+            "Tp_consumption",
+            "tltp_consumption_padded_lags",
+        )
+        if all(key in self._device_cache for key in cache_keys):
+            return {
+                "Tl_consumption": self._device_cache["Tl_consumption"],
+                "Tp_consumption": self._device_cache["Tp_consumption"],
+                "padded_n_lag": self._device_cache[
+                    "tltp_consumption_padded_lags"
+                ],
+            }
+
+        # Populate the ordinary device-plan arrays first so both benchmark
+        # routes share the same persistent delays and lag indices.
+        self._device_plan_arrays()
+
+        n_lag = int(self.ell_all.size)
+        lag_block_size = int(self.config.lag_block_size)
+        n_lag_blocks = (
+            n_lag + lag_block_size - 1
+        ) // lag_block_size
+        padded_n_lag = n_lag_blocks * lag_block_size
+
+        consumed_columns = (
+            -np.asarray(self.ell_all, dtype=np.int64)
+            + int(self.offset)
+        )
+        expected_columns = np.arange(
+            n_lag - 1,
+            -1,
+            -1,
+            dtype=np.int64,
+        )
+        if not np.array_equal(consumed_columns, expected_columns):
+            raise NotImplementedError(
+                "The contiguous Tl/Tp experiment requires the standard "
+                "symmetric, ascending lag range for which -ell + offset "
+                "is an exact reversal of the kernel columns."
+            )
+
+        complex_dtype_np = (
+            np.complex64
+            if self.resolved_assembly_precision == "complex64"
+            else np.complex128
+        )
+        complex_dtype_jax = (
+            jnp.complex64
+            if self.resolved_assembly_precision == "complex64"
+            else jnp.complex128
+        )
+
+        Tl_consumption_host = np.ascontiguousarray(
+            self.Tl_all[..., ::-1],
+            dtype=complex_dtype_np,
+        )
+        Tp_consumption_host = np.ascontiguousarray(
+            self.Tp_all[..., ::-1],
+            dtype=complex_dtype_np,
+        )
+
+        pad_lags = padded_n_lag - n_lag
+        if pad_lags:
+            pad_width = (
+                (0, 0),
+                (0, 0),
+                (0, pad_lags),
+            )
+            Tl_consumption_host = np.pad(
+                Tl_consumption_host,
+                pad_width,
+                mode="constant",
+            )
+            Tp_consumption_host = np.pad(
+                Tp_consumption_host,
+                pad_width,
+                mode="constant",
+            )
+
+        Tl_consumption = jnp.asarray(
+            Tl_consumption_host,
+            dtype=complex_dtype_jax,
+        )
+        Tp_consumption = jnp.asarray(
+            Tp_consumption_host,
+            dtype=complex_dtype_jax,
+        )
+
+        self._device_cache.update(
+            {
+                "Tl_consumption": Tl_consumption,
+                "Tp_consumption": Tp_consumption,
+                "tltp_consumption_padded_lags": int(padded_n_lag),
+            }
+        )
+        return {
+            "Tl_consumption": Tl_consumption,
+            "Tp_consumption": Tp_consumption,
+            "padded_n_lag": int(padded_n_lag),
+        }
+
+    def prepare_device_tltp_consumption(
+        self,
+        *,
+        synchronise: bool = False,
+    ) -> dict[str, Any]:
+        """Prepare the experimental contiguous Tl/Tp device cache."""
+
+        arrays = self._device_tltp_consumption_arrays()
+        if synchronise:
+            arrays["Tl_consumption"].block_until_ready()
+            arrays["Tp_consumption"].block_until_ready()
+        return arrays
+
+    def apply_device_contiguous_tltp(
+        self,
+        coefficients,
+        *,
+        return_profile: bool = False,
+        cache_device_plan: bool = True,
+    ):
+        """Apply the experimental contiguous-Tl/Tp analytic-parity kernel.
+
+        The ordinary :meth:`apply_device` production route remains unchanged.
+        This method exists solely for controlled numerical and timing
+        comparisons.
+        """
+
+        import jax.numpy as jnp
+
+        if not self.resolved_use_jax:
+            raise NotImplementedError(
+                "The contiguous Tl/Tp experiment requires a JAX-backed plan."
+            )
+        if self.resolved_assembly_backend != "lagfirst_chunked_lagblock":
+            raise NotImplementedError(
+                "The contiguous Tl/Tp experiment currently supports only "
+                "assembly_backend='lagfirst_chunked_lagblock'; got "
+                f"{self.resolved_assembly_backend!r}."
+            )
+
+        started = perf_counter()
+
+        complex_dtype = (
+            jnp.complex64
+            if self.resolved_assembly_precision == "complex64"
+            else jnp.complex128
+        )
+        real_dtype = (
+            jnp.float32
+            if self.resolved_assembly_precision == "complex64"
+            else jnp.float64
+        )
+
+        coefficients_device = jnp.asarray(
+            coefficients,
+            dtype=complex_dtype,
+        )
+        if coefficients_device.ndim == 2:
+            coefficients_device = coefficients_device[None, :, :]
+
+        expected = (self.num_jobs, self.Nt, self.Nm)
+        if tuple(coefficients_device.shape) != expected:
+            raise ValueError(
+                f"Expected coefficients with shape {expected}, "
+                f"got {tuple(coefficients_device.shape)}."
+            )
+
+        if cache_device_plan:
+            device_plan = self._device_plan_arrays()
+            delays_device = device_plan["delays"]
+            ell_device = device_plan["ell_all"]
+            Cnm_device = device_plan["Cnm"]
+            tltp_plan = self._device_tltp_consumption_arrays()
+            Tl_device = tltp_plan["Tl_consumption"]
+            Tp_device = tltp_plan["Tp_consumption"]
+        else:
+            delays_device = jnp.asarray(self.delays, dtype=real_dtype)
+            ell_device = jnp.asarray(self.ell_all, dtype=jnp.int64)
+            Cnm_device = jnp.asarray(self.Cnm, dtype=complex_dtype)
+
+            n_lag = int(self.ell_all.size)
+            lag_block_size = int(self.config.lag_block_size)
+            padded_n_lag = (
+                (n_lag + lag_block_size - 1) // lag_block_size
+            ) * lag_block_size
+            pad_lags = padded_n_lag - n_lag
+            pad_width = ((0, 0), (0, 0), (0, pad_lags))
+
+            Tl_host = np.ascontiguousarray(
+                self.Tl_all[..., ::-1],
+            )
+            Tp_host = np.ascontiguousarray(
+                self.Tp_all[..., ::-1],
+            )
+            if pad_lags:
+                Tl_host = np.pad(Tl_host, pad_width, mode="constant")
+                Tp_host = np.pad(Tp_host, pad_width, mode="constant")
+            Tl_device = jnp.asarray(Tl_host, dtype=complex_dtype)
+            Tp_device = jnp.asarray(Tp_host, dtype=complex_dtype)
+
+        chunk_size = (
+            self.num_jobs
+            if self.config.batch_chunk is None
+            else min(self.num_jobs, int(self.config.batch_chunk))
+        )
+
+        output_chunks = []
+        assembly_started = perf_counter()
+
+        for start in range(0, self.num_jobs, chunk_size):
+            stop = min(start + chunk_size, self.num_jobs)
+            true_batch = stop - start
+
+            coefficient_work = coefficients_device[start:stop]
+            delay_work = delays_device[start:stop]
+            Tl_work = Tl_device[start:stop]
+            Tp_work = Tp_device[start:stop]
+
+            should_pad = (
+                bool(self.config.assembly_vmap)
+                and self.config.jax_pad_last_chunk
+                and self.num_jobs > chunk_size
+                and true_batch < chunk_size
+            )
+
+            if should_pad:
+                pad_rows = chunk_size - true_batch
+
+                def pad_last(values):
+                    return jnp.concatenate(
+                        (
+                            values,
+                            jnp.repeat(values[-1:], pad_rows, axis=0),
+                        ),
+                        axis=0,
+                    )
+
+                coefficient_work = pad_last(coefficient_work)
+                delay_work = pad_last(delay_work)
+                Tl_work = pad_last(Tl_work)
+                Tp_work = pad_last(Tp_work)
+
+            shifted_device = (
+                assemble_shift_target_batch_chunked_lagblock_contiguous_tltp_jax(
+                    coefficient_work,
+                    delay_work,
+                    ell_device,
+                    self.offset,
+                    Tl_work,
+                    Tp_work,
+                    Cnm_device,
+                    float(self.wdm.dF),
+                    row_chunk_size=self.config.row_chunk_size,
+                    lag_block_size=self.config.lag_block_size,
+                    precision=self.resolved_assembly_precision,
+                    return_device=True,
+                )
+            )
+            output_chunks.append(shifted_device[:true_batch])
+
+        if len(output_chunks) == 1:
+            result_device = output_chunks[0]
+        else:
+            result_device = jnp.concatenate(output_chunks, axis=0)
+
+        if return_profile:
+            result_device.block_until_ready()
+
+        assembly_seconds = perf_counter() - assembly_started
+        total_seconds = perf_counter() - started
+
+        if not return_profile:
+            return result_device
+
+        profile: dict[str, float | int | str | bool] = {
+            "n_jobs": int(self.num_jobs),
+            "batch_chunk": int(chunk_size),
+            "assembly_backend": self.resolved_assembly_backend,
+            "assembly_precision": self.resolved_assembly_precision,
+            "total_s": float(total_seconds),
+            "assembly_s": float(assembly_seconds),
+            "other_s": float(total_seconds - assembly_seconds),
+            "plan_build_s": float(self.build_seconds),
+            "device_plan_cached": bool(cache_device_plan),
+            "tltp_consumption_cache_memory_bytes": int(
+                self.tltp_consumption_cache_memory_bytes
+            ),
+            "contiguous_tltp": True,
             "returned_on_device": True,
         }
         return result_device, profile
@@ -1408,6 +1716,38 @@ class VariableShiftBatchPlan:
             + self.Tl_all.nbytes
             + self.Tp_all.nbytes
             + self.Cnm.nbytes
+        )
+
+
+    @property
+    def tltp_consumption_cache_memory_bytes(self) -> int:
+        """Additional device memory for the experimental Tl/Tp layout."""
+
+        itemsize = np.dtype(
+            np.complex64
+            if self.resolved_assembly_precision == "complex64"
+            else np.complex128
+        ).itemsize
+        n_lag = int(self.ell_all.size)
+        lag_block_size = int(self.config.lag_block_size)
+        padded_n_lag = (
+            (n_lag + lag_block_size - 1) // lag_block_size
+        ) * lag_block_size
+        return int(
+            2
+            * self.num_jobs
+            * self.Nt
+            * padded_n_lag
+            * itemsize
+        )
+
+    @property
+    def device_plan_with_tltp_consumption_memory_bytes(self) -> int:
+        """Estimated device-plan memory with both Tl/Tp layouts cached."""
+
+        return int(
+            self.device_plan_memory_bytes
+            + self.tltp_consumption_cache_memory_bytes
         )
 
     @property
