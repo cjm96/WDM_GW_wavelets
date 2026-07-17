@@ -28,7 +28,6 @@ from ._time_shift_assembly import (
     _assemble_shift_target_batch_weighted_dispatch,
 )
 from ._time_shift_jax import (
-    assemble_shift_target_batch_chunked_lagblock_linkblock_jax,
     assemble_shift_target_batch_chunked_lagblock_prephased_jax,
 )
 from .time_shift_fast import (
@@ -604,57 +603,80 @@ class VariableShiftBatchPlan:
         return result_device, profile
 
 
-
-    def apply_device_linkblock(
+    def apply_device_parallel_groups(
         self,
         coefficients,
         *,
-        link_block_size: int,
-        row_chunk_size: int | None = None,
-        lag_block_size: int | None = None,
+        group_size: int,
+        max_workers: int | None = None,
         return_profile: bool = False,
         cache_device_plan: bool = True,
     ):
-        """Apply the experimental analytic-parity link-block kernel.
+        """Apply independent job groups concurrently with the production kernel.
 
-        This method leaves :meth:`apply_device` and the production dispatcher
-        unchanged.  It is intended for the six-link one-arm benchmark where
-        the active job block is varied independently of the prepared plan.
+        This is an experimental CPU scheduling route.  Each worker calls the
+        unchanged production batch dispatcher on a contiguous slice of jobs.
+        It therefore avoids adding a link dimension to the large
+        row-lag-frequency intermediates.
+
+        Unlike :meth:`apply_device`, this method is intentionally synchronous:
+        each worker blocks on its JAX output so the CPU computations can overlap
+        during the benchmark.  The concatenated result is also synchronized
+        before return.
+
+        Parameters
+        ----------
+        coefficients : array-like
+            Coefficient batch with shape ``(num_jobs, Nt, Nm)``.
+        group_size : int
+            Number of contiguous jobs evaluated by each production-kernel call.
+            For six one-arm links, use ``3`` for two groups or ``2`` for three
+            groups.
+        max_workers : int or None, optional
+            Maximum number of concurrent Python workers.  The default is the
+            number of groups.
+        return_profile : bool, optional
+            Return wall-clock and per-group timing metadata.
+        cache_device_plan : bool, optional
+            Reuse device-resident delays, Tl/Tp, lag indices and parity arrays.
         """
+
+        from concurrent.futures import ThreadPoolExecutor
 
         import jax.numpy as jnp
 
         if not self.resolved_use_jax:
             raise NotImplementedError(
-                "The link-block experiment requires a JAX-backed plan."
-            )
-        if self.resolved_assembly_backend != "lagfirst_chunked_lagblock":
-            raise NotImplementedError(
-                "The link-block experiment requires "
-                "assembly_backend='lagfirst_chunked_lagblock'; got "
-                f"{self.resolved_assembly_backend!r}."
+                "Concurrent shift groups require a JAX-backed plan."
             )
 
-        link_block_size = int(link_block_size)
-        if link_block_size < 1:
-            raise ValueError("link_block_size must be >= 1.")
+        group_size = int(group_size)
+        if group_size < 1:
+            raise ValueError("group_size must be >= 1.")
+        if group_size > self.num_jobs:
+            raise ValueError(
+                f"group_size={group_size} exceeds num_jobs={self.num_jobs}."
+            )
 
-        resolved_row_chunk = (
-            int(self.config.row_chunk_size)
-            if row_chunk_size is None
-            else int(row_chunk_size)
+        group_bounds = tuple(
+            (start, min(start + group_size, self.num_jobs))
+            for start in range(0, self.num_jobs, group_size)
         )
-        resolved_lag_block = (
-            int(self.config.lag_block_size)
-            if lag_block_size is None
-            else int(lag_block_size)
+
+        if max_workers is None:
+            resolved_max_workers = len(group_bounds)
+        else:
+            resolved_max_workers = int(max_workers)
+
+        if resolved_max_workers < 1:
+            raise ValueError("max_workers must be >= 1.")
+        resolved_max_workers = min(
+            resolved_max_workers,
+            len(group_bounds),
         )
-        if resolved_row_chunk < 1:
-            raise ValueError("row_chunk_size must be >= 1.")
-        if resolved_lag_block < 1:
-            raise ValueError("lag_block_size must be >= 1.")
 
         started = perf_counter()
+
         complex_dtype = (
             jnp.complex64
             if self.resolved_assembly_precision == "complex64"
@@ -688,51 +710,77 @@ class VariableShiftBatchPlan:
             Tp_device = device_plan["Tp_all"]
             Cnm_device = device_plan["Cnm"]
         else:
-            delays_device = jnp.asarray(self.delays, dtype=real_dtype)
-            ell_device = jnp.asarray(self.ell_all, dtype=jnp.int64)
-            Tl_device = jnp.asarray(self.Tl_all, dtype=complex_dtype)
-            Tp_device = jnp.asarray(self.Tp_all, dtype=complex_dtype)
-            Cnm_device = jnp.asarray(self.Cnm, dtype=complex_dtype)
+            delays_device = jnp.asarray(
+                self.delays,
+                dtype=real_dtype,
+            )
+            ell_device = jnp.asarray(
+                self.ell_all,
+                dtype=jnp.int64,
+            )
+            Tl_device = jnp.asarray(
+                self.Tl_all,
+                dtype=complex_dtype,
+            )
+            Tp_device = jnp.asarray(
+                self.Tp_all,
+                dtype=complex_dtype,
+            )
+            Cnm_device = jnp.asarray(
+                self.Cnm,
+                dtype=complex_dtype,
+            )
 
-        chunk_size = (
-            self.num_jobs
-            if self.config.batch_chunk is None
-            else min(self.num_jobs, int(self.config.batch_chunk))
-        )
+        def run_group(bounds):
+            group_start, group_stop = bounds
+            group_started = perf_counter()
 
-        output_chunks = []
+            shifted_group = _assemble_shift_target_batch_dispatch(
+                self.wdm,
+                coefficients_device[group_start:group_stop],
+                delays_device[group_start:group_stop],
+                ell_device,
+                self.offset,
+                Tl_device[group_start:group_stop],
+                Tp_device[group_start:group_stop],
+                Cnm=Cnm_device,
+                use_jax=self.resolved_use_jax,
+                assembly_backend=self.resolved_assembly_backend,
+                assembly_precision=self.resolved_assembly_precision,
+                row_chunk_size=self.config.row_chunk_size,
+                lag_block_size=self.config.lag_block_size,
+                job_block_size=self.config.job_block_size,
+                assembly_vmap=self.config.assembly_vmap,
+                return_device=True,
+            )
+
+            # Synchronization inside each Python worker is deliberate.  Without
+            # it, the workers would only enqueue asynchronous JAX computations.
+            shifted_group.block_until_ready()
+            return shifted_group, float(perf_counter() - group_started)
+
         assembly_started = perf_counter()
 
-        for start in range(0, self.num_jobs, chunk_size):
-            stop = min(start + chunk_size, self.num_jobs)
-            true_batch = stop - start
+        with ThreadPoolExecutor(
+            max_workers=resolved_max_workers,
+            thread_name_prefix="wdm-shift-group",
+        ) as executor:
+            futures = [
+                executor.submit(run_group, bounds)
+                for bounds in group_bounds
+            ]
+            completed = [future.result() for future in futures]
 
-            shifted_device = (
-                assemble_shift_target_batch_chunked_lagblock_linkblock_jax(
-                    coefficients_device[start:stop],
-                    delays_device[start:stop],
-                    ell_device,
-                    self.offset,
-                    Tl_device[start:stop],
-                    Tp_device[start:stop],
-                    Cnm_device,
-                    float(self.wdm.dF),
-                    row_chunk_size=resolved_row_chunk,
-                    lag_block_size=resolved_lag_block,
-                    link_block_size=link_block_size,
-                    precision=self.resolved_assembly_precision,
-                    return_device=True,
-                )
-            )
-            output_chunks.append(shifted_device[:true_batch])
+        group_outputs = [item[0] for item in completed]
+        group_seconds = [item[1] for item in completed]
 
-        if len(output_chunks) == 1:
-            result_device = output_chunks[0]
+        if len(group_outputs) == 1:
+            result_device = group_outputs[0]
         else:
-            result_device = jnp.concatenate(output_chunks, axis=0)
+            result_device = jnp.concatenate(group_outputs, axis=0)
 
-        if return_profile:
-            result_device.block_until_ready()
+        # Include concatenation and any remaining device work in the wall time.
+        result_device.block_until_ready()
 
         assembly_seconds = perf_counter() - assembly_started
         total_seconds = perf_counter() - started
@@ -740,14 +788,15 @@ class VariableShiftBatchPlan:
         if not return_profile:
             return result_device
 
-        profile: dict[str, float | int | str | bool] = {
+        profile: dict[str, Any] = {
             "n_jobs": int(self.num_jobs),
-            "batch_chunk": int(chunk_size),
-            "assembly_backend": "analytic_linkblock_experiment",
+            "assembly_backend": self.resolved_assembly_backend,
             "assembly_precision": self.resolved_assembly_precision,
-            "row_chunk_size": int(resolved_row_chunk),
-            "lag_block_size": int(resolved_lag_block),
-            "link_block_size": int(link_block_size),
+            "parallel_group_size": int(group_size),
+            "parallel_num_groups": int(len(group_bounds)),
+            "parallel_max_workers": int(resolved_max_workers),
+            "parallel_group_bounds": tuple(group_bounds),
+            "parallel_group_seconds": tuple(group_seconds),
             "total_s": float(total_seconds),
             "assembly_s": float(assembly_seconds),
             "other_s": float(total_seconds - assembly_seconds),
@@ -755,6 +804,7 @@ class VariableShiftBatchPlan:
             "device_plan_cached": bool(cache_device_plan),
             "device_plan_memory_bytes": int(self.device_plan_memory_bytes),
             "returned_on_device": True,
+            "execution_synchronous": True,
         }
         return result_device, profile
 
