@@ -603,6 +603,7 @@ class VariableShiftBatchPlan:
         return result_device, profile
 
 
+    
     def apply_device_parallel_groups(
         self,
         coefficients,
@@ -614,26 +615,25 @@ class VariableShiftBatchPlan:
     ):
         """Apply independent job groups concurrently with the production kernel.
 
-        This is an experimental CPU scheduling route.  Each worker calls the
-        unchanged production batch dispatcher on a contiguous slice of jobs.
-        It therefore avoids adding a link dimension to the large
-        row-lag-frequency intermediates.
+        Each worker calls the unchanged production batch dispatcher on a
+        contiguous slice of jobs. This exposes coarse job-level CPU concurrency
+        without introducing a job dimension into the large row-lag-frequency
+        intermediates.
 
-        Unlike :meth:`apply_device`, this method is intentionally synchronous:
-        each worker blocks on its JAX output so the CPU computations can overlap
-        during the benchmark.  The concatenated result is also synchronized
-        before return.
+        The method is deliberately synchronous: every worker blocks on its JAX
+        output before returning, and the concatenated result is synchronized
+        before this method returns. This makes the measured wall time represent
+        completed CPU execution rather than asynchronous dispatch.
 
         Parameters
         ----------
         coefficients : array-like
             Coefficient batch with shape ``(num_jobs, Nt, Nm)``.
         group_size : int
-            Number of contiguous jobs evaluated by each production-kernel call.
-            For six one-arm links, use ``3`` for two groups or ``2`` for three
-            groups.
+            Maximum number of contiguous jobs assigned to one production-kernel
+            call.
         max_workers : int or None, optional
-            Maximum number of concurrent Python workers.  The default is the
+            Maximum number of concurrent Python workers. The default is the
             number of groups.
         return_profile : bool, optional
             Return wall-clock and per-group timing metadata.
@@ -754,22 +754,23 @@ class VariableShiftBatchPlan:
                 return_device=True,
             )
 
-            # Synchronization inside each Python worker is deliberate.  Without
-            # it, the workers would only enqueue asynchronous JAX computations.
             shifted_group.block_until_ready()
             return shifted_group, float(perf_counter() - group_started)
 
         assembly_started = perf_counter()
 
-        with ThreadPoolExecutor(
-            max_workers=resolved_max_workers,
-            thread_name_prefix="wdm-shift-group",
-        ) as executor:
-            futures = [
-                executor.submit(run_group, bounds)
-                for bounds in group_bounds
-            ]
-            completed = [future.result() for future in futures]
+        if len(group_bounds) == 1:
+            completed = [run_group(group_bounds[0])]
+        else:
+            with ThreadPoolExecutor(
+                max_workers=resolved_max_workers,
+                thread_name_prefix="wdm-shift-group",
+            ) as executor:
+                futures = [
+                    executor.submit(run_group, bounds)
+                    for bounds in group_bounds
+                ]
+                completed = [future.result() for future in futures]
 
         group_outputs = [item[0] for item in completed]
         group_seconds = [item[1] for item in completed]
@@ -779,7 +780,6 @@ class VariableShiftBatchPlan:
         else:
             result_device = jnp.concatenate(group_outputs, axis=0)
 
-        # Include concatenation and any remaining device work in the wall time.
         result_device.block_until_ready()
 
         assembly_seconds = perf_counter() - assembly_started
@@ -807,6 +807,7 @@ class VariableShiftBatchPlan:
             "execution_synchronous": True,
         }
         return result_device, profile
+
 
     def _device_phase_arrays(self) -> dict[str, Any]:
         """Return lazily cached delay-dependent WDM frequency phases.
