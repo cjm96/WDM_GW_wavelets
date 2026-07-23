@@ -1,4 +1,4 @@
-"""Regression tests for indexed, device-side grouped shift accumulation."""
+"""Regression tests for indexed grouped shift accumulation."""
 
 from dataclasses import replace
 
@@ -12,7 +12,6 @@ from WDM.code.time_delay_filters.plans import VariableShiftBatchPlan
 
 def _fixture():
     rng = np.random.default_rng(73142)
-
     Nf = 16
     Nt = 8
     wdm = WDM.WDM.WDM_transform(
@@ -28,26 +27,23 @@ def _fixture():
     num_sources = 3
     num_jobs = 7
     num_outputs = 3
-
-    sources = (
-        rng.normal(size=(num_sources, Nt, Nf))
-        + 1j * rng.normal(size=(num_sources, Nt, Nf))
+    sources = rng.normal(size=(num_sources, Nt, Nf)) + 1j * rng.normal(
+        size=(num_sources, Nt, Nf)
     )
     source_indices = np.asarray([0, 1, 2, 0, 2, 1, 0], dtype=np.int32)
     output_indices = np.asarray([0, 0, 1, 2, 1, 2, 0], dtype=np.int32)
-    weights = np.asarray([1, -1, 0.5, 1, -0.25, -1, 0.75], dtype=float)
-
-    base = (
-        rng.normal(size=(num_outputs, Nt, Nf))
-        + 1j * rng.normal(size=(num_outputs, Nt, Nf))
+    weights = np.asarray([1, -1, 0.5, 1, -0.25, -1, 0.75])
+    base = rng.normal(size=(num_outputs, Nt, Nf)) + 1j * rng.normal(
+        size=(num_outputs, Nt, Nf)
     )
 
-    t = np.linspace(0.0, 1.0, Nt)
+    time = np.linspace(0.0, 1.0, Nt)
     delays = np.stack(
-        [7.0 + 0.2 * job + 0.1 * np.sin((job + 1) * t) for job in range(num_jobs)],
-        axis=0,
+        [
+            7.0 + 0.2 * job + 0.1 * np.sin((job + 1) * time)
+            for job in range(num_jobs)
+        ]
     )
-
     return (
         wdm,
         delays,
@@ -72,11 +68,11 @@ def _fixture():
             1e-12,
         ),
         (
-            replace(
-                VariableShiftPlanConfig.production(
-                    lag_truncation=3,
-                    interpolation_points=16,
-                ),
+            VariableShiftPlanConfig.production(
+                lag_truncation=3,
+                interpolation_points=16,
+                row_chunk_size=8,
+                lag_block_size=3,
                 batch_chunk=4,
             ),
             3e-5,
@@ -84,7 +80,7 @@ def _fixture():
         ),
     ],
 )
-def test_indexed_accumulate_matches_materialized_reference(config, rtol, atol):
+def test_indexed_accumulate_matches_materialized(config, rtol, atol):
     (
         wdm,
         delays,
@@ -97,9 +93,11 @@ def test_indexed_accumulate_matches_materialized_reference(config, rtol, atol):
     ) = _fixture()
 
     plan = VariableShiftBatchPlan.build(wdm, delays, config=config)
-
     shifted = plan.apply(sources[source_indices])
-    expected = np.asarray(base, dtype=np.result_type(base.dtype, shifted.dtype)).copy()
+    expected = np.asarray(
+        base,
+        dtype=np.result_type(base.dtype, shifted.dtype),
+    ).copy()
     np.add.at(
         expected,
         output_indices,
@@ -145,7 +143,6 @@ def test_indexed_accumulate_validates_indices():
         delays,
         config=VariableShiftPlanConfig.reference(lag_truncation=2),
     )
-
     bad_sources = source_indices.copy()
     bad_sources[0] = sources.shape[0]
 

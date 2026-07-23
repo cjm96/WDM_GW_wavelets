@@ -1,8 +1,8 @@
-"""Configuration objects for reusable WDM time-shift plans.
+"""Configuration for reusable WDM variable-delay plans.
 
-This module deliberately contains no LISA-specific concepts.  It belongs in
-``WDM/code/time_delay_filters`` and describes only how a generic variable WDM
-shift is prepared and assembled.
+Only numerical choices that remain active in the maintained implementation are
+exposed.  Removed experimental switches are intentionally not represented here;
+old benchmark branches remain recoverable through version control.
 """
 
 from __future__ import annotations
@@ -13,18 +13,17 @@ from typing import Literal
 
 TlTpMode = Literal["exact", "interp"]
 InterpolationKind = Literal["linear", "cubic"]
-InterpolationBackend = Literal["numpy", "jax", "auto"]
+AssemblyBackend = Literal["production", "reference"]
 AssemblyPrecision = Literal["complex64", "complex128", "float32", "float64"]
 
 
 @dataclass(frozen=True, slots=True)
 class VariableShiftPlanConfig:
-    """Numerical configuration for a reusable variable-delay shift plan.
+    """Numerical configuration for a reusable target-mode shift plan.
 
-    The defaults mirror the existing ``wdm_time_shift_variable_batch`` API so
-    introducing the plan object does not silently change numerical behaviour.
-    Use :meth:`production` for the faster configuration currently used by the
-    LISA response pipeline.
+    ``production`` uses interpolated delay kernels and the analytic-parity JAX
+    assembly.  ``reference`` uses exact delay kernels and the explicit
+    checkerboard implementation for regression tests.
     """
 
     lag_truncation: int | None = None
@@ -33,18 +32,12 @@ class VariableShiftPlanConfig:
     tl_tp_interp_points: int = 64
     tl_tp_interp_pad: float = 0.0
     tl_tp_interp_kind: InterpolationKind = "linear"
-    tl_tp_interp_backend: InterpolationBackend = "numpy"
 
-    assembly_backend: str | None = None
-    assembly_precision: AssemblyPrecision = "complex64"
+    assembly_backend: AssemblyBackend = "reference"
+    assembly_precision: AssemblyPrecision = "complex128"
     row_chunk_size: int = 128
     lag_block_size: int = 1
-    job_block_size: int = 1
-    assembly_vmap: bool | None = None
-
-    batch_chunk: int | None = 32
-    jax_pad_last_chunk: bool = False
-    use_jax: bool | None = None
+    batch_chunk: int | None = 1
 
     def __post_init__(self) -> None:
         if self.lag_truncation is not None and self.lag_truncation < 0:
@@ -55,29 +48,34 @@ class VariableShiftPlanConfig:
 
         if self.tl_tp_interp_points < 2:
             raise ValueError("tl_tp_interp_points must be at least 2.")
-
+        if self.tl_tp_interp_kind not in ("linear", "cubic"):
+            raise ValueError("tl_tp_interp_kind must be 'linear' or 'cubic'.")
         if self.tl_tp_interp_kind == "cubic" and self.tl_tp_interp_points < 4:
             raise ValueError(
                 "Cubic Tl/Tp interpolation requires at least 4 grid points."
             )
-
         if self.tl_tp_interp_pad < 0.0:
             raise ValueError("tl_tp_interp_pad must be non-negative.")
 
-        if self.tl_tp_interp_backend not in ("numpy", "jax", "auto"):
+        if self.assembly_backend not in ("production", "reference"):
             raise ValueError(
-                "tl_tp_interp_backend must be 'numpy', 'jax', or 'auto'."
+                "assembly_backend must be 'production' or 'reference'."
+            )
+        if str(self.assembly_precision).lower() not in (
+            "complex64",
+            "complex128",
+            "float32",
+            "float64",
+        ):
+            raise ValueError(
+                "assembly_precision must be complex64/float32 or "
+                "complex128/float64."
             )
 
         if self.row_chunk_size < 1:
             raise ValueError("row_chunk_size must be at least 1.")
-
         if self.lag_block_size < 1:
             raise ValueError("lag_block_size must be at least 1.")
-
-        if self.job_block_size < 1:
-            raise ValueError("job_block_size must be at least 1.")
-
         if self.batch_chunk is not None and self.batch_chunk < 1:
             raise ValueError("batch_chunk must be at least 1 or None.")
 
@@ -87,11 +85,14 @@ class VariableShiftPlanConfig:
         *,
         lag_truncation: int = 25,
         interpolation_points: int = 16,
+        row_chunk_size: int = 2048,
+        lag_block_size: int = 17,
+        batch_chunk: int | None = 32,
     ) -> "VariableShiftPlanConfig":
-        """Return the current fast interpolated configuration.
+        """Return the maintained fast configuration.
 
-        This is intentionally an explicit alternative to the legacy-matching
-        defaults above.
+        The row and lag blocks remain explicit because their optimum is
+        hardware- and problem-size dependent.
         """
 
         return cls(
@@ -99,13 +100,11 @@ class VariableShiftPlanConfig:
             tl_tp_mode="interp",
             tl_tp_interp_points=interpolation_points,
             tl_tp_interp_kind="linear",
-            tl_tp_interp_backend="numpy",
-            assembly_backend="lagfirst_chunked_lagblock",
+            assembly_backend="production",
             assembly_precision="complex64",
-            row_chunk_size=2048,
-            lag_block_size=32,
-            job_block_size=1,
-            batch_chunk=32,
+            row_chunk_size=row_chunk_size,
+            lag_block_size=lag_block_size,
+            batch_chunk=batch_chunk,
         )
 
     @classmethod
@@ -113,16 +112,16 @@ class VariableShiftPlanConfig:
         cls,
         *,
         lag_truncation: int | None = None,
+        batch_chunk: int | None = 1,
     ) -> "VariableShiftPlanConfig":
-        """Return a high-accuracy configuration for regression testing."""
+        """Return the high-accuracy regression configuration."""
 
         return cls(
             lag_truncation=lag_truncation,
             tl_tp_mode="exact",
-            assembly_backend="lagfirst_chunked",
+            assembly_backend="reference",
             assembly_precision="complex128",
             row_chunk_size=128,
             lag_block_size=1,
-            job_block_size=1,
-            batch_chunk=1,
+            batch_chunk=batch_chunk,
         )

@@ -1,48 +1,32 @@
-"""Reusable operator plans for WDM variable time shifts.
+"""Reusable plans for target-mode WDM variable time shifts.
 
-The existing high-level shift function performs two different tasks:
-
-1. build all delay-dependent quantities (lag range, Tl/Tp, parity matrix), and
-2. apply those quantities to waveform-dependent WDM coefficients.
-
-``VariableShiftBatchPlan`` separates those stages.  Building a plan can be
-expensive, but applying it to a new coefficient batch does not reconstruct
-Tl/Tp.
-
-This first implementation intentionally reuses the existing validated helper
-functions and JAX assembly kernels.  It is therefore a low-risk architectural
-change rather than a numerical rewrite.
+A plan separates expensive delay-dependent preparation from repeated waveform
+application.  The maintained plan supports one production target kernel and
+one high-precision reference kernel.  Experimental prephased, weighted-source
+and job-block variants were removed from the public object.
 """
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any
 
 import numpy as np
 
+from ._time_shift_assembly import _assemble_shift_target_batch_dispatch
 from .config import VariableShiftPlanConfig
-from ._time_shift_assembly import (
-    _assemble_shift_target_batch_dispatch,
-    _assemble_shift_target_batch_weighted_dispatch,
-)
-from ._time_shift_jax import (
-    assemble_shift_target_batch_chunked_lagblock_prephased_jax,
-)
 from .time_shift_fast import (
     _build_signed_lag_idx,
     _build_TlTp_from_shift_matrix,
     _build_TlTp_from_shift_matrix_interp,
-    _build_TlTp_from_shift_matrix_interp_jax,
     _get_Cnm_parity,
     _get_kernel_precomputes,
     _infer_Nf,
+    _normalize_assembly_backend,
     _normalize_assembly_precision,
-    _resolve_assembly_backend,
     _resolve_ell_range,
-    _resolve_interp_backend,
-    _resolve_use_jax,
     _validate_lag_block_size,
     _validate_row_chunk_size,
     choose_Nker,
@@ -50,46 +34,52 @@ from .time_shift_fast import (
 
 
 def _as_delay_matrix(delays: np.ndarray) -> np.ndarray:
-    delays = np.asarray(delays, dtype=float)
+    """Validate and return a float64 delay matrix for plan construction."""
+
+    delays = np.asarray(delays, dtype=np.float64)
     if delays.ndim == 1:
         delays = delays[None, :]
     if delays.ndim != 2:
         raise ValueError(
-            "delays must have shape (num_jobs, Nt), or shape (Nt,) for one job."
+            "delays must have shape (num_jobs, Nt), or (Nt,) for one job."
         )
     if delays.shape[0] < 1 or delays.shape[1] < 1:
-        raise ValueError("delays must contain at least one job and one time row.")
+        raise ValueError("delays must contain at least one job and one row.")
     if not np.all(np.isfinite(delays)):
         raise ValueError("delays contains NaN or infinite values.")
     return delays
 
 
-def _as_coefficient_batch(
-    coefficients: np.ndarray,
-    *,
-    num_jobs: int,
-    Nt: int,
-    Nm: int,
-) -> np.ndarray:
-    coefficients = np.asarray(coefficients)
-    if coefficients.ndim == 2:
-        coefficients = coefficients[None, :, :]
+def _coefficient_batch_shape(values, *, num_jobs, Nt, Nm):
+    """Normalize a host coefficient batch without changing its dtype."""
+
+    values = np.asarray(values)
+    if values.ndim == 2:
+        values = values[None, :, :]
     expected = (num_jobs, Nt, Nm)
-    if coefficients.shape != expected:
+    if values.shape != expected:
         raise ValueError(
-            f"Expected coefficients with shape {expected}, got {coefficients.shape}."
+            f"Expected coefficients with shape {expected}, got {values.shape}."
         )
-    return coefficients
+    return values
+
+
+def _jax_coefficient_dtype(values, precision):
+    """Choose a real or complex JAX coefficient dtype."""
+
+    import jax.numpy as jnp
+
+    is_complex = bool(
+        jnp.issubdtype(jnp.asarray(values).dtype, jnp.complexfloating)
+    )
+    if precision == "complex64":
+        return jnp.complex64 if is_complex else jnp.float32
+    return jnp.complex128 if is_complex else jnp.float64
 
 
 @dataclass(frozen=True, slots=True)
 class VariableShiftBatchPlan:
-    """Prepared variable-delay WDM operators for one or more jobs.
-
-    Parameters stored on the plan depend on the delay fields and WDM grid, but
-    not on the waveform coefficients.  The same plan can consequently be
-    applied repeatedly to different coefficient batches of identical shape.
-    """
+    """Prepared target-mode WDM operators for one or more delay fields."""
 
     wdm: Any
     config: VariableShiftPlanConfig
@@ -99,7 +89,7 @@ class VariableShiftBatchPlan:
     offset: int
     Tl_all: np.ndarray
     Tp_all: np.ndarray
-    Cnm: np.ndarray
+    Cnm: np.ndarray | None
 
     Nf: int
     Nker: int
@@ -107,15 +97,10 @@ class VariableShiftBatchPlan:
     Nm: int
     num_jobs: int
 
-    resolved_use_jax: bool
     resolved_assembly_backend: str
     resolved_assembly_precision: str
-
     build_seconds: float
 
-    # Lazily populated only by the indexed/grouped execution path.  Keeping
-    # these arrays on the JAX device avoids retransferring the persistent
-    # delay kernels for every waveform evaluation.
     _device_cache: dict[str, Any] = field(
         default_factory=dict,
         repr=False,
@@ -134,23 +119,21 @@ class VariableShiftBatchPlan:
         safety: float = 1.02,
         kernel_kwargs: dict[str, Any] | None = None,
     ) -> "VariableShiftBatchPlan":
-        """Prepare all delay-dependent data needed by the batch shifter.
+        """Prepare all delay-dependent data for repeated batch application.
 
-        Preparation follows the same chunking convention as the existing
-        ``wdm_time_shift_variable_batch`` function.  This is important for
-        interpolated Tl/Tp because the legacy implementation constructs a
-        separate interpolation range for every batch chunk.
+        Interpolated kernels retain the historical per-``batch_chunk`` delay
+        range so this refactor does not silently change interpolation values.
+        Persistent arrays are stored directly in the configured production or
+        reference precision.
         """
 
         started = perf_counter()
         config = VariableShiftPlanConfig() if config is None else config
-        delays = _as_delay_matrix(delays)
+        construction_delays = _as_delay_matrix(delays)
 
-        num_jobs, Nt = delays.shape
+        num_jobs, Nt = construction_delays.shape
         Nm = int(getattr(wdm, "Nf"))
         Nf = _infer_Nf(wdm, Nt, Nf)
-
-        resolved_use_jax = _resolve_use_jax(use_jax=config.use_jax)
         ell_all, offset = _resolve_ell_range(Nt, config.lag_truncation)
 
         if Nker is None:
@@ -169,11 +152,10 @@ class VariableShiftBatchPlan:
             kernel_kwargs=kernel_kwargs,
         )
         Nker = int(wdm_kernel.N)
-        signed_lag_idx = _build_signed_lag_idx(ell_all, Nf, Nker)
-
-        interp_backend = _resolve_interp_backend(
-            config.tl_tp_interp_backend,
-            use_jax=resolved_use_jax,
+        signed_lag_idx = _build_signed_lag_idx(
+            ell_all,
+            Nf,
+            Nker,
         )
 
         chunk_size = (
@@ -181,13 +163,12 @@ class VariableShiftBatchPlan:
             if config.batch_chunk is None
             else min(num_jobs, int(config.batch_chunk))
         )
-
         Tl_parts: list[np.ndarray] = []
         Tp_parts: list[np.ndarray] = []
 
         for start in range(0, num_jobs, chunk_size):
             stop = min(start + chunk_size, num_jobs)
-            delay_chunk = delays[start:stop]
+            delay_chunk = construction_delays[start:stop]
 
             if config.tl_tp_mode == "exact":
                 Tl_chunk, Tp_chunk = _build_TlTp_from_shift_matrix(
@@ -197,18 +178,6 @@ class VariableShiftBatchPlan:
                     W1_u,
                     scale,
                     signed_lag_idx,
-                )
-            elif interp_backend == "jax":
-                Tl_chunk, Tp_chunk = _build_TlTp_from_shift_matrix_interp_jax(
-                    delay_chunk,
-                    freqs_u,
-                    W0_u,
-                    W1_u,
-                    scale,
-                    signed_lag_idx,
-                    interp_points=config.tl_tp_interp_points,
-                    interp_pad=config.tl_tp_interp_pad,
-                    interp_kind=config.tl_tp_interp_kind,
                 )
             else:
                 Tl_chunk, Tp_chunk = _build_TlTp_from_shift_matrix_interp(
@@ -223,57 +192,59 @@ class VariableShiftBatchPlan:
                     interp_kind=config.tl_tp_interp_kind,
                 )
 
-            # Plan construction is a setup operation, so holding its persistent
-            # state as NumPy arrays is deliberate.  The existing assembly
-            # wrappers transfer/cast these arrays when applying the plan.
             Tl_parts.append(np.asarray(Tl_chunk))
             Tp_parts.append(np.asarray(Tp_chunk))
 
         Tl_all = np.concatenate(Tl_parts, axis=0)
         Tp_all = np.concatenate(Tp_parts, axis=0)
-
         expected_kernel_shape = (num_jobs, Nt, ell_all.size)
-        if Tl_all.shape != expected_kernel_shape or Tp_all.shape != expected_kernel_shape:
+        if (
+            Tl_all.shape != expected_kernel_shape
+            or Tp_all.shape != expected_kernel_shape
+        ):
             raise RuntimeError(
                 "Unexpected Tl/Tp shape after plan construction: "
-                f"expected {expected_kernel_shape}, got Tl={Tl_all.shape}, "
-                f"Tp={Tp_all.shape}."
+                f"expected {expected_kernel_shape}, got "
+                f"Tl={Tl_all.shape}, Tp={Tp_all.shape}."
             )
 
-        resolved_backend = _resolve_assembly_backend(
-            config.assembly_backend,
-            config.assembly_vmap,
-        )
-        resolved_precision = _normalize_assembly_precision(
-            config.assembly_precision
-        )
+        backend = _normalize_assembly_backend(config.assembly_backend)
+        precision = _normalize_assembly_precision(config.assembly_precision)
         _validate_row_chunk_size(config.row_chunk_size)
         _validate_lag_block_size(config.lag_block_size)
 
-        cnm_dtype = (
-            np.complex64
-            if resolved_precision == "complex64"
-            else np.complex128
+        if precision == "complex64":
+            real_dtype = np.float32
+            complex_dtype = np.complex64
+        else:
+            real_dtype = np.float64
+            complex_dtype = np.complex128
+
+        # The production analytic-parity kernel does not read Cnm.  Building
+        # and caching the full checkerboard is therefore restricted to the
+        # explicit reference plan.
+        Cnm = (
+            _get_Cnm_parity(Nt, Nm, dtype=np.complex128)
+            if backend == "reference"
+            else None
         )
-        Cnm = _get_Cnm_parity(Nt, Nm, dtype=cnm_dtype)
 
         return cls(
             wdm=wdm,
             config=config,
-            delays=delays,
-            ell_all=ell_all,
+            delays=np.asarray(construction_delays, dtype=real_dtype),
+            ell_all=np.asarray(ell_all, dtype=np.int32),
             offset=int(offset),
-            Tl_all=Tl_all,
-            Tp_all=Tp_all,
+            Tl_all=np.asarray(Tl_all, dtype=complex_dtype),
+            Tp_all=np.asarray(Tp_all, dtype=complex_dtype),
             Cnm=Cnm,
             Nf=int(Nf),
             Nker=Nker,
             Nt=Nt,
             Nm=Nm,
             num_jobs=num_jobs,
-            resolved_use_jax=resolved_use_jax,
-            resolved_assembly_backend=resolved_backend,
-            resolved_assembly_precision=resolved_precision,
+            resolved_assembly_backend=backend,
+            resolved_assembly_precision=precision,
             build_seconds=float(perf_counter() - started),
         )
 
@@ -282,107 +253,52 @@ class VariableShiftBatchPlan:
         coefficients: np.ndarray,
         *,
         return_profile: bool = False,
-    ) -> np.ndarray | tuple[np.ndarray, dict[str, float | int | str]]:
-        """Apply the prepared shifts to a new coefficient batch.
+    ):
+        """Apply the plan and return a NumPy batch."""
 
-        No kernel FFTs or Tl/Tp interpolation are performed here.
-        """
-
-        coefficients = _as_coefficient_batch(
+        coefficients = _coefficient_batch_shape(
             coefficients,
             num_jobs=self.num_jobs,
             Nt=self.Nt,
             Nm=self.Nm,
         )
-
         started = perf_counter()
-        chunk_size = (
-            self.num_jobs
-            if self.config.batch_chunk is None
-            else min(self.num_jobs, int(self.config.batch_chunk))
-        )
-
-        outputs: list[np.ndarray] = []
+        chunk_size = self._chunk_size
+        outputs = []
         assembly_seconds = 0.0
 
         for start in range(0, self.num_jobs, chunk_size):
             stop = min(start + chunk_size, self.num_jobs)
-            true_batch = stop - start
-
-            coefficient_work = coefficients[start:stop]
-            delay_work = self.delays[start:stop]
-            Tl_work = self.Tl_all[start:stop]
-            Tp_work = self.Tp_all[start:stop]
-
-            should_pad = (
-                self.resolved_use_jax
-                and bool(self.config.assembly_vmap)
-                and self.config.jax_pad_last_chunk
-                and self.num_jobs > chunk_size
-                and true_batch < chunk_size
-            )
-
-            if should_pad:
-                pad_rows = chunk_size - true_batch
-                coefficient_work = np.concatenate(
-                    (
-                        coefficient_work,
-                        np.repeat(coefficient_work[-1:], pad_rows, axis=0),
-                    ),
-                    axis=0,
-                )
-                delay_work = np.concatenate(
-                    (delay_work, np.repeat(delay_work[-1:], pad_rows, axis=0)),
-                    axis=0,
-                )
-                Tl_work = np.concatenate(
-                    (Tl_work, np.repeat(Tl_work[-1:], pad_rows, axis=0)),
-                    axis=0,
-                )
-                Tp_work = np.concatenate(
-                    (Tp_work, np.repeat(Tp_work[-1:], pad_rows, axis=0)),
-                    axis=0,
-                )
-
             assembly_started = perf_counter()
             shifted = _assemble_shift_target_batch_dispatch(
                 self.wdm,
-                coefficient_work,
-                delay_work,
+                coefficients[start:stop],
+                self.delays[start:stop],
                 self.ell_all,
                 self.offset,
-                Tl_work,
-                Tp_work,
+                self.Tl_all[start:stop],
+                self.Tp_all[start:stop],
                 Cnm=self.Cnm,
-                use_jax=self.resolved_use_jax,
                 assembly_backend=self.resolved_assembly_backend,
                 assembly_precision=self.resolved_assembly_precision,
                 row_chunk_size=self.config.row_chunk_size,
                 lag_block_size=self.config.lag_block_size,
-                job_block_size=self.config.job_block_size,
-                assembly_vmap=self.config.assembly_vmap,
             )
             assembly_seconds += perf_counter() - assembly_started
-            outputs.append(np.asarray(shifted)[:true_batch])
+            outputs.append(np.asarray(shifted))
 
-        result = np.concatenate(outputs, axis=0)
-        total_seconds = perf_counter() - started
-
+        result = outputs[0] if len(outputs) == 1 else np.concatenate(outputs)
         if not return_profile:
             return result
 
-        profile: dict[str, float | int | str] = {
-            "n_jobs": self.num_jobs,
-            "batch_chunk": chunk_size,
-            "assembly_backend": self.resolved_assembly_backend,
-            "assembly_precision": self.resolved_assembly_precision,
-            "total_s": float(total_seconds),
-            "assembly_s": float(assembly_seconds),
-            "other_s": float(total_seconds - assembly_seconds),
-            "plan_build_s": float(self.build_seconds),
-        }
-        return result, profile
-    
+        total_seconds = perf_counter() - started
+        return result, self._profile(
+            total_seconds=total_seconds,
+            assembly_seconds=assembly_seconds,
+            returned_on_device=False,
+            device_plan_cached=False,
+        )
+
     def apply_device(
         self,
         coefficients,
@@ -390,220 +306,62 @@ class VariableShiftBatchPlan:
         return_profile: bool = False,
         cache_device_plan: bool = True,
     ):
-        """Apply the prepared shifts and return a JAX array.
-
-        Unlike :meth:`apply`, this method does not copy shifted outputs back to
-        NumPy. Persistent delay-dependent plan arrays may be cached on-device
-        between repeated waveform evaluations.
-
-        Parameters
-        ----------
-        coefficients : array-like
-            WDM coefficient batch with shape ``(num_jobs, Nt, Nm)``. A
-            two-dimensional array is accepted for a one-job plan.
-        return_profile : bool, optional
-            When true, synchronise execution and return timing metadata.
-        cache_device_plan : bool, optional
-            Reuse JAX copies of delays, Tl/Tp, lag indices and parity arrays.
-
-        Returns
-        -------
-        jax.Array or tuple
-            Shifted coefficients on the active JAX device. When
-            ``return_profile=True``, returns ``(shifted, profile)``.
-        """
+        """Apply the plan and keep the result on the active JAX device."""
 
         import jax.numpy as jnp
 
         started = perf_counter()
-
-        complex_dtype = (
-            jnp.complex64
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.complex128
+        coefficient_dtype = _jax_coefficient_dtype(
+            coefficients,
+            self.resolved_assembly_precision,
         )
-        real_dtype = (
-            jnp.float32
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.float64
-        )
-
         coefficients_device = jnp.asarray(
             coefficients,
-            dtype=complex_dtype,
+            dtype=coefficient_dtype,
         )
-
         if coefficients_device.ndim == 2:
             coefficients_device = coefficients_device[None, :, :]
+        self._validate_device_coefficient_shape(coefficients_device)
 
-        expected = (self.num_jobs, self.Nt, self.Nm)
-        if tuple(coefficients_device.shape) != expected:
-            raise ValueError(
-                f"Expected coefficients with shape {expected}, "
-                f"got {tuple(coefficients_device.shape)}."
-            )
-
-        if cache_device_plan:
-            device_plan = self._device_plan_arrays()
-            delays_device = device_plan["delays"]
-            ell_device = device_plan["ell_all"]
-            Tl_device = device_plan["Tl_all"]
-            Tp_device = device_plan["Tp_all"]
-            Cnm_device = device_plan["Cnm"]
-        else:
-            delays_device = jnp.asarray(
-                self.delays,
-                dtype=real_dtype,
-            )
-            ell_device = jnp.asarray(
-                self.ell_all,
-                dtype=jnp.int64,
-            )
-            Tl_device = jnp.asarray(
-                self.Tl_all,
-                dtype=complex_dtype,
-            )
-            Tp_device = jnp.asarray(
-                self.Tp_all,
-                dtype=complex_dtype,
-            )
-            Cnm_device = jnp.asarray(
-                self.Cnm,
-                dtype=complex_dtype,
-            )
-
-        chunk_size = (
-            self.num_jobs
-            if self.config.batch_chunk is None
-            else min(self.num_jobs, int(self.config.batch_chunk))
-        )
-
-        output_chunks = []
+        plan = self._device_plan_arrays() if cache_device_plan else self._new_device_plan()
+        outputs = []
         assembly_started = perf_counter()
 
-        for start in range(0, self.num_jobs, chunk_size):
-            stop = min(start + chunk_size, self.num_jobs)
-            true_batch = stop - start
-
-            coefficient_work = coefficients_device[start:stop]
-            delay_work = delays_device[start:stop]
-            Tl_work = Tl_device[start:stop]
-            Tp_work = Tp_device[start:stop]
-
-            should_pad = (
-                self.resolved_use_jax
-                and bool(self.config.assembly_vmap)
-                and self.config.jax_pad_last_chunk
-                and self.num_jobs > chunk_size
-                and true_batch < chunk_size
-            )
-
-            if should_pad:
-                pad_rows = chunk_size - true_batch
-
-                coefficient_work = jnp.concatenate(
-                    (
-                        coefficient_work,
-                        jnp.repeat(
-                            coefficient_work[-1:],
-                            pad_rows,
-                            axis=0,
-                        ),
-                    ),
-                    axis=0,
-                )
-                delay_work = jnp.concatenate(
-                    (
-                        delay_work,
-                        jnp.repeat(
-                            delay_work[-1:],
-                            pad_rows,
-                            axis=0,
-                        ),
-                    ),
-                    axis=0,
-                )
-                Tl_work = jnp.concatenate(
-                    (
-                        Tl_work,
-                        jnp.repeat(
-                            Tl_work[-1:],
-                            pad_rows,
-                            axis=0,
-                        ),
-                    ),
-                    axis=0,
-                )
-                Tp_work = jnp.concatenate(
-                    (
-                        Tp_work,
-                        jnp.repeat(
-                            Tp_work[-1:],
-                            pad_rows,
-                            axis=0,
-                        ),
-                    ),
-                    axis=0,
-                )
-
-            shifted_device = _assemble_shift_target_batch_dispatch(
+        for start in range(0, self.num_jobs, self._chunk_size):
+            stop = min(start + self._chunk_size, self.num_jobs)
+            shifted = _assemble_shift_target_batch_dispatch(
                 self.wdm,
-                coefficient_work,
-                delay_work,
-                ell_device,
+                coefficients_device[start:stop],
+                plan["delays"][start:stop],
+                plan["ell_all"],
                 self.offset,
-                Tl_work,
-                Tp_work,
-                Cnm=Cnm_device,
-                use_jax=self.resolved_use_jax,
+                plan["Tl_all"][start:stop],
+                plan["Tp_all"][start:stop],
+                Cnm=plan.get("Cnm"),
                 assembly_backend=self.resolved_assembly_backend,
                 assembly_precision=self.resolved_assembly_precision,
                 row_chunk_size=self.config.row_chunk_size,
                 lag_block_size=self.config.lag_block_size,
-                job_block_size=self.config.job_block_size,
-                assembly_vmap=self.config.assembly_vmap,
                 return_device=True,
             )
+            outputs.append(shifted)
 
-            output_chunks.append(shifted_device[:true_batch])
-
-        if len(output_chunks) == 1:
-            result_device = output_chunks[0]
-        else:
-            result_device = jnp.concatenate(
-                output_chunks,
-                axis=0,
-            )
-
-        # Profiling must explicitly synchronise asynchronous JAX execution.
+        result = outputs[0] if len(outputs) == 1 else jnp.concatenate(outputs)
         if return_profile:
-            result_device.block_until_ready()
+            result.block_until_ready()
 
         assembly_seconds = perf_counter() - assembly_started
-        total_seconds = perf_counter() - started
-
         if not return_profile:
-            return result_device
+            return result
 
-        profile: dict[str, float | int | str | bool] = {
-            "n_jobs": int(self.num_jobs),
-            "batch_chunk": int(chunk_size),
-            "assembly_backend": self.resolved_assembly_backend,
-            "assembly_precision": self.resolved_assembly_precision,
-            "total_s": float(total_seconds),
-            "assembly_s": float(assembly_seconds),
-            "other_s": float(total_seconds - assembly_seconds),
-            "plan_build_s": float(self.build_seconds),
-            "device_plan_cached": bool(cache_device_plan),
-            "device_plan_memory_bytes": int(
-                self.device_plan_memory_bytes
-            ),
-            "returned_on_device": True,
-        }
-        return result_device, profile
+        total_seconds = perf_counter() - started
+        return result, self._profile(
+            total_seconds=total_seconds,
+            assembly_seconds=assembly_seconds,
+            returned_on_device=True,
+            device_plan_cached=cache_device_plan,
+        )
 
-
-    
     def apply_device_parallel_groups(
         self,
         coefficients,
@@ -613,752 +371,99 @@ class VariableShiftBatchPlan:
         return_profile: bool = False,
         cache_device_plan: bool = True,
     ):
-        """Apply independent job groups concurrently with the production kernel.
+        """Apply contiguous job groups concurrently on CPU-backed JAX.
 
-        Each worker calls the unchanged production batch dispatcher on a
-        contiguous slice of jobs. This exposes coarse job-level CPU concurrency
-        without introducing a job dimension into the large row-lag-frequency
-        intermediates.
-
-        The method is deliberately synchronous: every worker blocks on its JAX
-        output before returning, and the concatenated result is synchronized
-        before this method returns. This makes the measured wall time represent
-        completed CPU execution rather than asynchronous dispatch.
-
-        Parameters
-        ----------
-        coefficients : array-like
-            Coefficient batch with shape ``(num_jobs, Nt, Nm)``.
-        group_size : int
-            Maximum number of contiguous jobs assigned to one production-kernel
-            call.
-        max_workers : int or None, optional
-            Maximum number of concurrent Python workers. The default is the
-            number of groups.
-        return_profile : bool, optional
-            Return wall-clock and per-group timing metadata.
-        cache_device_plan : bool, optional
-            Reuse device-resident delays, Tl/Tp, lag indices and parity arrays.
+        This is the retained coarse-grained one-arm execution strategy.  Every
+        worker synchronizes before returning so timings represent completed
+        execution rather than asynchronous dispatch.
         """
-
-        from concurrent.futures import ThreadPoolExecutor
 
         import jax.numpy as jnp
 
-        if not self.resolved_use_jax:
-            raise NotImplementedError(
-                "Concurrent shift groups require a JAX-backed plan."
-            )
-
         group_size = int(group_size)
-        if group_size < 1:
-            raise ValueError("group_size must be >= 1.")
-        if group_size > self.num_jobs:
+        if group_size < 1 or group_size > self.num_jobs:
             raise ValueError(
-                f"group_size={group_size} exceeds num_jobs={self.num_jobs}."
+                f"group_size must lie in [1, {self.num_jobs}], got {group_size}."
             )
-
-        group_bounds = tuple(
+        bounds = tuple(
             (start, min(start + group_size, self.num_jobs))
             for start in range(0, self.num_jobs, group_size)
         )
-
-        if max_workers is None:
-            resolved_max_workers = len(group_bounds)
-        else:
-            resolved_max_workers = int(max_workers)
-
-        if resolved_max_workers < 1:
+        workers = len(bounds) if max_workers is None else int(max_workers)
+        if workers < 1:
             raise ValueError("max_workers must be >= 1.")
-        resolved_max_workers = min(
-            resolved_max_workers,
-            len(group_bounds),
-        )
+        workers = min(workers, len(bounds))
 
         started = perf_counter()
-
-        complex_dtype = (
-            jnp.complex64
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.complex128
-        )
-        real_dtype = (
-            jnp.float32
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.float64
-        )
-
-        coefficients_device = jnp.asarray(
+        coefficient_dtype = _jax_coefficient_dtype(
             coefficients,
-            dtype=complex_dtype,
+            self.resolved_assembly_precision,
         )
+        coefficients_device = jnp.asarray(coefficients, dtype=coefficient_dtype)
         if coefficients_device.ndim == 2:
             coefficients_device = coefficients_device[None, :, :]
+        self._validate_device_coefficient_shape(coefficients_device)
 
-        expected = (self.num_jobs, self.Nt, self.Nm)
-        if tuple(coefficients_device.shape) != expected:
-            raise ValueError(
-                f"Expected coefficients with shape {expected}, "
-                f"got {tuple(coefficients_device.shape)}."
-            )
+        plan = self._device_plan_arrays() if cache_device_plan else self._new_device_plan()
 
-        if cache_device_plan:
-            device_plan = self._device_plan_arrays()
-            delays_device = device_plan["delays"]
-            ell_device = device_plan["ell_all"]
-            Tl_device = device_plan["Tl_all"]
-            Tp_device = device_plan["Tp_all"]
-            Cnm_device = device_plan["Cnm"]
-        else:
-            delays_device = jnp.asarray(
-                self.delays,
-                dtype=real_dtype,
-            )
-            ell_device = jnp.asarray(
-                self.ell_all,
-                dtype=jnp.int64,
-            )
-            Tl_device = jnp.asarray(
-                self.Tl_all,
-                dtype=complex_dtype,
-            )
-            Tp_device = jnp.asarray(
-                self.Tp_all,
-                dtype=complex_dtype,
-            )
-            Cnm_device = jnp.asarray(
-                self.Cnm,
-                dtype=complex_dtype,
-            )
-
-        def run_group(bounds):
-            group_start, group_stop = bounds
+        def run_group(group_bounds):
+            group_start, group_stop = group_bounds
             group_started = perf_counter()
-
-            shifted_group = _assemble_shift_target_batch_dispatch(
+            shifted = _assemble_shift_target_batch_dispatch(
                 self.wdm,
                 coefficients_device[group_start:group_stop],
-                delays_device[group_start:group_stop],
-                ell_device,
+                plan["delays"][group_start:group_stop],
+                plan["ell_all"],
                 self.offset,
-                Tl_device[group_start:group_stop],
-                Tp_device[group_start:group_stop],
-                Cnm=Cnm_device,
-                use_jax=self.resolved_use_jax,
+                plan["Tl_all"][group_start:group_stop],
+                plan["Tp_all"][group_start:group_stop],
+                Cnm=plan.get("Cnm"),
                 assembly_backend=self.resolved_assembly_backend,
                 assembly_precision=self.resolved_assembly_precision,
                 row_chunk_size=self.config.row_chunk_size,
                 lag_block_size=self.config.lag_block_size,
-                job_block_size=self.config.job_block_size,
-                assembly_vmap=self.config.assembly_vmap,
                 return_device=True,
             )
-
-            shifted_group.block_until_ready()
-            return shifted_group, float(perf_counter() - group_started)
+            shifted.block_until_ready()
+            return shifted, float(perf_counter() - group_started)
 
         assembly_started = perf_counter()
-
-        if len(group_bounds) == 1:
-            completed = [run_group(group_bounds[0])]
+        if len(bounds) == 1:
+            completed = [run_group(bounds[0])]
         else:
             with ThreadPoolExecutor(
-                max_workers=resolved_max_workers,
+                max_workers=workers,
                 thread_name_prefix="wdm-shift-group",
             ) as executor:
-                futures = [
-                    executor.submit(run_group, bounds)
-                    for bounds in group_bounds
-                ]
-                completed = [future.result() for future in futures]
+                completed = list(executor.map(run_group, bounds))
 
-        group_outputs = [item[0] for item in completed]
-        group_seconds = [item[1] for item in completed]
-
-        if len(group_outputs) == 1:
-            result_device = group_outputs[0]
-        else:
-            result_device = jnp.concatenate(group_outputs, axis=0)
-
-        result_device.block_until_ready()
+        outputs = [item[0] for item in completed]
+        group_seconds = tuple(item[1] for item in completed)
+        result = outputs[0] if len(outputs) == 1 else jnp.concatenate(outputs)
+        result.block_until_ready()
 
         assembly_seconds = perf_counter() - assembly_started
-        total_seconds = perf_counter() - started
-
         if not return_profile:
-            return result_device
+            return result
 
-        profile: dict[str, Any] = {
-            "n_jobs": int(self.num_jobs),
-            "assembly_backend": self.resolved_assembly_backend,
-            "assembly_precision": self.resolved_assembly_precision,
-            "parallel_group_size": int(group_size),
-            "parallel_num_groups": int(len(group_bounds)),
-            "parallel_max_workers": int(resolved_max_workers),
-            "parallel_group_bounds": tuple(group_bounds),
-            "parallel_group_seconds": tuple(group_seconds),
-            "total_s": float(total_seconds),
-            "assembly_s": float(assembly_seconds),
-            "other_s": float(total_seconds - assembly_seconds),
-            "plan_build_s": float(self.build_seconds),
-            "device_plan_cached": bool(cache_device_plan),
-            "device_plan_memory_bytes": int(self.device_plan_memory_bytes),
-            "returned_on_device": True,
-            "execution_synchronous": True,
-        }
-        return result_device, profile
-
-
-    def _device_phase_arrays(self) -> dict[str, Any]:
-        """Return lazily cached delay-dependent WDM frequency phases.
-
-        These arrays depend on the prepared delay fields and WDM grid, but not
-        on waveform coefficients.  They can therefore be reused across
-        repeated applications of the same plan.
-
-        Only the full-bin phase and one half-bin factor are stored.  The
-        sideband phase grid is formed inside the shift kernel as
-        ``ph_m_all[..., :-1] * half_bin_phase[..., None]`` so that a second
-        full-size persistent complex array is not required.
-        """
-
-        import jax.numpy as jnp
-
-        if (
-            "ph_m_all" in self._device_cache
-            and "half_bin_phase" in self._device_cache
-        ):
-            return {
-                "ph_m_all": self._device_cache["ph_m_all"],
-                "half_bin_phase": self._device_cache["half_bin_phase"],
-            }
-
-        device_plan = self._device_plan_arrays()
-
-        if self.resolved_assembly_precision == "complex64":
-            complex_dtype = jnp.complex64
-            real_dtype = jnp.float32
-        else:
-            complex_dtype = jnp.complex128
-            real_dtype = jnp.float64
-
-        delays_device = device_plan["delays"]
-        dF_device = jnp.asarray(float(self.wdm.dF), dtype=real_dtype)
-        m_full = jnp.arange(self.Nm, dtype=real_dtype)
-        one_j = jnp.asarray(1j, dtype=complex_dtype)
-        two_pi = jnp.asarray(2.0 * np.pi, dtype=real_dtype)
-        pi = jnp.asarray(np.pi, dtype=real_dtype)
-
-        ph_m_all = jnp.exp(
-            one_j
-            * two_pi
-            * delays_device[:, :, None]
-            * (m_full[None, None, :] * dF_device)
+        total_seconds = perf_counter() - started
+        profile = self._profile(
+            total_seconds=total_seconds,
+            assembly_seconds=assembly_seconds,
+            returned_on_device=True,
+            device_plan_cached=cache_device_plan,
         )
-        half_bin_phase = jnp.exp(
-            one_j
-            * pi
-            * dF_device
-            * delays_device
-        )
-
-        self._device_cache.update(
+        profile.update(
             {
-                "ph_m_all": ph_m_all,
-                "half_bin_phase": half_bin_phase,
+                "parallel_group_size": group_size,
+                "parallel_num_groups": len(bounds),
+                "parallel_max_workers": workers,
+                "parallel_group_bounds": bounds,
+                "parallel_group_seconds": group_seconds,
+                "execution_synchronous": True,
             }
         )
-        return {
-            "ph_m_all": ph_m_all,
-            "half_bin_phase": half_bin_phase,
-        }
-
-    def prepare_device_phases(
-        self,
-        *,
-        synchronise: bool = False,
-    ) -> dict[str, Any]:
-        """Build and cache the experimental prephased-kernel inputs.
-
-        Parameters
-        ----------
-        synchronise : bool, optional
-            Block until phase construction is complete.  This is useful when
-            timing the one-time phase-cache build in a benchmark.
-        """
-
-        phases = self._device_phase_arrays()
-        if synchronise:
-            phases["ph_m_all"].block_until_ready()
-            phases["half_bin_phase"].block_until_ready()
-        return phases
-
-    def apply_device_prephased(
-        self,
-        coefficients,
-        *,
-        return_profile: bool = False,
-        cache_device_plan: bool = True,
-    ):
-        """Apply the experimental lag-blocked shift with cached phases.
-
-        This method leaves :meth:`apply_device` unchanged.  It is intended for
-        controlled benchmarking of the hypothesis that moving the
-        delay-dependent complex exponentials out of repeated waveform
-        applications improves the warmed one-arm runtime.
-        """
-
-        import jax.numpy as jnp
-
-        if not self.resolved_use_jax:
-            raise NotImplementedError(
-                "The prephased experiment requires a JAX-backed plan."
-            )
-        if self.resolved_assembly_backend != "lagfirst_chunked_lagblock":
-            raise NotImplementedError(
-                "The prephased experiment currently supports only "
-                "assembly_backend='lagfirst_chunked_lagblock'; got "
-                f"{self.resolved_assembly_backend!r}."
-            )
-
-        started = perf_counter()
-
-        complex_dtype = (
-            jnp.complex64
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.complex128
-        )
-        real_dtype = (
-            jnp.float32
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.float64
-        )
-
-        coefficients_device = jnp.asarray(
-            coefficients,
-            dtype=complex_dtype,
-        )
-        if coefficients_device.ndim == 2:
-            coefficients_device = coefficients_device[None, :, :]
-
-        expected = (self.num_jobs, self.Nt, self.Nm)
-        if tuple(coefficients_device.shape) != expected:
-            raise ValueError(
-                f"Expected coefficients with shape {expected}, "
-                f"got {tuple(coefficients_device.shape)}."
-            )
-
-        if cache_device_plan:
-            device_plan = self._device_plan_arrays()
-            ell_device = device_plan["ell_all"]
-            Tl_device = device_plan["Tl_all"]
-            Tp_device = device_plan["Tp_all"]
-            Cnm_device = device_plan["Cnm"]
-            phase_plan = self._device_phase_arrays()
-            ph_m_device = phase_plan["ph_m_all"]
-            half_bin_device = phase_plan["half_bin_phase"]
-        else:
-            ell_device = jnp.asarray(self.ell_all, dtype=jnp.int64)
-            Tl_device = jnp.asarray(self.Tl_all, dtype=complex_dtype)
-            Tp_device = jnp.asarray(self.Tp_all, dtype=complex_dtype)
-            Cnm_device = jnp.asarray(self.Cnm, dtype=complex_dtype)
-
-            delays_device = jnp.asarray(self.delays, dtype=real_dtype)
-            dF_device = jnp.asarray(float(self.wdm.dF), dtype=real_dtype)
-            m_full = jnp.arange(self.Nm, dtype=real_dtype)
-            one_j = jnp.asarray(1j, dtype=complex_dtype)
-            ph_m_device = jnp.exp(
-                one_j
-                * jnp.asarray(2.0 * np.pi, dtype=real_dtype)
-                * delays_device[:, :, None]
-                * (m_full[None, None, :] * dF_device)
-            )
-            half_bin_device = jnp.exp(
-                one_j
-                * jnp.asarray(np.pi, dtype=real_dtype)
-                * dF_device
-                * delays_device
-            )
-
-        chunk_size = (
-            self.num_jobs
-            if self.config.batch_chunk is None
-            else min(self.num_jobs, int(self.config.batch_chunk))
-        )
-
-        output_chunks = []
-        assembly_started = perf_counter()
-
-        for start in range(0, self.num_jobs, chunk_size):
-            stop = min(start + chunk_size, self.num_jobs)
-            true_batch = stop - start
-
-            coefficient_work = coefficients_device[start:stop]
-            ph_m_work = ph_m_device[start:stop]
-            half_bin_work = half_bin_device[start:stop]
-            Tl_work = Tl_device[start:stop]
-            Tp_work = Tp_device[start:stop]
-
-            should_pad = (
-                bool(self.config.assembly_vmap)
-                and self.config.jax_pad_last_chunk
-                and self.num_jobs > chunk_size
-                and true_batch < chunk_size
-            )
-
-            if should_pad:
-                pad_rows = chunk_size - true_batch
-
-                def pad_last(values):
-                    return jnp.concatenate(
-                        (
-                            values,
-                            jnp.repeat(values[-1:], pad_rows, axis=0),
-                        ),
-                        axis=0,
-                    )
-
-                coefficient_work = pad_last(coefficient_work)
-                ph_m_work = pad_last(ph_m_work)
-                half_bin_work = pad_last(half_bin_work)
-                Tl_work = pad_last(Tl_work)
-                Tp_work = pad_last(Tp_work)
-
-            shifted_device = (
-                assemble_shift_target_batch_chunked_lagblock_prephased_jax(
-                    coefficient_work,
-                    ph_m_work,
-                    half_bin_work,
-                    ell_device,
-                    self.offset,
-                    Tl_work,
-                    Tp_work,
-                    Cnm_device,
-                    row_chunk_size=self.config.row_chunk_size,
-                    lag_block_size=self.config.lag_block_size,
-                    precision=self.resolved_assembly_precision,
-                    return_device=True,
-                )
-            )
-            output_chunks.append(shifted_device[:true_batch])
-
-        if len(output_chunks) == 1:
-            result_device = output_chunks[0]
-        else:
-            result_device = jnp.concatenate(output_chunks, axis=0)
-
-        if return_profile:
-            result_device.block_until_ready()
-
-        assembly_seconds = perf_counter() - assembly_started
-        total_seconds = perf_counter() - started
-
-        if not return_profile:
-            return result_device
-
-        profile: dict[str, float | int | str | bool] = {
-            "n_jobs": int(self.num_jobs),
-            "batch_chunk": int(chunk_size),
-            "assembly_backend": self.resolved_assembly_backend,
-            "assembly_precision": self.resolved_assembly_precision,
-            "total_s": float(total_seconds),
-            "assembly_s": float(assembly_seconds),
-            "other_s": float(total_seconds - assembly_seconds),
-            "plan_build_s": float(self.build_seconds),
-            "device_plan_cached": bool(cache_device_plan),
-            "phase_cache_memory_bytes": int(self.phase_cache_memory_bytes),
-            "device_plan_with_phase_memory_bytes": int(
-                self.device_plan_with_phase_memory_bytes
-            ),
-            "prephased": True,
-            "returned_on_device": True,
-        }
-        return result_device, profile
-
-    def apply_weighted_sources_device(
-        self,
-        source_coefficients,
-        source_weights,
-        *,
-        return_profile: bool = False,
-        cache_device_plan: bool = True,
-    ):
-        """Shift weighted combinations of shared sources without materialising them.
-
-        Parameters
-        ----------
-        source_coefficients : array-like, shape (num_sources, Nt, Nm)
-            Shared WDM coefficient grids.
-        source_weights : array-like, shape (num_jobs, num_sources, Nt, Nm)
-            Job-specific source weights. The weighted ``(num_jobs, Nt, Nm)``
-            coefficient batch is formed only for rows required by the active
-            row/lag block inside the JAX kernel.
-        return_profile : bool, optional
-            Synchronise and return timing metadata.
-        cache_device_plan : bool, optional
-            Reuse device copies of the persistent shift-plan arrays.
-        """
-
-        import jax.numpy as jnp
-
-        if self.resolved_assembly_backend not in (
-            "lagfirst_chunked",
-            "lagfirst_chunked_lagblock",
-        ):
-            raise NotImplementedError(
-                "Weighted-source fusion supports only the "
-                "lagfirst_chunked and lagfirst_chunked_lagblock backends; "
-                f"the prepared plan resolved to "
-                f"{self.resolved_assembly_backend!r}."
-            )
-
-        started = perf_counter()
-
-        sources_device = jnp.asarray(source_coefficients)
-        weights_device = jnp.asarray(source_weights)
-
-        if sources_device.ndim != 3:
-            raise ValueError(
-                "source_coefficients must have shape "
-                "(num_sources, Nt, Nm); got "
-                f"{tuple(sources_device.shape)}."
-            )
-        if weights_device.ndim != 4:
-            raise ValueError(
-                "source_weights must have shape "
-                "(num_jobs, num_sources, Nt, Nm); got "
-                f"{tuple(weights_device.shape)}."
-            )
-
-        num_sources = int(sources_device.shape[0])
-        expected_sources = (num_sources, self.Nt, self.Nm)
-        expected_weights = (
-            self.num_jobs,
-            num_sources,
-            self.Nt,
-            self.Nm,
-        )
-
-        if num_sources < 1:
-            raise ValueError("At least one source coefficient grid is required.")
-        if tuple(sources_device.shape) != expected_sources:
-            raise ValueError(
-                f"Expected source_coefficients shape {expected_sources}, "
-                f"got {tuple(sources_device.shape)}."
-            )
-        if tuple(weights_device.shape) != expected_weights:
-            raise ValueError(
-                f"Expected source_weights shape {expected_weights}, "
-                f"got {tuple(weights_device.shape)}."
-            )
-
-        complex_dtype = (
-            jnp.complex64
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.complex128
-        )
-        real_dtype = (
-            jnp.float32
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.float64
-        )
-
-        if cache_device_plan:
-            device_plan = self._device_plan_arrays()
-            delays_device = device_plan["delays"]
-            ell_device = device_plan["ell_all"]
-            Tl_device = device_plan["Tl_all"]
-            Tp_device = device_plan["Tp_all"]
-            Cnm_device = device_plan["Cnm"]
-        else:
-            delays_device = jnp.asarray(
-                self.delays,
-                dtype=real_dtype,
-            )
-            ell_device = jnp.asarray(
-                self.ell_all,
-                dtype=jnp.int64,
-            )
-            Tl_device = jnp.asarray(
-                self.Tl_all,
-                dtype=complex_dtype,
-            )
-            Tp_device = jnp.asarray(
-                self.Tp_all,
-                dtype=complex_dtype,
-            )
-            Cnm_device = jnp.asarray(
-                self.Cnm,
-                dtype=complex_dtype,
-            )
-
-        chunk_size = (
-            self.num_jobs
-            if self.config.batch_chunk is None
-            else min(self.num_jobs, int(self.config.batch_chunk))
-        )
-
-        output_chunks = []
-        assembly_started = perf_counter()
-
-        for start in range(0, self.num_jobs, chunk_size):
-            stop = min(start + chunk_size, self.num_jobs)
-            true_batch = stop - start
-
-            weights_work = weights_device[start:stop]
-            delay_work = delays_device[start:stop]
-            Tl_work = Tl_device[start:stop]
-            Tp_work = Tp_device[start:stop]
-
-            should_pad = (
-                self.resolved_use_jax
-                and bool(self.config.assembly_vmap)
-                and self.config.jax_pad_last_chunk
-                and self.num_jobs > chunk_size
-                and true_batch < chunk_size
-            )
-
-            if should_pad:
-                pad_rows = chunk_size - true_batch
-                weights_work = jnp.concatenate(
-                    (
-                        weights_work,
-                        jnp.repeat(
-                            weights_work[-1:],
-                            pad_rows,
-                            axis=0,
-                        ),
-                    ),
-                    axis=0,
-                )
-                delay_work = jnp.concatenate(
-                    (
-                        delay_work,
-                        jnp.repeat(
-                            delay_work[-1:],
-                            pad_rows,
-                            axis=0,
-                        ),
-                    ),
-                    axis=0,
-                )
-                Tl_work = jnp.concatenate(
-                    (
-                        Tl_work,
-                        jnp.repeat(
-                            Tl_work[-1:],
-                            pad_rows,
-                            axis=0,
-                        ),
-                    ),
-                    axis=0,
-                )
-                Tp_work = jnp.concatenate(
-                    (
-                        Tp_work,
-                        jnp.repeat(
-                            Tp_work[-1:],
-                            pad_rows,
-                            axis=0,
-                        ),
-                    ),
-                    axis=0,
-                )
-
-            shifted_device = (
-                _assemble_shift_target_batch_weighted_dispatch(
-                    self.wdm,
-                    sources_device,
-                    weights_work,
-                    delay_work,
-                    ell_device,
-                    self.offset,
-                    Tl_work,
-                    Tp_work,
-                    Cnm=Cnm_device,
-                    use_jax=self.resolved_use_jax,
-                    assembly_backend=self.resolved_assembly_backend,
-                    assembly_precision=(
-                        self.resolved_assembly_precision
-                    ),
-                    row_chunk_size=self.config.row_chunk_size,
-                    lag_block_size=self.config.lag_block_size,
-                    return_device=True,
-                )
-            )
-            output_chunks.append(shifted_device[:true_batch])
-
-        if len(output_chunks) == 1:
-            result_device = output_chunks[0]
-        else:
-            result_device = jnp.concatenate(output_chunks, axis=0)
-
-        if return_profile:
-            result_device.block_until_ready()
-
-        assembly_seconds = perf_counter() - assembly_started
-        total_seconds = perf_counter() - started
-
-        if not return_profile:
-            return result_device
-
-        profile: dict[str, float | int | str | bool] = {
-            "n_jobs": int(self.num_jobs),
-            "n_sources": int(num_sources),
-            "batch_chunk": int(chunk_size),
-            "assembly_backend": self.resolved_assembly_backend,
-            "assembly_precision": self.resolved_assembly_precision,
-            "total_s": float(total_seconds),
-            "assembly_s": float(assembly_seconds),
-            "other_s": float(total_seconds - assembly_seconds),
-            "plan_build_s": float(self.build_seconds),
-            "device_plan_cached": bool(cache_device_plan),
-            "device_plan_memory_bytes": int(
-                self.device_plan_memory_bytes
-            ),
-            "weighted_source_fusion": True,
-            "returned_on_device": True,
-        }
-        return result_device, profile
-
-    def _device_plan_arrays(self) -> dict[str, Any]:
-        """Return lazily cached JAX copies of the persistent plan arrays."""
-
-        if self._device_cache:
-            return self._device_cache
-
-        import jax.numpy as jnp
-
-        complex_dtype = (
-            jnp.complex64
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.complex128
-        )
-        real_dtype = (
-            jnp.float32
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.float64
-        )
-
-        self._device_cache.update(
-            {
-                "delays": jnp.asarray(self.delays, dtype=real_dtype),
-                "ell_all": jnp.asarray(self.ell_all, dtype=jnp.int64),
-                "Tl_all": jnp.asarray(self.Tl_all, dtype=complex_dtype),
-                "Tp_all": jnp.asarray(self.Tp_all, dtype=complex_dtype),
-                "Cnm": jnp.asarray(self.Cnm, dtype=complex_dtype),
-            }
-        )
-        return self._device_cache
-
-    def clear_device_cache(self) -> None:
-        """Release lazily cached JAX plan arrays.
-
-        This is mainly useful for long-running processes that construct many
-        distinct plans and want explicit control over device memory.
-        """
-
-        self._device_cache.clear()
+        return result, profile
 
     def apply_indexed_and_accumulate(
         self,
@@ -1372,277 +477,224 @@ class VariableShiftBatchPlan:
         return_profile: bool = False,
         cache_device_plan: bool = True,
     ):
-        """Shift indexed sources and accumulate directly into grouped outputs.
+        """Gather repeated sources, shift by job, and accumulate by output.
 
-        Unlike :meth:`apply`, this method never materialises the complete
-        ``(num_jobs, Nt, Nm)`` shifted batch on the host.  Each job chunk is
-        gathered from a smaller source batch on-device, shifted with the
-        existing validated kernels, and immediately scatter-added into the
-        requested output groups.  Only the final grouped outputs are copied
-        back to NumPy.
-
-        Parameters
-        ----------
-        source_coefficients : ndarray, shape (num_sources, Nt, Nm)
-            Distinct source coefficient arrays.  Several jobs may refer to the
-            same source through ``source_indices``.
-        source_indices : ndarray, shape (num_jobs,)
-            Source row used by each prepared shift job.
-        output_indices : ndarray, shape (num_jobs,)
-            Output group receiving each shifted job.
-        weights : ndarray, shape (num_jobs,)
-            Scalar multiplier applied before accumulation.
-        num_outputs : int
-            Number of grouped output arrays.
-        base : ndarray, optional, shape (num_outputs, Nt, Nm)
-            Initial undelayed contribution to each output.
-        cache_device_plan : bool
-            Keep persistent delay/kernel arrays on the JAX device between
-            calls.  This increases persistent device memory but avoids moving
-            the plan kernels for every waveform evaluation.
+        Only the grouped outputs are copied to the host.  The method is retained
+        for the later TDI layer; it is not part of one-arm source construction.
         """
 
         import jax.numpy as jnp
 
         started = perf_counter()
-
         sources = np.asarray(source_coefficients)
-        if sources.ndim != 3:
+        if sources.ndim != 3 or sources.shape[1:] != (self.Nt, self.Nm):
             raise ValueError(
-                "source_coefficients must have shape (num_sources, Nt, Nm), "
-                f"got {sources.shape}."
-            )
-        if sources.shape[1:] != (self.Nt, self.Nm):
-            raise ValueError(
-                "source_coefficients has incompatible WDM shape: "
-                f"expected (*, {self.Nt}, {self.Nm}), got {sources.shape}."
+                "source_coefficients must have shape "
+                f"(num_sources, {self.Nt}, {self.Nm})."
             )
         if sources.shape[0] < 1:
-            raise ValueError("source_coefficients must contain at least one source.")
+            raise ValueError("At least one source is required.")
 
-        source_indices = np.asarray(source_indices, dtype=np.int64)
-        output_indices = np.asarray(output_indices, dtype=np.int64)
+        source_indices = np.asarray(source_indices, dtype=np.int32)
+        output_indices = np.asarray(output_indices, dtype=np.int32)
         weights = np.asarray(weights)
-
-        expected_vector_shape = (self.num_jobs,)
+        expected_vector = (self.num_jobs,)
         for name, values in (
             ("source_indices", source_indices),
             ("output_indices", output_indices),
             ("weights", weights),
         ):
-            if values.shape != expected_vector_shape:
+            if values.shape != expected_vector:
                 raise ValueError(
-                    f"{name} must have shape {expected_vector_shape}, "
-                    f"got {values.shape}."
+                    f"{name} must have shape {expected_vector}, got {values.shape}."
                 )
 
         num_outputs = int(num_outputs)
         if num_outputs < 1:
             raise ValueError("num_outputs must be >= 1.")
         if np.any(source_indices < 0) or np.any(source_indices >= sources.shape[0]):
-            raise ValueError("source_indices contains an out-of-range source index.")
+            raise ValueError("source_indices contains an out-of-range index.")
         if np.any(output_indices < 0) or np.any(output_indices >= num_outputs):
-            raise ValueError("output_indices contains an out-of-range output index.")
+            raise ValueError("output_indices contains an out-of-range index.")
         if not np.all(np.isfinite(weights)):
             raise ValueError("weights contains NaN or infinite values.")
 
-        expected_base_shape = (num_outputs, self.Nt, self.Nm)
+        expected_base = (num_outputs, self.Nt, self.Nm)
         if base is None:
-            base_array = np.zeros(expected_base_shape, dtype=sources.dtype)
+            base_array = np.zeros(expected_base, dtype=sources.dtype)
         else:
             base_array = np.asarray(base)
-            if base_array.shape != expected_base_shape:
+            if base_array.shape != expected_base:
                 raise ValueError(
-                    f"base must have shape {expected_base_shape}, "
-                    f"got {base_array.shape}."
+                    f"base must have shape {expected_base}, got {base_array.shape}."
                 )
 
-        complex_dtype = (
-            jnp.complex64
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.complex128
+        requires_complex = any(
+            np.issubdtype(np.asarray(values).dtype, np.complexfloating)
+            for values in (sources, weights, base_array)
         )
-        real_dtype = (
-            jnp.float32
-            if self.resolved_assembly_precision == "complex64"
-            else jnp.float64
-        )
-
-        source_device = jnp.asarray(sources, dtype=complex_dtype)
-        outputs_device = jnp.asarray(base_array, dtype=complex_dtype)
-        source_indices_device = jnp.asarray(source_indices, dtype=jnp.int32)
-        output_indices_device = jnp.asarray(output_indices, dtype=jnp.int32)
-        weights_device = jnp.asarray(weights, dtype=complex_dtype)
-
-        if cache_device_plan:
-            device_plan = self._device_plan_arrays()
-            delays_device = device_plan["delays"]
-            ell_device = device_plan["ell_all"]
-            Tl_device = device_plan["Tl_all"]
-            Tp_device = device_plan["Tp_all"]
-            Cnm_device = device_plan["Cnm"]
+        if self.resolved_assembly_precision == "complex64":
+            coefficient_dtype = jnp.complex64 if requires_complex else jnp.float32
         else:
-            delays_device = jnp.asarray(self.delays, dtype=real_dtype)
-            ell_device = jnp.asarray(self.ell_all, dtype=jnp.int64)
-            Tl_device = jnp.asarray(self.Tl_all, dtype=complex_dtype)
-            Tp_device = jnp.asarray(self.Tp_all, dtype=complex_dtype)
-            Cnm_device = jnp.asarray(self.Cnm, dtype=complex_dtype)
+            coefficient_dtype = jnp.complex128 if requires_complex else jnp.float64
 
-        chunk_size = (
-            self.num_jobs
-            if self.config.batch_chunk is None
-            else min(self.num_jobs, int(self.config.batch_chunk))
-        )
+        source_device = jnp.asarray(sources, dtype=coefficient_dtype)
+        outputs_device = jnp.asarray(base_array, dtype=coefficient_dtype)
+        source_index_device = jnp.asarray(source_indices, dtype=jnp.int32)
+        output_index_device = jnp.asarray(output_indices, dtype=jnp.int32)
+        weights_device = jnp.asarray(weights, dtype=coefficient_dtype)
+        plan = self._device_plan_arrays() if cache_device_plan else self._new_device_plan()
 
-        for start in range(0, self.num_jobs, chunk_size):
-            stop = min(start + chunk_size, self.num_jobs)
-            true_batch = stop - start
-
-            coefficient_work = source_device[
-                source_indices_device[start:stop]
-            ]
-            delay_work = delays_device[start:stop]
-            Tl_work = Tl_device[start:stop]
-            Tp_work = Tp_device[start:stop]
-
-            should_pad = (
-                self.resolved_use_jax
-                and bool(self.config.assembly_vmap)
-                and self.config.jax_pad_last_chunk
-                and self.num_jobs > chunk_size
-                and true_batch < chunk_size
-            )
-
-            if should_pad:
-                pad_rows = chunk_size - true_batch
-                coefficient_work = jnp.concatenate(
-                    (
-                        coefficient_work,
-                        jnp.repeat(coefficient_work[-1:], pad_rows, axis=0),
-                    ),
-                    axis=0,
-                )
-                delay_work = jnp.concatenate(
-                    (delay_work, jnp.repeat(delay_work[-1:], pad_rows, axis=0)),
-                    axis=0,
-                )
-                Tl_work = jnp.concatenate(
-                    (Tl_work, jnp.repeat(Tl_work[-1:], pad_rows, axis=0)),
-                    axis=0,
-                )
-                Tp_work = jnp.concatenate(
-                    (Tp_work, jnp.repeat(Tp_work[-1:], pad_rows, axis=0)),
-                    axis=0,
-                )
-
-            shifted_device = _assemble_shift_target_batch_dispatch(
+        for start in range(0, self.num_jobs, self._chunk_size):
+            stop = min(start + self._chunk_size, self.num_jobs)
+            shifted = _assemble_shift_target_batch_dispatch(
                 self.wdm,
-                coefficient_work,
-                delay_work,
-                ell_device,
+                source_device[source_index_device[start:stop]],
+                plan["delays"][start:stop],
+                plan["ell_all"],
                 self.offset,
-                Tl_work,
-                Tp_work,
-                Cnm=Cnm_device,
-                use_jax=self.resolved_use_jax,
+                plan["Tl_all"][start:stop],
+                plan["Tp_all"][start:stop],
+                Cnm=plan.get("Cnm"),
                 assembly_backend=self.resolved_assembly_backend,
                 assembly_precision=self.resolved_assembly_precision,
                 row_chunk_size=self.config.row_chunk_size,
                 lag_block_size=self.config.lag_block_size,
-                job_block_size=self.config.job_block_size,
-                assembly_vmap=self.config.assembly_vmap,
                 return_device=True,
             )
-
-            shifted_device = shifted_device[:true_batch]
-            weighted = (
-                weights_device[start:stop, None, None] * shifted_device
-            )
+            weighted = weights_device[start:stop, None, None] * shifted
             outputs_device = outputs_device.at[
-                output_indices_device[start:stop]
+                output_index_device[start:stop]
             ].add(weighted)
 
-        # This is the only device-to-host transfer of shifted results.
         result = np.asarray(outputs_device)
-        total_seconds = perf_counter() - started
-
         if not return_profile:
             return result
 
         itemsize = np.dtype(
             np.complex64
+            if self.resolved_assembly_precision == "complex64" and requires_complex
+            else np.float32
             if self.resolved_assembly_precision == "complex64"
             else np.complex128
+            if requires_complex
+            else np.float64
         ).itemsize
         materialized_bytes = self.num_jobs * self.Nt * self.Nm * itemsize
         returned_bytes = num_outputs * self.Nt * self.Nm * itemsize
-
-        host_transfer_bytes_saved = max(0, materialized_bytes - returned_bytes)
-
-        profile: dict[str, float | int | str | bool] = {
-            "n_sources": int(sources.shape[0]),
-            "n_jobs": int(self.num_jobs),
-            "n_outputs": int(num_outputs),
-            "batch_chunk": int(chunk_size),
+        return result, {
+            "n_sources": sources.shape[0],
+            "n_jobs": self.num_jobs,
+            "n_outputs": num_outputs,
+            "batch_chunk": self._chunk_size,
             "assembly_backend": self.resolved_assembly_backend,
             "assembly_precision": self.resolved_assembly_precision,
-            "total_s": float(total_seconds),
-            "plan_build_s": float(self.build_seconds),
-            "device_plan_cached": bool(cache_device_plan),
-            "device_plan_memory_bytes": int(self.device_plan_memory_bytes),
-            "full_materialized_output_bytes": int(materialized_bytes),
-            "returned_output_bytes": int(returned_bytes),
-            "host_transfer_bytes_saved": int(host_transfer_bytes_saved),
+            "total_s": float(perf_counter() - started),
+            "plan_build_s": self.build_seconds,
+            "device_plan_cached": cache_device_plan,
+            "device_plan_memory_bytes": self.device_plan_memory_bytes,
+            "full_materialized_output_bytes": materialized_bytes,
+            "returned_output_bytes": returned_bytes,
+            "host_transfer_bytes_saved": max(
+                0,
+                materialized_bytes - returned_bytes,
+            ),
         }
-        return result, profile
 
     def apply_one(self, coefficients: np.ndarray) -> np.ndarray:
-        """Convenience method for a plan containing exactly one delay field."""
+        """Apply a plan containing exactly one delay field."""
 
         if self.num_jobs != 1:
             raise ValueError(
-                f"apply_one requires a one-job plan, but this plan has {self.num_jobs} jobs."
+                "apply_one requires a one-job plan, but this plan has "
+                f"{self.num_jobs} jobs."
             )
         return self.apply(coefficients)[0]
 
+    def _validate_device_coefficient_shape(self, coefficients) -> None:
+        expected = (self.num_jobs, self.Nt, self.Nm)
+        if tuple(coefficients.shape) != expected:
+            raise ValueError(
+                f"Expected coefficients with shape {expected}, "
+                f"got {tuple(coefficients.shape)}."
+            )
+
+    @property
+    def _chunk_size(self) -> int:
+        return (
+            self.num_jobs
+            if self.config.batch_chunk is None
+            else min(self.num_jobs, int(self.config.batch_chunk))
+        )
+
+    def _new_device_plan(self) -> dict[str, Any]:
+        import jax.numpy as jnp
+
+        if self.resolved_assembly_precision == "complex64":
+            real_dtype = jnp.float32
+            complex_dtype = jnp.complex64
+        else:
+            real_dtype = jnp.float64
+            complex_dtype = jnp.complex128
+
+        plan = {
+            "delays": jnp.asarray(self.delays, dtype=real_dtype),
+            "ell_all": jnp.asarray(self.ell_all, dtype=jnp.int32),
+            "Tl_all": jnp.asarray(self.Tl_all, dtype=complex_dtype),
+            "Tp_all": jnp.asarray(self.Tp_all, dtype=complex_dtype),
+        }
+        if self.Cnm is not None:
+            plan["Cnm"] = jnp.asarray(self.Cnm, dtype=jnp.complex128)
+        return plan
+
+    def _device_plan_arrays(self) -> dict[str, Any]:
+        """Return lazily cached JAX copies of persistent plan arrays."""
+
+        if not self._device_cache:
+            self._device_cache.update(self._new_device_plan())
+        return self._device_cache
+
+    def clear_device_cache(self) -> None:
+        """Release lazily cached JAX plan arrays."""
+
+        self._device_cache.clear()
+
+    def _profile(
+        self,
+        *,
+        total_seconds,
+        assembly_seconds,
+        returned_on_device,
+        device_plan_cached,
+    ) -> dict[str, Any]:
+        return {
+            "n_jobs": self.num_jobs,
+            "batch_chunk": self._chunk_size,
+            "assembly_backend": self.resolved_assembly_backend,
+            "assembly_precision": self.resolved_assembly_precision,
+            "total_s": float(total_seconds),
+            "assembly_s": float(assembly_seconds),
+            "other_s": float(total_seconds - assembly_seconds),
+            "plan_build_s": self.build_seconds,
+            "device_plan_cached": bool(device_plan_cached),
+            "device_plan_memory_bytes": self.device_plan_memory_bytes,
+            "returned_on_device": bool(returned_on_device),
+        }
+
     @property
     def device_plan_memory_bytes(self) -> int:
-        """Device memory used when the persistent plan cache is populated."""
+        """Persistent host/device payload used by the prepared plan."""
 
-        return int(
-            self.delays.nbytes
-            + self.ell_all.nbytes
-            + self.Tl_all.nbytes
-            + self.Tp_all.nbytes
-            + self.Cnm.nbytes
-        )
-
-
-    @property
-    def phase_cache_memory_bytes(self) -> int:
-        """Persistent device memory required by the experimental phases."""
-
-        itemsize = np.dtype(
-            np.complex64
-            if self.resolved_assembly_precision == "complex64"
-            else np.complex128
-        ).itemsize
-        return int(
-            self.num_jobs * self.Nt * self.Nm * itemsize
-            + self.num_jobs * self.Nt * itemsize
-        )
-
-    @property
-    def device_plan_with_phase_memory_bytes(self) -> int:
-        """Estimated persistent plan memory after phase caching."""
-
-        return int(
-            self.device_plan_memory_bytes
-            + self.phase_cache_memory_bytes
-        )
+        arrays = [self.delays, self.ell_all, self.Tl_all, self.Tp_all]
+        if self.Cnm is not None:
+            arrays.append(self.Cnm)
+        return int(sum(array.nbytes for array in arrays))
 
     @property
     def kernel_memory_bytes(self) -> int:
-        """Host memory occupied by persistent Tl/Tp and parity arrays."""
+        """Host memory occupied by persistent shift-kernel arrays."""
 
-        return int(self.Tl_all.nbytes + self.Tp_all.nbytes + self.Cnm.nbytes)
+        total = self.Tl_all.nbytes + self.Tp_all.nbytes
+        if self.Cnm is not None:
+            total += self.Cnm.nbytes
+        return int(total)

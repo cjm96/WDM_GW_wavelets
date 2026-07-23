@@ -1,14 +1,8 @@
-"""Regression tests for ``VariableShiftBatchPlan``.
-
-Place this in the WDM_GW_wavelets test directory and adapt the fixture import
-names to the existing test suite.  The numerical fixture only needs to return:
-
-    wdm           WDM transform object
-    coefficients  ndarray, shape (B, Nt, Nf)
-    delays        ndarray, shape (B, Nt)
-"""
+"""Regression tests for ``VariableShiftBatchPlan``."""
 
 from __future__ import annotations
+
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -23,17 +17,13 @@ from WDM.code.time_delay_filters.time_shift_fast import (
 
 @pytest.fixture
 def variable_shift_case():
-    """Small deterministic batch suitable for fast regression tests."""
-
     rng = np.random.default_rng(123456)
-
     Nf = 16
     Nt = 8
-    N = Nf * Nt
     wdm = WDM.WDM.WDM_transform(
         dt=1.0,
         Nf=Nf,
-        N=N,
+        N=Nf * Nt,
         q=Nt // 2,
         calc_m0=True,
         d=4,
@@ -42,15 +32,13 @@ def variable_shift_case():
 
     num_jobs = 3
     coefficients = rng.normal(size=(num_jobs, Nt, Nf))
-
     centre = np.linspace(7.0, 9.0, Nt)
     delays = np.stack(
         [
             centre,
             centre + 0.15 * np.sin(np.linspace(0.0, 2.0 * np.pi, Nt)),
             centre - 0.10 * np.cos(np.linspace(0.0, 2.0 * np.pi, Nt)),
-        ],
-        axis=0,
+        ]
     )
     return wdm, coefficients, delays
 
@@ -60,72 +48,62 @@ def variable_shift_case():
     [
         (
             VariableShiftPlanConfig.reference(lag_truncation=3),
-            1.0e-11,
-            1.0e-12,
+            1e-11,
+            1e-12,
         ),
         (
             VariableShiftPlanConfig.production(
                 lag_truncation=3,
                 interpolation_points=16,
+                row_chunk_size=8,
+                lag_block_size=3,
+                batch_chunk=2,
             ),
-            2.0e-5,
-            2.0e-6,
+            2e-5,
+            2e-6,
         ),
     ],
 )
-def test_plan_matches_legacy_batch(variable_shift_case, config, rtol, atol):
+def test_plan_matches_direct_batch(variable_shift_case, config, rtol, atol):
     wdm, coefficients, delays = variable_shift_case
-
-    jobs = list(zip(coefficients, delays))
-    legacy = wdm_time_shift_variable_batch(
+    direct = wdm_time_shift_variable_batch(
         wdm,
-        jobs,
+        list(zip(coefficients, delays)),
         L_trunc=config.lag_truncation,
         batch_chunk=config.batch_chunk,
-        use_jax=config.use_jax,
         tl_tp_mode=config.tl_tp_mode,
         tl_tp_interp_points=config.tl_tp_interp_points,
         tl_tp_interp_pad=config.tl_tp_interp_pad,
         tl_tp_interp_kind=config.tl_tp_interp_kind,
-        tl_tp_interp_backend=config.tl_tp_interp_backend,
         assembly_backend=config.assembly_backend,
         assembly_precision=config.assembly_precision,
         row_chunk_size=config.row_chunk_size,
         lag_block_size=config.lag_block_size,
-        job_block_size=config.job_block_size,
-        assembly_vmap=config.assembly_vmap,
-        jax_pad_last_chunk=config.jax_pad_last_chunk,
     )
 
-    plan = VariableShiftBatchPlan.build(
-        wdm,
-        delays,
-        config=config,
-    )
+    plan = VariableShiftBatchPlan.build(wdm, delays, config=config)
     planned = plan.apply(coefficients)
-
     np.testing.assert_allclose(
         planned,
-        np.stack(legacy, axis=0),
+        np.stack(direct),
         rtol=rtol,
         atol=atol,
     )
 
 
-def test_plan_can_be_reused_without_rebuilding(variable_shift_case, monkeypatch):
+def test_plan_reuse_does_not_rebuild_tl_tp(variable_shift_case, monkeypatch):
     wdm, coefficients, delays = variable_shift_case
     config = VariableShiftPlanConfig.production(
         lag_truncation=3,
         interpolation_points=16,
+        row_chunk_size=8,
+        lag_block_size=3,
     )
-
     plan = VariableShiftBatchPlan.build(wdm, delays, config=config)
 
     def fail_if_called(*args, **kwargs):
-        raise AssertionError("Tl/Tp construction was called during plan.apply().")
+        raise AssertionError("Tl/Tp construction was called during apply().")
 
-    # Patch the helper names in the plans module, where apply() would look them
-    # up if it rebuilt them.  A correct apply() never touches these functions.
     monkeypatch.setattr(
         "WDM.code.time_delay_filters.plans._build_TlTp_from_shift_matrix",
         fail_if_called,
@@ -134,15 +112,54 @@ def test_plan_can_be_reused_without_rebuilding(variable_shift_case, monkeypatch)
         "WDM.code.time_delay_filters.plans._build_TlTp_from_shift_matrix_interp",
         fail_if_called,
     )
-    monkeypatch.setattr(
-        "WDM.code.time_delay_filters.plans._build_TlTp_from_shift_matrix_interp_jax",
-        fail_if_called,
-    )
 
     first = plan.apply(coefficients)
     second = plan.apply(0.5 * coefficients)
+    np.testing.assert_allclose(second, 0.5 * first, rtol=2e-5, atol=2e-6)
 
-    np.testing.assert_allclose(second, 0.5 * first, rtol=2.0e-5, atol=2.0e-6)
+
+def test_production_plan_omits_checkerboard_and_uses_production_precision(
+    variable_shift_case,
+):
+    wdm, _, delays = variable_shift_case
+    config = VariableShiftPlanConfig.production(
+        lag_truncation=3,
+        interpolation_points=16,
+        row_chunk_size=8,
+        lag_block_size=3,
+    )
+    plan = VariableShiftBatchPlan.build(wdm, delays, config=config)
+
+    assert plan.Cnm is None
+    assert plan.delays.dtype == np.float32
+    assert plan.ell_all.dtype == np.int32
+    assert plan.Tl_all.dtype == np.complex64
+    assert plan.Tp_all.dtype == np.complex64
+
+
+def test_reference_plan_retains_checkerboard(variable_shift_case):
+    wdm, _, delays = variable_shift_case
+    plan = VariableShiftBatchPlan.build(
+        wdm,
+        delays,
+        config=VariableShiftPlanConfig.reference(lag_truncation=3),
+    )
+    assert plan.Cnm is not None
+    assert plan.Cnm.dtype == np.complex128
+
+
+def test_real_device_application_returns_real_array(variable_shift_case):
+    wdm, coefficients, delays = variable_shift_case
+    config = VariableShiftPlanConfig.production(
+        lag_truncation=3,
+        interpolation_points=16,
+        row_chunk_size=8,
+        lag_block_size=3,
+    )
+    plan = VariableShiftBatchPlan.build(wdm, delays, config=config)
+    output = plan.apply_device(coefficients)
+    output.block_until_ready()
+    assert str(output.dtype) == "float32"
 
 
 def test_plan_rejects_wrong_coefficient_shape(variable_shift_case):
@@ -150,8 +167,18 @@ def test_plan_rejects_wrong_coefficient_shape(variable_shift_case):
     plan = VariableShiftBatchPlan.build(
         wdm,
         delays,
-        config=VariableShiftPlanConfig.production(lag_truncation=3),
+        config=VariableShiftPlanConfig.production(
+            lag_truncation=3,
+            row_chunk_size=8,
+            lag_block_size=3,
+        ),
     )
-
     with pytest.raises(ValueError, match="Expected coefficients with shape"):
         plan.apply(coefficients[:, :-1, :])
+
+
+def test_config_can_be_replaced_for_benchmark_chunks():
+    base = VariableShiftPlanConfig.production(lag_truncation=3)
+    updated = replace(base, row_chunk_size=16, lag_block_size=4)
+    assert updated.row_chunk_size == 16
+    assert updated.lag_block_size == 4
