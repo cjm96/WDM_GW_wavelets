@@ -620,6 +620,10 @@ def _make_shift_target_production_impl(
         n_lag_blocks = (n_lag + lag_block_size - 1) // lag_block_size
 
         out0 = jnp.zeros((Nt_pad, Nm), dtype=coefficient_dtype)
+        zero_col = jnp.zeros(
+            (row_chunk_size, 1),
+            dtype=coefficient_dtype,
+        )
         row_offsets = jnp.arange(row_chunk_size, dtype=jnp.int32)
         lag_offsets = jnp.arange(lag_block_size, dtype=jnp.int32)
 
@@ -726,10 +730,19 @@ def _make_shift_target_production_impl(
                     low_sum = jnp.sum(low, axis=1)
                     up_sum = jnp.sum(up, axis=1)
 
-                    # Accumulate only into the valid adjacent-frequency slices.
-                    # This replaces the previous full-width zero-padding arrays.
-                    updated = block_acc.at[:, 1:].add(low_sum)
-                    return updated.at[:, :-1].add(up_sum)
+                    # Assemble the two adjacent-frequency contributions as
+                    # contiguous arrays. On the CPU backend this avoids the
+                    # update/scatter-style lowering produced by chained
+                    # ``.at[].add`` operations inside every lag block.
+                    low_pad = jnp.concatenate(
+                        (zero_col, low_sum),
+                        axis=1,
+                    )
+                    up_pad = jnp.concatenate(
+                        (up_sum, zero_col),
+                        axis=1,
+                    )
+                    return block_acc + low_pad + up_pad
 
                 block_sum = jax.lax.cond(
                     Nm > 1,
