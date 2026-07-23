@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import jax
 import numpy as np
 import pytest
 import WDM
@@ -160,6 +161,38 @@ def test_real_device_application_returns_real_array(variable_shift_case):
     output = plan.apply_device(coefficients)
     output.block_until_ready()
     assert str(output.dtype) == "float32"
+
+
+def test_cpu_real_device_application_matches_explicit_complex_input(
+    variable_shift_case,
+):
+    if jax.default_backend() != "cpu":
+        pytest.skip("The real-via-complex production path is CPU-specific.")
+
+    wdm, coefficients, delays = variable_shift_case
+    config = VariableShiftPlanConfig.production(
+        lag_truncation=3,
+        interpolation_points=16,
+        row_chunk_size=8,
+        lag_block_size=3,
+    )
+    plan = VariableShiftBatchPlan.build(wdm, delays, config=config)
+
+    real_output = plan.apply_device(coefficients)
+    complex_output = plan.apply_device(coefficients.astype(np.complex64))
+    real_output.block_until_ready()
+    complex_output.block_until_ready()
+
+    assert str(real_output.dtype) == "float32"
+    assert str(complex_output.dtype) == "complex64"
+    np.testing.assert_array_equal(
+        np.asarray(real_output),
+        np.asarray(complex_output.real),
+    )
+    np.testing.assert_array_equal(
+        np.asarray(complex_output.imag),
+        np.zeros_like(np.asarray(complex_output.imag)),
+    )
 
 
 def test_plan_rejects_wrong_coefficient_shape(variable_shift_case):
