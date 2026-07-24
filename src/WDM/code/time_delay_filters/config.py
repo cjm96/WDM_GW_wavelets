@@ -1,8 +1,8 @@
 """Configuration for reusable WDM variable-delay plans.
 
 Only numerical choices that remain active in the maintained implementation are
-exposed.  Removed experimental switches are intentionally not represented here;
-old benchmark branches remain recoverable through version control.
+exposed.  The small ``assembly_variant`` switch supports isolated performance
+experiments without replacing the validated production backend.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from typing import Literal
 TlTpMode = Literal["exact", "interp"]
 InterpolationKind = Literal["linear", "cubic"]
 AssemblyBackend = Literal["production", "reference"]
+AssemblyVariant = Literal["baseline", "reordered"]
 AssemblyPrecision = Literal["complex64", "complex128", "float32", "float64"]
 
 
@@ -34,6 +35,7 @@ class VariableShiftPlanConfig:
     tl_tp_interp_kind: InterpolationKind = "linear"
 
     assembly_backend: AssemblyBackend = "reference"
+    assembly_variant: AssemblyVariant = "baseline"
     assembly_precision: AssemblyPrecision = "complex128"
     row_chunk_size: int = 128
     lag_block_size: int = 1
@@ -60,6 +62,18 @@ class VariableShiftPlanConfig:
         if self.assembly_backend not in ("production", "reference"):
             raise ValueError(
                 "assembly_backend must be 'production' or 'reference'."
+            )
+        if self.assembly_variant not in ("baseline", "reordered"):
+            raise ValueError(
+                "assembly_variant must be 'baseline' or 'reordered'."
+            )
+        if (
+            self.assembly_backend == "reference"
+            and self.assembly_variant != "baseline"
+        ):
+            raise ValueError(
+                "The reference backend supports only "
+                "assembly_variant='baseline'."
             )
         if str(self.assembly_precision).lower() not in (
             "complex64",
@@ -88,6 +102,7 @@ class VariableShiftPlanConfig:
         row_chunk_size: int = 2048,
         lag_block_size: int = 17,
         batch_chunk: int | None = 32,
+        assembly_variant: AssemblyVariant = "baseline",
     ) -> "VariableShiftPlanConfig":
         """Return the maintained fast configuration.
 
@@ -101,6 +116,7 @@ class VariableShiftPlanConfig:
             tl_tp_interp_points=interpolation_points,
             tl_tp_interp_kind="linear",
             assembly_backend="production",
+            assembly_variant=assembly_variant,
             assembly_precision="complex64",
             row_chunk_size=row_chunk_size,
             lag_block_size=lag_block_size,
