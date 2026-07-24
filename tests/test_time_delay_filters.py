@@ -305,3 +305,97 @@ def test_historical_production_alias_maps_to_production():
     assert tsf._normalize_assembly_backend(
         "lagfirst_chunked_lagblock"
     ) == "production"
+
+def test_factored_phase_matches_production_for_real_coefficients():
+    wdm, coefficients, delays = _small_shift_case(
+        real_coefficients=True,
+        num_jobs=1,
+    )
+    common = dict(
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        row_chunk_size=8,
+        lag_block_size=3,
+    )
+    production = tsf.wdm_time_shift_variable(
+        wdm,
+        coefficients[0],
+        delays[0],
+        assembly_backend="production",
+        assembly_precision="complex128",
+        **common,
+    )
+    factored = tsf.wdm_time_shift_variable(
+        wdm,
+        coefficients[0],
+        delays[0],
+        assembly_backend="production_factored_phase",
+        assembly_precision="complex128",
+        **common,
+    )
+    np.testing.assert_allclose(factored, production, rtol=1e-12, atol=1e-12)
+    assert factored.dtype == np.float64
+
+
+def test_factored_phase_complex64_is_close_to_production():
+    wdm, coefficients, delays = _small_shift_case(
+        real_coefficients=True,
+        num_jobs=1,
+    )
+    common = dict(
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="interp",
+        tl_tp_interp_points=16,
+        assembly_precision="complex64",
+        row_chunk_size=8,
+        lag_block_size=3,
+    )
+    production = tsf.wdm_time_shift_variable(
+        wdm,
+        coefficients[0],
+        delays[0],
+        assembly_backend="production",
+        **common,
+    )
+    factored = tsf.wdm_time_shift_variable(
+        wdm,
+        coefficients[0],
+        delays[0],
+        assembly_backend="production_factored_phase",
+        **common,
+    )
+    np.testing.assert_allclose(factored, production, rtol=2e-5, atol=2e-6)
+    assert factored.dtype == np.float32
+
+
+def test_factored_phase_complex_input_falls_back_to_production():
+    wdm, coefficients, delays = _small_shift_case(
+        real_coefficients=False,
+        num_jobs=1,
+    )
+    common = dict(
+        Nf=wdm.Nf,
+        L_trunc=3,
+        tl_tp_mode="exact",
+        assembly_precision="complex64",
+        row_chunk_size=8,
+        lag_block_size=3,
+    )
+    production = tsf.wdm_time_shift_variable(
+        wdm,
+        coefficients[0],
+        delays[0],
+        assembly_backend="production",
+        **common,
+    )
+    factored = tsf.wdm_time_shift_variable(
+        wdm,
+        coefficients[0],
+        delays[0],
+        assembly_backend="production_factored_phase",
+        **common,
+    )
+    np.testing.assert_array_equal(factored, production)
+    assert factored.dtype == np.complex64

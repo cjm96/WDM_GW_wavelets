@@ -772,6 +772,211 @@ def _make_shift_target_production_impl(
     return impl
 
 
+
+
+def _make_shift_target_factored_phase_impl(
+    *,
+    complex_dtype,
+    real_dtype,
+    coefficient_storage_dtype,
+):
+    """Create a real-coefficient kernel with phase outside lag reductions.
+
+    The public input must be physically real.  On CPU the wrapper may still
+    store those values as complex numbers because that representation has
+    historically produced faster XLA programs; only ``w_xi.real`` enters the
+    algebra below.
+    """
+
+    def impl(
+        w_xi,
+        t_shift,
+        ell_all,
+        offset,
+        Tl_all,
+        Tp_all,
+        dF,
+        row_chunk_size,
+        lag_block_size,
+    ):
+        w_xi = jnp.asarray(w_xi, dtype=coefficient_storage_dtype).real
+        w_xi = jnp.asarray(w_xi, dtype=real_dtype)
+        t_shift = jnp.asarray(t_shift, dtype=real_dtype)
+        ell_all = jnp.asarray(ell_all, dtype=jnp.int32)
+        Tl_all = jnp.asarray(Tl_all, dtype=complex_dtype)
+        Tp_all = jnp.asarray(Tp_all, dtype=complex_dtype)
+        dF = jnp.asarray(dF, dtype=real_dtype)
+
+        Nt, Nm = w_xi.shape
+        n_lag = ell_all.shape[0]
+
+        one_j = jnp.asarray(1j, dtype=complex_dtype)
+        one_complex = jnp.asarray(1.0 + 0.0j, dtype=complex_dtype)
+        two_pi = jnp.asarray(2.0 * np.pi, dtype=real_dtype)
+        pi = jnp.asarray(np.pi, dtype=real_dtype)
+
+        m_full = jnp.arange(Nm, dtype=real_dtype)
+        ph_m_all = jnp.exp(
+            one_j
+            * two_pi
+            * (m_full[None, :] * dF)
+            * t_shift[:, None]
+        )
+        half_bin_phase = jnp.exp(one_j * pi * dF * t_shift)
+        ph_mid_all = ph_m_all[:, :-1] * half_bin_phase[:, None]
+
+        row_sign_all = _analytic_parity_pm_one(
+            jnp.arange(Nt, dtype=jnp.int32), real_dtype
+        )
+        lag_even_all = jnp.mod(ell_all, 2) == 0
+        even_half_sign_all = _analytic_parity_pm_one(
+            jnp.floor_divide(ell_all, 2), real_dtype
+        )
+        odd_half_sign_all = _analytic_parity_pm_one(
+            jnp.floor_divide(ell_all - 1, 2), real_dtype
+        )
+        sideband_frequency_sign = _analytic_parity_pm_one(
+            jnp.arange(max(Nm - 1, 0), dtype=jnp.int32), real_dtype
+        )
+
+        n_chunks = (Nt + row_chunk_size - 1) // row_chunk_size
+        Nt_pad = n_chunks * row_chunk_size
+        n_lag_blocks = (n_lag + lag_block_size - 1) // lag_block_size
+
+        out0 = jnp.zeros((Nt_pad, Nm), dtype=real_dtype)
+        zero_col = jnp.zeros((row_chunk_size, 1), dtype=real_dtype)
+        row_offsets = jnp.arange(row_chunk_size, dtype=jnp.int32)
+        lag_offsets = jnp.arange(lag_block_size, dtype=jnp.int32)
+
+        def chunk_body(chunk_id, out_acc):
+            start = chunk_id * row_chunk_size
+            rows = start + row_offsets
+            valid_row = rows < Nt
+            rows_safe = jnp.clip(rows, 0, Nt - 1)
+
+            row_sign = row_sign_all[rows_safe]
+            ph_m = ph_m_all[rows_safe, :]
+            ph_mid = ph_mid_all[rows_safe, :]
+            out_chunk0 = jnp.zeros((row_chunk_size, Nm), dtype=real_dtype)
+
+            def lag_block_body(lag_block_id, chunk_out):
+                lag_start = lag_block_id * lag_block_size
+                lag_indices = lag_start + lag_offsets
+                valid_lag = lag_indices < n_lag
+                lag_indices_safe = jnp.clip(lag_indices, 0, n_lag - 1)
+
+                ell_block = ell_all[lag_indices_safe]
+                lag_even = lag_even_all[lag_indices_safe]
+                even_half_sign = even_half_sign_all[lag_indices_safe]
+                odd_half_sign = odd_half_sign_all[lag_indices_safe]
+                j_neg_block = -ell_block + offset
+
+                nprime = rows[:, None] + ell_block[None, :]
+                valid_n = (
+                    valid_row[:, None]
+                    & valid_lag[None, :]
+                    & (nprime >= 0)
+                    & (nprime < Nt)
+                )
+                nprime_safe = jnp.clip(nprime, 0, Nt - 1)
+
+                Tl_block = Tl_all[rows_safe, :][:, j_neg_block]
+                Tp_block = Tp_all[rows_safe, :][:, j_neg_block]
+                w_block = w_xi[nprime_safe, :]
+                valid_f = valid_n[:, :, None].astype(real_dtype)
+
+                carrier_factor = jnp.where(
+                    lag_even[None, :, None],
+                    one_complex,
+                    one_j * row_sign[:, None, None],
+                )
+                carrier_reduction = jnp.sum(
+                    carrier_factor
+                    * Tl_block[:, :, None]
+                    * w_block
+                    * valid_f,
+                    axis=1,
+                )
+                block_sum = jnp.real(ph_m * carrier_reduction)
+
+                def add_sidebands(block_acc):
+                    even_row_lag_sign = (
+                        row_sign[:, None] * even_half_sign[None, :]
+                    )
+                    low_row_lag_sign = jnp.where(
+                        lag_even[None, :],
+                        -even_row_lag_sign,
+                        odd_half_sign[None, :],
+                    )
+                    up_row_lag_sign = jnp.where(
+                        lag_even[None, :],
+                        even_row_lag_sign,
+                        odd_half_sign[None, :],
+                    )
+
+                    common_frequency_sign = (
+                        sideband_frequency_sign[None, None, :]
+                    )
+                    low_reduction = jnp.sum(
+                        one_j
+                        * low_row_lag_sign[:, :, None]
+                        * common_frequency_sign
+                        * Tp_block[:, :, None]
+                        * w_block[:, :, :-1]
+                        * valid_f,
+                        axis=1,
+                    )
+                    up_reduction = jnp.sum(
+                        one_j
+                        * up_row_lag_sign[:, :, None]
+                        * common_frequency_sign
+                        * Tp_block[:, :, None]
+                        * w_block[:, :, 1:]
+                        * valid_f,
+                        axis=1,
+                    )
+                    low_sum = jnp.real(ph_mid * low_reduction)
+                    up_sum = jnp.real(ph_mid * up_reduction)
+                    return block_acc + jnp.concatenate(
+                        (zero_col, low_sum), axis=1
+                    ) + jnp.concatenate((up_sum, zero_col), axis=1)
+
+                block_sum = jax.lax.cond(
+                    Nm > 1,
+                    add_sidebands,
+                    lambda value: value,
+                    block_sum,
+                )
+                return chunk_out + block_sum
+
+            out_chunk = jax.lax.fori_loop(
+                0, n_lag_blocks, lag_block_body, out_chunk0
+            )
+            return jax.lax.dynamic_update_slice(out_acc, out_chunk, (start, 0))
+
+        out_padded = jax.lax.fori_loop(0, n_chunks, chunk_body, out0)
+        return out_padded[:Nt, :]
+
+    return impl
+
+
+_factored_c64_impl = _make_shift_target_factored_phase_impl(
+    complex_dtype=jnp.complex64,
+    real_dtype=jnp.float32,
+    coefficient_storage_dtype=jnp.complex64,
+)
+_factored_c128_impl = _make_shift_target_factored_phase_impl(
+    complex_dtype=jnp.complex128,
+    real_dtype=jnp.float64,
+    coefficient_storage_dtype=jnp.complex128,
+)
+_factored_c64_core = jax.jit(
+    _factored_c64_impl, static_argnums=(3, 7, 8)
+)
+_factored_c128_core = jax.jit(
+    _factored_c128_impl, static_argnums=(3, 7, 8)
+)
+
 # Four compiled variants retain both the natural real implementation and the
 # complex implementation used by the faster CPU execution path.
 _prod_c64_complex_impl = _make_shift_target_production_impl(
@@ -873,6 +1078,22 @@ _prod_batch_c128_complex_core = jax.jit(
 _prod_batch_c128_real_core = jax.jit(
     _make_shift_target_batch_production_impl(
         single_job_impl=_prod_c128_real_impl,
+        output_dtype=jnp.float64,
+    ),
+    static_argnums=(3, 7, 8),
+)
+
+
+_factored_batch_c64_core = jax.jit(
+    _make_shift_target_batch_production_impl(
+        single_job_impl=_factored_c64_impl,
+        output_dtype=jnp.float32,
+    ),
+    static_argnums=(3, 7, 8),
+)
+_factored_batch_c128_core = jax.jit(
+    _make_shift_target_batch_production_impl(
+        single_job_impl=_factored_c128_impl,
         output_dtype=jnp.float64,
     ),
     static_argnums=(3, 7, 8),
@@ -1059,6 +1280,141 @@ def assemble_shift_target_batch_production_jax(
 
     if not is_complex and use_complex_kernel:
         out = out.real
+    return out if return_device else np.asarray(out)
+
+
+
+def assemble_shift_target_factored_phase_jax(
+    w_xi,
+    t_shift,
+    ell_all,
+    offset,
+    Tl_all,
+    Tp_all,
+    dF,
+    *,
+    row_chunk_size=128,
+    lag_block_size=1,
+    precision="complex64",
+    return_device=False,
+):
+    """Apply the factored-phase candidate for physically real coefficients.
+
+    Genuinely complex inputs safely fall back to the maintained production
+    kernel because phase factorisation is not algebraically valid for them.
+    """
+
+    if _input_is_complex(w_xi):
+        return assemble_shift_target_production_jax(
+            w_xi,
+            t_shift,
+            ell_all,
+            offset,
+            Tl_all,
+            Tp_all,
+            dF,
+            row_chunk_size=row_chunk_size,
+            lag_block_size=lag_block_size,
+            precision=precision,
+            return_device=return_device,
+        )
+
+    precision = _normalize_precision(precision)
+    row_chunk_size = int(row_chunk_size)
+    lag_block_size = int(lag_block_size)
+    if row_chunk_size < 1 or lag_block_size < 1:
+        raise ValueError("row_chunk_size and lag_block_size must be >= 1.")
+    ell = jnp.asarray(ell_all, dtype=jnp.int32)
+
+    if precision == "complex64":
+        out = _factored_c64_core(
+            jnp.asarray(w_xi, dtype=jnp.complex64),
+            jnp.asarray(t_shift, dtype=jnp.float32),
+            ell,
+            int(offset),
+            jnp.asarray(Tl_all, dtype=jnp.complex64),
+            jnp.asarray(Tp_all, dtype=jnp.complex64),
+            jnp.asarray(dF, dtype=jnp.float32),
+            row_chunk_size,
+            lag_block_size,
+        )
+    else:
+        out = _factored_c128_core(
+            jnp.asarray(w_xi, dtype=jnp.complex128),
+            jnp.asarray(t_shift, dtype=jnp.float64),
+            ell,
+            int(offset),
+            jnp.asarray(Tl_all, dtype=jnp.complex128),
+            jnp.asarray(Tp_all, dtype=jnp.complex128),
+            jnp.asarray(dF, dtype=jnp.float64),
+            row_chunk_size,
+            lag_block_size,
+        )
+    return out if return_device else np.asarray(out)
+
+
+def assemble_shift_target_batch_factored_phase_jax(
+    w_xi_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    dF,
+    *,
+    row_chunk_size=128,
+    lag_block_size=1,
+    precision="complex64",
+    return_device=False,
+):
+    """Apply the factored-phase candidate to a batch of real coefficients."""
+
+    if _input_is_complex(w_xi_batch):
+        return assemble_shift_target_batch_production_jax(
+            w_xi_batch,
+            t_shift_batch,
+            ell_all,
+            offset,
+            Tl_batch,
+            Tp_batch,
+            dF,
+            row_chunk_size=row_chunk_size,
+            lag_block_size=lag_block_size,
+            precision=precision,
+            return_device=return_device,
+        )
+
+    precision = _normalize_precision(precision)
+    row_chunk_size = int(row_chunk_size)
+    lag_block_size = int(lag_block_size)
+    if row_chunk_size < 1 or lag_block_size < 1:
+        raise ValueError("row_chunk_size and lag_block_size must be >= 1.")
+    ell = jnp.asarray(ell_all, dtype=jnp.int32)
+
+    if precision == "complex64":
+        out = _factored_batch_c64_core(
+            jnp.asarray(w_xi_batch, dtype=jnp.complex64),
+            jnp.asarray(t_shift_batch, dtype=jnp.float32),
+            ell,
+            int(offset),
+            jnp.asarray(Tl_batch, dtype=jnp.complex64),
+            jnp.asarray(Tp_batch, dtype=jnp.complex64),
+            jnp.asarray(dF, dtype=jnp.float32),
+            row_chunk_size,
+            lag_block_size,
+        )
+    else:
+        out = _factored_batch_c128_core(
+            jnp.asarray(w_xi_batch, dtype=jnp.complex128),
+            jnp.asarray(t_shift_batch, dtype=jnp.float64),
+            ell,
+            int(offset),
+            jnp.asarray(Tl_batch, dtype=jnp.complex128),
+            jnp.asarray(Tp_batch, dtype=jnp.complex128),
+            jnp.asarray(dF, dtype=jnp.float64),
+            row_chunk_size,
+            lag_block_size,
+        )
     return out if return_device else np.asarray(out)
 
 

@@ -469,6 +469,8 @@ def _normalize_assembly_backend(backend):
     if backend is None:
         return "production"
     key = str(backend).lower()
+    if key == "production_factored_phase":
+        return "production_factored_phase"
     if key in (
         "production",
         "lagfirst_chunked_lagblock",
@@ -488,7 +490,7 @@ def _normalize_assembly_backend(backend):
     ):
         return "reference"
     raise ValueError(
-        "assembly_backend must be 'production' or 'reference'."
+        "assembly_backend must be 'production', 'production_factored_phase', or 'reference'."
     )
 
 

@@ -13,7 +13,7 @@ from typing import Literal
 
 TlTpMode = Literal["exact", "interp"]
 InterpolationKind = Literal["linear", "cubic"]
-AssemblyBackend = Literal["production", "reference"]
+AssemblyBackend = Literal["production", "production_factored_phase", "reference"]
 AssemblyPrecision = Literal["complex64", "complex128", "float32", "float64"]
 
 
@@ -57,9 +57,13 @@ class VariableShiftPlanConfig:
         if self.tl_tp_interp_pad < 0.0:
             raise ValueError("tl_tp_interp_pad must be non-negative.")
 
-        if self.assembly_backend not in ("production", "reference"):
+        if self.assembly_backend not in (
+            "production",
+            "production_factored_phase",
+            "reference",
+        ):
             raise ValueError(
-                "assembly_backend must be 'production' or 'reference'."
+                "assembly_backend must be 'production', 'production_factored_phase', or 'reference'."
             )
         if str(self.assembly_precision).lower() not in (
             "complex64",
