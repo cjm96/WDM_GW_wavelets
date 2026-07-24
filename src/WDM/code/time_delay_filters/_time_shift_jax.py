@@ -9,9 +9,7 @@ The module deliberately exposes only two target-mode implementations:
 ``production``
     The row/lag-blocked analytic-parity implementation used in repeated
     response evaluations.  It avoids the full ``C_nm`` checkerboard and keeps
-    the public real-input/output contract.  On CPU, real coefficients are
-    promoted inside the execution wrapper because XLA currently generates a
-    substantially faster program for the equivalent complex kernel.
+    real coefficient arrays real throughout the large gather/reduction path.
 
 Fixed-delay and non-target variable-delay modes remain reference-only because
 those paths are not used by the production LISA response.
@@ -542,6 +540,21 @@ def _normalize_precision(precision):
     )
 
 
+def _normalize_production_variant(variant):
+    """Return the canonical production-kernel layout variant."""
+
+    if variant is None:
+        return "baseline"
+    key = str(variant).lower()
+    if key in ("baseline", "default"):
+        return "baseline"
+    if key in ("reordered", "contiguous_lag"):
+        return "reordered"
+    raise ValueError(
+        "assembly_variant must be 'baseline' or 'reordered'."
+    )
+
+
 def _analytic_parity_pm_one(values, real_dtype):
     """Return ``(-1)**values`` without constructing ``C_nm``."""
 
@@ -571,6 +584,7 @@ def _make_shift_target_production_impl(
         dF,
         row_chunk_size,
         lag_block_size,
+        kernels_reordered,
     ):
         # Real physical WDM coefficients remain real.  Complex coefficient
         # support is retained for the generic public API and regression tests.
@@ -620,12 +634,13 @@ def _make_shift_target_production_impl(
         n_chunks = (Nt + row_chunk_size - 1) // row_chunk_size
         Nt_pad = n_chunks * row_chunk_size
         n_lag_blocks = (n_lag + lag_block_size - 1) // lag_block_size
+        if kernels_reordered:
+            n_lag_padded = n_lag_blocks * lag_block_size
+            lag_padding = n_lag_padded - n_lag
+            Tl_apply = jnp.pad(Tl_all, ((0, 0), (0, lag_padding)))
+            Tp_apply = jnp.pad(Tp_all, ((0, 0), (0, lag_padding)))
 
         out0 = jnp.zeros((Nt_pad, Nm), dtype=coefficient_dtype)
-        zero_col = jnp.zeros(
-            (row_chunk_size, 1),
-            dtype=coefficient_dtype,
-        )
         row_offsets = jnp.arange(row_chunk_size, dtype=jnp.int32)
         lag_offsets = jnp.arange(lag_block_size, dtype=jnp.int32)
 
@@ -638,6 +653,9 @@ def _make_shift_target_production_impl(
             row_sign = row_sign_all[rows_safe]
             ph_m = ph_m_all[rows_safe, :]
             ph_mid = ph_mid_all[rows_safe, :]
+            if kernels_reordered:
+                Tl_rows = Tl_apply[rows_safe, :]
+                Tp_rows = Tp_apply[rows_safe, :]
             out_chunk0 = jnp.zeros(
                 (row_chunk_size, Nm),
                 dtype=coefficient_dtype,
@@ -653,7 +671,6 @@ def _make_shift_target_production_impl(
                 lag_even = lag_even_all[lag_indices_safe]
                 even_half_sign = even_half_sign_all[lag_indices_safe]
                 odd_half_sign = odd_half_sign_all[lag_indices_safe]
-                j_neg_block = -ell_block + offset
 
                 nprime = rows[:, None] + ell_block[None, :]
                 valid_n = (
@@ -664,8 +681,21 @@ def _make_shift_target_production_impl(
                 )
                 nprime_safe = jnp.clip(nprime, 0, Nt - 1)
 
-                Tl_block = Tl_all[rows_safe, :][:, j_neg_block]
-                Tp_block = Tp_all[rows_safe, :][:, j_neg_block]
+                if kernels_reordered:
+                    Tl_block = jax.lax.dynamic_slice(
+                        Tl_rows,
+                        (0, lag_start),
+                        (row_chunk_size, lag_block_size),
+                    )
+                    Tp_block = jax.lax.dynamic_slice(
+                        Tp_rows,
+                        (0, lag_start),
+                        (row_chunk_size, lag_block_size),
+                    )
+                else:
+                    j_neg_block = -ell_block + offset
+                    Tl_block = Tl_all[rows_safe, :][:, j_neg_block]
+                    Tp_block = Tp_all[rows_safe, :][:, j_neg_block]
                 w_block = w_xi[nprime_safe, :]
 
                 # Exact checkerboard carrier product:
@@ -732,19 +762,10 @@ def _make_shift_target_production_impl(
                     low_sum = jnp.sum(low, axis=1)
                     up_sum = jnp.sum(up, axis=1)
 
-                    # Assemble the two adjacent-frequency contributions as
-                    # contiguous arrays. On the CPU backend this avoids the
-                    # update/scatter-style lowering produced by chained
-                    # ``.at[].add`` operations inside every lag block.
-                    low_pad = jnp.concatenate(
-                        (zero_col, low_sum),
-                        axis=1,
-                    )
-                    up_pad = jnp.concatenate(
-                        (up_sum, zero_col),
-                        axis=1,
-                    )
-                    return block_acc + low_pad + up_pad
+                    # Accumulate only into the valid adjacent-frequency slices.
+                    # This replaces the previous full-width zero-padding arrays.
+                    updated = block_acc.at[:, 1:].add(low_sum)
+                    return updated.at[:, :-1].add(up_sum)
 
                 block_sum = jax.lax.cond(
                     Nm > 1,
@@ -772,8 +793,8 @@ def _make_shift_target_production_impl(
     return impl
 
 
-# Four compiled variants retain both the natural real implementation and the
-# complex implementation used by the faster CPU execution path.
+# Four compiled variants keep the large coefficient/output arrays in their
+# natural real or complex dtype while retaining the requested kernel precision.
 _prod_c64_complex_impl = _make_shift_target_production_impl(
     complex_dtype=jnp.complex64,
     real_dtype=jnp.float32,
@@ -797,19 +818,19 @@ _prod_c128_real_impl = _make_shift_target_production_impl(
 
 _prod_c64_complex_core = jax.jit(
     _prod_c64_complex_impl,
-    static_argnums=(3, 7, 8),
+    static_argnums=(3, 7, 8, 9),
 )
 _prod_c64_real_core = jax.jit(
     _prod_c64_real_impl,
-    static_argnums=(3, 7, 8),
+    static_argnums=(3, 7, 8, 9),
 )
 _prod_c128_complex_core = jax.jit(
     _prod_c128_complex_impl,
-    static_argnums=(3, 7, 8),
+    static_argnums=(3, 7, 8, 9),
 )
 _prod_c128_real_core = jax.jit(
     _prod_c128_real_impl,
-    static_argnums=(3, 7, 8),
+    static_argnums=(3, 7, 8, 9),
 )
 
 
@@ -826,6 +847,7 @@ def _make_shift_target_batch_production_impl(*, single_job_impl, output_dtype):
         dF,
         row_chunk_size,
         lag_block_size,
+        kernels_reordered,
     ):
         B, Nt, Nm = w_xi_batch.shape
         out0 = jnp.zeros((B, Nt, Nm), dtype=output_dtype)
@@ -841,6 +863,7 @@ def _make_shift_target_batch_production_impl(*, single_job_impl, output_dtype):
                 dF,
                 row_chunk_size,
                 lag_block_size,
+                kernels_reordered,
             )
             return out.at[job_index, :, :].set(shifted)
 
@@ -854,48 +877,33 @@ _prod_batch_c64_complex_core = jax.jit(
         single_job_impl=_prod_c64_complex_impl,
         output_dtype=jnp.complex64,
     ),
-    static_argnums=(3, 7, 8),
+    static_argnums=(3, 7, 8, 9),
 )
 _prod_batch_c64_real_core = jax.jit(
     _make_shift_target_batch_production_impl(
         single_job_impl=_prod_c64_real_impl,
         output_dtype=jnp.float32,
     ),
-    static_argnums=(3, 7, 8),
+    static_argnums=(3, 7, 8, 9),
 )
 _prod_batch_c128_complex_core = jax.jit(
     _make_shift_target_batch_production_impl(
         single_job_impl=_prod_c128_complex_impl,
         output_dtype=jnp.complex128,
     ),
-    static_argnums=(3, 7, 8),
+    static_argnums=(3, 7, 8, 9),
 )
 _prod_batch_c128_real_core = jax.jit(
     _make_shift_target_batch_production_impl(
         single_job_impl=_prod_c128_real_impl,
         output_dtype=jnp.float64,
     ),
-    static_argnums=(3, 7, 8),
+    static_argnums=(3, 7, 8, 9),
 )
-
-# Recorded by downstream benchmarks so they can distinguish this optimized
-# execution path from an older installed WDM checkout.
-CPU_REAL_EXECUTION_REPRESENTATION = "complex"
 
 
 def _input_is_complex(values) -> bool:
     return bool(jnp.issubdtype(jnp.asarray(values).dtype, jnp.complexfloating))
-
-
-def _array_uses_cpu_backend(values) -> bool:
-    """Return whether an array is placed exclusively on CPU devices."""
-
-    array = jnp.asarray(values)
-    try:
-        devices = array.devices()
-    except (AttributeError, TypeError):
-        return jax.default_backend() == "cpu"
-    return bool(devices) and all(device.platform == "cpu" for device in devices)
 
 
 # ---------------------------------------------------------------------------
@@ -915,16 +923,17 @@ def assemble_shift_target_production_jax(
     row_chunk_size=128,
     lag_block_size=1,
     precision="complex64",
+    assembly_variant="baseline",
     return_device=False,
 ):
     """Apply one production target-mode shift.
 
     Real inputs return real outputs; complex inputs retain complex support.
-    CPU execution promotes real coefficients internally to the equivalent
-    complex kernel, then projects the result back to its real component.
     """
 
     precision = _normalize_precision(precision)
+    assembly_variant = _normalize_production_variant(assembly_variant)
+    kernels_reordered = assembly_variant == "reordered"
     row_chunk_size = int(row_chunk_size)
     lag_block_size = int(lag_block_size)
     if row_chunk_size < 1:
@@ -932,20 +941,12 @@ def assemble_shift_target_production_jax(
     if lag_block_size < 1:
         raise ValueError("lag_block_size must be >= 1.")
 
-    w_xi = jnp.asarray(w_xi)
     is_complex = _input_is_complex(w_xi)
-    use_complex_kernel = is_complex or _array_uses_cpu_backend(w_xi)
     ell = jnp.asarray(ell_all, dtype=jnp.int32)
 
     if precision == "complex64":
-        coefficient_dtype = (
-            jnp.complex64 if use_complex_kernel else jnp.float32
-        )
-        core = (
-            _prod_c64_complex_core
-            if use_complex_kernel
-            else _prod_c64_real_core
-        )
+        coefficient_dtype = jnp.complex64 if is_complex else jnp.float32
+        core = _prod_c64_complex_core if is_complex else _prod_c64_real_core
         out = core(
             jnp.asarray(w_xi, dtype=coefficient_dtype),
             jnp.asarray(t_shift, dtype=jnp.float32),
@@ -956,16 +957,11 @@ def assemble_shift_target_production_jax(
             jnp.asarray(dF, dtype=jnp.float32),
             row_chunk_size,
             lag_block_size,
+            kernels_reordered,
         )
     else:
-        coefficient_dtype = (
-            jnp.complex128 if use_complex_kernel else jnp.float64
-        )
-        core = (
-            _prod_c128_complex_core
-            if use_complex_kernel
-            else _prod_c128_real_core
-        )
+        coefficient_dtype = jnp.complex128 if is_complex else jnp.float64
+        core = _prod_c128_complex_core if is_complex else _prod_c128_real_core
         out = core(
             jnp.asarray(w_xi, dtype=coefficient_dtype),
             jnp.asarray(t_shift, dtype=jnp.float64),
@@ -976,10 +972,9 @@ def assemble_shift_target_production_jax(
             jnp.asarray(dF, dtype=jnp.float64),
             row_chunk_size,
             lag_block_size,
+            kernels_reordered,
         )
 
-    if not is_complex and use_complex_kernel:
-        out = out.real
     return out if return_device else np.asarray(out)
 
 
@@ -995,15 +990,14 @@ def assemble_shift_target_batch_production_jax(
     row_chunk_size=128,
     lag_block_size=1,
     precision="complex64",
+    assembly_variant="baseline",
     return_device=False,
 ):
-    """Apply a production target-mode shift to a job batch.
-
-    CPU execution uses the complex kernel internally for real coefficients
-    while preserving a real public output.
-    """
+    """Apply a production target-mode shift to a job batch."""
 
     precision = _normalize_precision(precision)
+    assembly_variant = _normalize_production_variant(assembly_variant)
+    kernels_reordered = assembly_variant == "reordered"
     row_chunk_size = int(row_chunk_size)
     lag_block_size = int(lag_block_size)
     if row_chunk_size < 1:
@@ -1011,18 +1005,14 @@ def assemble_shift_target_batch_production_jax(
     if lag_block_size < 1:
         raise ValueError("lag_block_size must be >= 1.")
 
-    w_xi_batch = jnp.asarray(w_xi_batch)
     is_complex = _input_is_complex(w_xi_batch)
-    use_complex_kernel = is_complex or _array_uses_cpu_backend(w_xi_batch)
     ell = jnp.asarray(ell_all, dtype=jnp.int32)
 
     if precision == "complex64":
-        coefficient_dtype = (
-            jnp.complex64 if use_complex_kernel else jnp.float32
-        )
+        coefficient_dtype = jnp.complex64 if is_complex else jnp.float32
         core = (
             _prod_batch_c64_complex_core
-            if use_complex_kernel
+            if is_complex
             else _prod_batch_c64_real_core
         )
         out = core(
@@ -1035,14 +1025,13 @@ def assemble_shift_target_batch_production_jax(
             jnp.asarray(dF, dtype=jnp.float32),
             row_chunk_size,
             lag_block_size,
+            kernels_reordered,
         )
     else:
-        coefficient_dtype = (
-            jnp.complex128 if use_complex_kernel else jnp.float64
-        )
+        coefficient_dtype = jnp.complex128 if is_complex else jnp.float64
         core = (
             _prod_batch_c128_complex_core
-            if use_complex_kernel
+            if is_complex
             else _prod_batch_c128_real_core
         )
         out = core(
@@ -1055,10 +1044,9 @@ def assemble_shift_target_batch_production_jax(
             jnp.asarray(dF, dtype=jnp.float64),
             row_chunk_size,
             lag_block_size,
+            kernels_reordered,
         )
 
-    if not is_complex and use_complex_kernel:
-        out = out.real
     return out if return_device else np.asarray(out)
 
 

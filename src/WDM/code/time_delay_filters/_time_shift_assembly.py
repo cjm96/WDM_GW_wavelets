@@ -29,6 +29,7 @@ def _assemble_shift_target_dispatch(
     *,
     Cnm=None,
     assembly_backend="production",
+    assembly_variant="baseline",
     assembly_precision="complex64",
     row_chunk_size=128,
     lag_block_size=1,
@@ -49,6 +50,7 @@ def _assemble_shift_target_dispatch(
             row_chunk_size=row_chunk_size,
             lag_block_size=lag_block_size,
             precision=assembly_precision,
+            assembly_variant=assembly_variant,
             return_device=return_device,
         )
 
@@ -81,6 +83,7 @@ def _assemble_shift_target_batch_dispatch(
     *,
     Cnm=None,
     assembly_backend="production",
+    assembly_variant="baseline",
     assembly_precision="complex64",
     row_chunk_size=128,
     lag_block_size=1,
@@ -101,6 +104,7 @@ def _assemble_shift_target_batch_dispatch(
             row_chunk_size=row_chunk_size,
             lag_block_size=lag_block_size,
             precision=assembly_precision,
+            assembly_variant=assembly_variant,
             return_device=return_device,
         )
 

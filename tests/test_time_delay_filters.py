@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import jax
 import numpy as np
 import pytest
+
 import WDM
 from WDM.code.discrete_wavelet_transform import WDM as WDM_module
 from WDM.code.time_delay_filters.filters import (
@@ -183,12 +183,10 @@ def test_production_complex64_is_close_to_reference():
     assert production.dtype == np.float32
 
 
-def test_cpu_real_single_matches_explicit_complex_execution():
-    if jax.default_backend() != "cpu":
-        pytest.skip("The real-via-complex production path is CPU-specific.")
-
+@pytest.mark.parametrize("real_coefficients", [True, False])
+def test_reordered_production_matches_baseline(real_coefficients):
     wdm, coefficients, delays = _small_shift_case(
-        real_coefficients=True,
+        real_coefficients=real_coefficients,
         num_jobs=1,
     )
     kwargs = dict(
@@ -201,25 +199,26 @@ def test_cpu_real_single_matches_explicit_complex_execution():
         lag_block_size=3,
     )
 
-    real_output = tsf.wdm_time_shift_variable(
+    baseline = tsf.wdm_time_shift_variable(
         wdm,
         coefficients[0],
         delays[0],
+        assembly_variant="baseline",
         **kwargs,
     )
-    complex_output = tsf.wdm_time_shift_variable(
+    reordered = tsf.wdm_time_shift_variable(
         wdm,
-        coefficients[0].astype(np.complex64),
+        coefficients[0],
         delays[0],
+        assembly_variant="reordered",
         **kwargs,
     )
 
-    assert real_output.dtype == np.float32
-    assert complex_output.dtype == np.complex64
-    np.testing.assert_array_equal(real_output, complex_output.real)
-    np.testing.assert_array_equal(
-        complex_output.imag,
-        np.zeros_like(complex_output.imag),
+    np.testing.assert_allclose(
+        reordered,
+        baseline,
+        rtol=2e-5,
+        atol=2e-6,
     )
 
 
@@ -257,47 +256,6 @@ def test_batch_matches_repeated_single_calls():
             single_values,
             rtol=2e-5,
             atol=2e-6,
-        )
-
-
-def test_cpu_real_batch_matches_explicit_complex_execution():
-    if jax.default_backend() != "cpu":
-        pytest.skip("The real-via-complex production path is CPU-specific.")
-
-    wdm, coefficients, delays = _small_shift_case(
-        real_coefficients=True,
-        num_jobs=3,
-    )
-    kwargs = dict(
-        Nf=wdm.Nf,
-        L_trunc=3,
-        tl_tp_mode="interp",
-        tl_tp_interp_points=16,
-        assembly_backend="production",
-        assembly_precision="complex64",
-        row_chunk_size=8,
-        lag_block_size=3,
-        batch_chunk=2,
-    )
-
-    real_batch = tsf.wdm_time_shift_variable_batch(
-        wdm,
-        list(zip(coefficients, delays)),
-        **kwargs,
-    )
-    complex_batch = tsf.wdm_time_shift_variable_batch(
-        wdm,
-        list(zip(coefficients.astype(np.complex64), delays)),
-        **kwargs,
-    )
-
-    for real_output, complex_output in zip(real_batch, complex_batch):
-        assert real_output.dtype == np.float32
-        assert complex_output.dtype == np.complex64
-        np.testing.assert_array_equal(real_output, complex_output.real)
-        np.testing.assert_array_equal(
-            complex_output.imag,
-            np.zeros_like(complex_output.imag),
         )
 
 
