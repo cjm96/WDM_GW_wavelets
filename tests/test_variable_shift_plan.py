@@ -63,18 +63,6 @@ def variable_shift_case():
             2e-5,
             2e-6,
         ),
-        (
-            VariableShiftPlanConfig.production(
-                lag_truncation=3,
-                interpolation_points=16,
-                row_chunk_size=8,
-                lag_block_size=3,
-                batch_chunk=2,
-                assembly_variant="reordered",
-            ),
-            2e-5,
-            2e-6,
-        ),
     ],
 )
 def test_plan_matches_direct_batch(variable_shift_case, config, rtol, atol):
@@ -89,7 +77,6 @@ def test_plan_matches_direct_batch(variable_shift_case, config, rtol, atol):
         tl_tp_interp_pad=config.tl_tp_interp_pad,
         tl_tp_interp_kind=config.tl_tp_interp_kind,
         assembly_backend=config.assembly_backend,
-        assembly_variant=config.assembly_variant,
         assembly_precision=config.assembly_precision,
         row_chunk_size=config.row_chunk_size,
         lag_block_size=config.lag_block_size,
@@ -149,46 +136,6 @@ def test_production_plan_omits_checkerboard_and_uses_production_precision(
     assert plan.ell_all.dtype == np.int32
     assert plan.Tl_all.dtype == np.complex64
     assert plan.Tp_all.dtype == np.complex64
-
-
-def test_reordered_plan_stores_application_lag_order(variable_shift_case):
-    wdm, coefficients, delays = variable_shift_case
-    baseline = VariableShiftBatchPlan.build(
-        wdm,
-        delays,
-        config=VariableShiftPlanConfig.production(
-            lag_truncation=3,
-            interpolation_points=16,
-            row_chunk_size=8,
-            lag_block_size=3,
-        ),
-    )
-    reordered = VariableShiftBatchPlan.build(
-        wdm,
-        delays,
-        config=VariableShiftPlanConfig.production(
-            lag_truncation=3,
-            interpolation_points=16,
-            row_chunk_size=8,
-            lag_block_size=3,
-            assembly_variant="reordered",
-        ),
-    )
-
-    np.testing.assert_array_equal(
-        reordered.Tl_all,
-        baseline.Tl_all[..., ::-1],
-    )
-    np.testing.assert_array_equal(
-        reordered.Tp_all,
-        baseline.Tp_all[..., ::-1],
-    )
-    np.testing.assert_allclose(
-        reordered.apply(coefficients),
-        baseline.apply(coefficients),
-        rtol=2e-5,
-        atol=2e-6,
-    )
 
 
 def test_reference_plan_retains_checkerboard(variable_shift_case):
@@ -267,16 +214,4 @@ def test_config_can_be_replaced_for_benchmark_chunks():
     base = VariableShiftPlanConfig.production(lag_truncation=3)
     updated = replace(base, row_chunk_size=16, lag_block_size=4)
     assert updated.row_chunk_size == 16
-<<<<<<< ours
     assert updated.lag_block_size == 4
-=======
-    assert updated.lag_block_size == 4
-
-
-def test_reference_config_rejects_reordered_variant():
-    with pytest.raises(ValueError, match="reference backend"):
-        VariableShiftPlanConfig(
-            assembly_backend="reference",
-            assembly_variant="reordered",
-        )
->>>>>>> theirs

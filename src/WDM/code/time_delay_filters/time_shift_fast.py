@@ -492,27 +492,6 @@ def _normalize_assembly_backend(backend):
     )
 
 
-def _normalize_assembly_variant(variant, *, backend):
-    """Return the supported kernel-layout variant for an assembly backend."""
-
-    if variant is None:
-        key = "baseline"
-    else:
-        key = str(variant).lower()
-    if key in ("baseline", "default"):
-        return "baseline"
-    if key in ("reordered", "contiguous_lag"):
-        if backend != "production":
-            raise ValueError(
-                "assembly_variant='reordered' requires "
-                "assembly_backend='production'."
-            )
-        return "reordered"
-    raise ValueError(
-        "assembly_variant must be 'baseline' or 'reordered'."
-    )
-
-
 def _prepare_tl_tp(
     delays,
     *,
@@ -567,7 +546,6 @@ def wdm_time_shift_variable(
     tl_tp_interp_pad=0.0,
     tl_tp_interp_kind="linear",
     assembly_backend="production",
-    assembly_variant="baseline",
     assembly_precision="complex64",
     row_chunk_size=128,
     lag_block_size=1,
@@ -653,10 +631,6 @@ def wdm_time_shift_variable(
         )
 
     backend = _normalize_assembly_backend(assembly_backend)
-    variant = _normalize_assembly_variant(
-        assembly_variant,
-        backend=backend,
-    )
     precision = _normalize_assembly_precision(assembly_precision)
     row_chunk_size = _validate_row_chunk_size(row_chunk_size)
     lag_block_size = _validate_lag_block_size(lag_block_size)
@@ -665,9 +639,6 @@ def wdm_time_shift_variable(
         if backend == "reference"
         else None
     )
-    if variant == "reordered":
-        Tl_all = np.ascontiguousarray(Tl_all[:, ::-1])
-        Tp_all = np.ascontiguousarray(Tp_all[:, ::-1])
 
     return _assemble_shift_target_dispatch(
         wdm,
@@ -679,7 +650,6 @@ def wdm_time_shift_variable(
         Tp_all,
         Cnm=Cnm,
         assembly_backend=backend,
-        assembly_variant=variant,
         assembly_precision=precision,
         row_chunk_size=row_chunk_size,
         lag_block_size=lag_block_size,
@@ -700,7 +670,6 @@ def wdm_time_shift_variable_batch(
     tl_tp_interp_pad=0.0,
     tl_tp_interp_kind="linear",
     assembly_backend="production",
-    assembly_variant="baseline",
     assembly_precision="complex64",
     row_chunk_size=128,
     lag_block_size=1,
@@ -719,7 +688,6 @@ def wdm_time_shift_variable_batch(
             "n_jobs": 0,
             "batch_chunk": None,
             "assembly_backend": None,
-            "assembly_variant": None,
             "assembly_precision": None,
             "row_chunk_size": None,
             "lag_block_size": None,
@@ -764,10 +732,6 @@ def wdm_time_shift_variable_batch(
     )
 
     backend = _normalize_assembly_backend(assembly_backend)
-    variant = _normalize_assembly_variant(
-        assembly_variant,
-        backend=backend,
-    )
     precision = _normalize_assembly_precision(assembly_precision)
     row_chunk_size = _validate_row_chunk_size(row_chunk_size)
     lag_block_size = _validate_lag_block_size(lag_block_size)
@@ -825,9 +789,6 @@ def wdm_time_shift_variable_batch(
             interp_pad=tl_tp_interp_pad,
             interp_kind=tl_tp_interp_kind,
         )
-        if variant == "reordered":
-            Tl_batch = np.ascontiguousarray(Tl_batch[..., ::-1])
-            Tp_batch = np.ascontiguousarray(Tp_batch[..., ::-1])
         tl_tp_seconds += time.perf_counter() - prepare_started
 
         assembly_started = time.perf_counter()
@@ -841,7 +802,6 @@ def wdm_time_shift_variable_batch(
             Tp_batch,
             Cnm=Cnm,
             assembly_backend=backend,
-            assembly_variant=variant,
             assembly_precision=precision,
             row_chunk_size=row_chunk_size,
             lag_block_size=lag_block_size,
@@ -861,7 +821,6 @@ def wdm_time_shift_variable_batch(
         "n_jobs": len(shift_jobs),
         "batch_chunk": chunk_size,
         "assembly_backend": backend,
-        "assembly_variant": variant,
         "assembly_precision": precision,
         "row_chunk_size": row_chunk_size,
         "lag_block_size": lag_block_size,

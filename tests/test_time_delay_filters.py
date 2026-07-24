@@ -183,19 +183,12 @@ def test_production_complex64_is_close_to_reference():
     assert production.dtype == np.float32
 
 
-<<<<<<< ours
 def test_cpu_real_single_matches_explicit_complex_execution():
     if jax.default_backend() != "cpu":
         pytest.skip("The real-via-complex production path is CPU-specific.")
 
     wdm, coefficients, delays = _small_shift_case(
         real_coefficients=True,
-=======
-@pytest.mark.parametrize("real_coefficients", [True, False])
-def test_reordered_production_matches_baseline(real_coefficients):
-    wdm, coefficients, delays = _small_shift_case(
-        real_coefficients=real_coefficients,
->>>>>>> theirs
         num_jobs=1,
     )
     kwargs = dict(
@@ -208,7 +201,6 @@ def test_reordered_production_matches_baseline(real_coefficients):
         lag_block_size=3,
     )
 
-<<<<<<< ours
     real_output = tsf.wdm_time_shift_variable(
         wdm,
         coefficients[0],
@@ -228,28 +220,6 @@ def test_reordered_production_matches_baseline(real_coefficients):
     np.testing.assert_array_equal(
         complex_output.imag,
         np.zeros_like(complex_output.imag),
-=======
-    baseline = tsf.wdm_time_shift_variable(
-        wdm,
-        coefficients[0],
-        delays[0],
-        assembly_variant="baseline",
-        **kwargs,
-    )
-    reordered = tsf.wdm_time_shift_variable(
-        wdm,
-        coefficients[0],
-        delays[0],
-        assembly_variant="reordered",
-        **kwargs,
-    )
-
-    np.testing.assert_allclose(
-        reordered,
-        baseline,
-        rtol=2e-5,
-        atol=2e-6,
->>>>>>> theirs
     )
 
 

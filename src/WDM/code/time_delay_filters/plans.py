@@ -213,14 +213,6 @@ class VariableShiftBatchPlan:
         _validate_row_chunk_size(config.row_chunk_size)
         _validate_lag_block_size(config.lag_block_size)
 
-        # The production equation uses the filter at ``-ell`` while
-        # ``Tl/Tp`` are constructed in ascending ``ell`` order.  Store an
-        # application-ordered copy for the experimental contiguous-lag
-        # variant so repeated applications do not gather reversed columns.
-        if backend == "production" and config.assembly_variant == "reordered":
-            Tl_all = np.ascontiguousarray(Tl_all[..., ::-1])
-            Tp_all = np.ascontiguousarray(Tp_all[..., ::-1])
-
         if precision == "complex64":
             real_dtype = np.float32
             complex_dtype = np.complex64
@@ -288,7 +280,6 @@ class VariableShiftBatchPlan:
                 self.Tp_all[start:stop],
                 Cnm=self.Cnm,
                 assembly_backend=self.resolved_assembly_backend,
-                assembly_variant=self.config.assembly_variant,
                 assembly_precision=self.resolved_assembly_precision,
                 row_chunk_size=self.config.row_chunk_size,
                 lag_block_size=self.config.lag_block_size,
@@ -348,7 +339,6 @@ class VariableShiftBatchPlan:
                 plan["Tp_all"][start:stop],
                 Cnm=plan.get("Cnm"),
                 assembly_backend=self.resolved_assembly_backend,
-                assembly_variant=self.config.assembly_variant,
                 assembly_precision=self.resolved_assembly_precision,
                 row_chunk_size=self.config.row_chunk_size,
                 lag_block_size=self.config.lag_block_size,
@@ -429,7 +419,6 @@ class VariableShiftBatchPlan:
                 plan["Tp_all"][group_start:group_stop],
                 Cnm=plan.get("Cnm"),
                 assembly_backend=self.resolved_assembly_backend,
-                assembly_variant=self.config.assembly_variant,
                 assembly_precision=self.resolved_assembly_precision,
                 row_chunk_size=self.config.row_chunk_size,
                 lag_block_size=self.config.lag_block_size,
@@ -568,7 +557,6 @@ class VariableShiftBatchPlan:
                 plan["Tp_all"][start:stop],
                 Cnm=plan.get("Cnm"),
                 assembly_backend=self.resolved_assembly_backend,
-                assembly_variant=self.config.assembly_variant,
                 assembly_precision=self.resolved_assembly_precision,
                 row_chunk_size=self.config.row_chunk_size,
                 lag_block_size=self.config.lag_block_size,
@@ -600,7 +588,6 @@ class VariableShiftBatchPlan:
             "n_outputs": num_outputs,
             "batch_chunk": self._chunk_size,
             "assembly_backend": self.resolved_assembly_backend,
-            "assembly_variant": self.config.assembly_variant,
             "assembly_precision": self.resolved_assembly_precision,
             "total_s": float(perf_counter() - started),
             "plan_build_s": self.build_seconds,
@@ -684,7 +671,6 @@ class VariableShiftBatchPlan:
             "n_jobs": self.num_jobs,
             "batch_chunk": self._chunk_size,
             "assembly_backend": self.resolved_assembly_backend,
-            "assembly_variant": self.config.assembly_variant,
             "assembly_precision": self.resolved_assembly_precision,
             "total_s": float(total_seconds),
             "assembly_s": float(assembly_seconds),
