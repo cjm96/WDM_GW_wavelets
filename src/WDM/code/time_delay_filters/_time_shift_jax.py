@@ -9,7 +9,9 @@ The module deliberately exposes only two target-mode implementations:
 ``production``
     The row/lag-blocked analytic-parity implementation used in repeated
     response evaluations.  It avoids the full ``C_nm`` checkerboard and keeps
-    real coefficient arrays real throughout the large gather/reduction path.
+    the public real-input/output contract.  On CPU, real coefficients are
+    promoted inside the execution wrapper because XLA currently generates a
+    substantially faster program for the equivalent complex kernel.
 
 Fixed-delay and non-target variable-delay modes remain reference-only because
 those paths are not used by the production LISA response.
@@ -641,6 +643,10 @@ def _make_shift_target_production_impl(
             Tp_apply = jnp.pad(Tp_all, ((0, 0), (0, lag_padding)))
 
         out0 = jnp.zeros((Nt_pad, Nm), dtype=coefficient_dtype)
+        zero_col = jnp.zeros(
+            (row_chunk_size, 1),
+            dtype=coefficient_dtype,
+        )
         row_offsets = jnp.arange(row_chunk_size, dtype=jnp.int32)
         lag_offsets = jnp.arange(lag_block_size, dtype=jnp.int32)
 
@@ -762,10 +768,19 @@ def _make_shift_target_production_impl(
                     low_sum = jnp.sum(low, axis=1)
                     up_sum = jnp.sum(up, axis=1)
 
-                    # Accumulate only into the valid adjacent-frequency slices.
-                    # This replaces the previous full-width zero-padding arrays.
-                    updated = block_acc.at[:, 1:].add(low_sum)
-                    return updated.at[:, :-1].add(up_sum)
+                    # Assemble the two adjacent-frequency contributions as
+                    # contiguous arrays. On the CPU backend this avoids the
+                    # update/scatter-style lowering produced by chained
+                    # ``.at[].add`` operations inside every lag block.
+                    low_pad = jnp.concatenate(
+                        (zero_col, low_sum),
+                        axis=1,
+                    )
+                    up_pad = jnp.concatenate(
+                        (up_sum, zero_col),
+                        axis=1,
+                    )
+                    return block_acc + low_pad + up_pad
 
                 block_sum = jax.lax.cond(
                     Nm > 1,
@@ -793,8 +808,8 @@ def _make_shift_target_production_impl(
     return impl
 
 
-# Four compiled variants keep the large coefficient/output arrays in their
-# natural real or complex dtype while retaining the requested kernel precision.
+# Four compiled variants retain both the natural real implementation and the
+# complex implementation used by the faster CPU execution path.
 _prod_c64_complex_impl = _make_shift_target_production_impl(
     complex_dtype=jnp.complex64,
     real_dtype=jnp.float32,
@@ -901,9 +916,24 @@ _prod_batch_c128_real_core = jax.jit(
     static_argnums=(3, 7, 8, 9),
 )
 
+# Recorded by downstream benchmarks so they can distinguish this optimized
+# execution path from an older installed WDM checkout.
+CPU_REAL_EXECUTION_REPRESENTATION = "complex"
+
 
 def _input_is_complex(values) -> bool:
     return bool(jnp.issubdtype(jnp.asarray(values).dtype, jnp.complexfloating))
+
+
+def _array_uses_cpu_backend(values) -> bool:
+    """Return whether an array is placed exclusively on CPU devices."""
+
+    array = jnp.asarray(values)
+    try:
+        devices = array.devices()
+    except (AttributeError, TypeError):
+        return jax.default_backend() == "cpu"
+    return bool(devices) and all(device.platform == "cpu" for device in devices)
 
 
 # ---------------------------------------------------------------------------
@@ -929,6 +959,8 @@ def assemble_shift_target_production_jax(
     """Apply one production target-mode shift.
 
     Real inputs return real outputs; complex inputs retain complex support.
+    CPU execution promotes real coefficients internally to the equivalent
+    complex kernel, then projects the result back to its real component.
     """
 
     precision = _normalize_precision(precision)
@@ -941,12 +973,20 @@ def assemble_shift_target_production_jax(
     if lag_block_size < 1:
         raise ValueError("lag_block_size must be >= 1.")
 
+    w_xi = jnp.asarray(w_xi)
     is_complex = _input_is_complex(w_xi)
+    use_complex_kernel = is_complex or _array_uses_cpu_backend(w_xi)
     ell = jnp.asarray(ell_all, dtype=jnp.int32)
 
     if precision == "complex64":
-        coefficient_dtype = jnp.complex64 if is_complex else jnp.float32
-        core = _prod_c64_complex_core if is_complex else _prod_c64_real_core
+        coefficient_dtype = (
+            jnp.complex64 if use_complex_kernel else jnp.float32
+        )
+        core = (
+            _prod_c64_complex_core
+            if use_complex_kernel
+            else _prod_c64_real_core
+        )
         out = core(
             jnp.asarray(w_xi, dtype=coefficient_dtype),
             jnp.asarray(t_shift, dtype=jnp.float32),
@@ -960,8 +1000,14 @@ def assemble_shift_target_production_jax(
             kernels_reordered,
         )
     else:
-        coefficient_dtype = jnp.complex128 if is_complex else jnp.float64
-        core = _prod_c128_complex_core if is_complex else _prod_c128_real_core
+        coefficient_dtype = (
+            jnp.complex128 if use_complex_kernel else jnp.float64
+        )
+        core = (
+            _prod_c128_complex_core
+            if use_complex_kernel
+            else _prod_c128_real_core
+        )
         out = core(
             jnp.asarray(w_xi, dtype=coefficient_dtype),
             jnp.asarray(t_shift, dtype=jnp.float64),
@@ -975,6 +1021,8 @@ def assemble_shift_target_production_jax(
             kernels_reordered,
         )
 
+    if not is_complex and use_complex_kernel:
+        out = out.real
     return out if return_device else np.asarray(out)
 
 
@@ -993,7 +1041,11 @@ def assemble_shift_target_batch_production_jax(
     assembly_variant="baseline",
     return_device=False,
 ):
-    """Apply a production target-mode shift to a job batch."""
+    """Apply a production target-mode shift to a job batch.
+
+    CPU execution uses the complex kernel internally for real coefficients
+    while preserving a real public output.
+    """
 
     precision = _normalize_precision(precision)
     assembly_variant = _normalize_production_variant(assembly_variant)
@@ -1005,14 +1057,18 @@ def assemble_shift_target_batch_production_jax(
     if lag_block_size < 1:
         raise ValueError("lag_block_size must be >= 1.")
 
+    w_xi_batch = jnp.asarray(w_xi_batch)
     is_complex = _input_is_complex(w_xi_batch)
+    use_complex_kernel = is_complex or _array_uses_cpu_backend(w_xi_batch)
     ell = jnp.asarray(ell_all, dtype=jnp.int32)
 
     if precision == "complex64":
-        coefficient_dtype = jnp.complex64 if is_complex else jnp.float32
+        coefficient_dtype = (
+            jnp.complex64 if use_complex_kernel else jnp.float32
+        )
         core = (
             _prod_batch_c64_complex_core
-            if is_complex
+            if use_complex_kernel
             else _prod_batch_c64_real_core
         )
         out = core(
@@ -1028,10 +1084,12 @@ def assemble_shift_target_batch_production_jax(
             kernels_reordered,
         )
     else:
-        coefficient_dtype = jnp.complex128 if is_complex else jnp.float64
+        coefficient_dtype = (
+            jnp.complex128 if use_complex_kernel else jnp.float64
+        )
         core = (
             _prod_batch_c128_complex_core
-            if is_complex
+            if use_complex_kernel
             else _prod_batch_c128_real_core
         )
         out = core(
@@ -1047,6 +1105,8 @@ def assemble_shift_target_batch_production_jax(
             kernels_reordered,
         )
 
+    if not is_complex and use_complex_kernel:
+        out = out.real
     return out if return_device else np.asarray(out)
 
 
