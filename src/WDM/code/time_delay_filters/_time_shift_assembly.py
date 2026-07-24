@@ -11,8 +11,10 @@ from __future__ import annotations
 from ._time_shift_jax import (
     assemble_shift_fixed_jax,
     assemble_shift_target_batch_production_jax,
+    assemble_shift_target_batch_real_split_jax,
     assemble_shift_target_batch_reference_jax,
     assemble_shift_target_production_jax,
+    assemble_shift_target_real_split_jax,
     assemble_shift_target_reference_jax,
     assemble_shift_variable_mode_jax,
 )
@@ -52,6 +54,13 @@ def _assemble_shift_target_dispatch(
             return_device=return_device,
         )
 
+    if backend == "production_real_split":
+        return assemble_shift_target_real_split_jax(
+            w_xi, t_shift, ell_all, offset, Tl_all, Tp_all, float(wdm.dF),
+            row_chunk_size=row_chunk_size, lag_block_size=lag_block_size,
+            precision=assembly_precision, return_device=return_device,
+        )
+
     if backend == "reference":
         if Cnm is None:
             raise ValueError("The reference backend requires the Cnm array.")
@@ -67,7 +76,7 @@ def _assemble_shift_target_dispatch(
             return_device=return_device,
         )
 
-    raise ValueError("assembly_backend must be 'production' or 'reference'.")
+    raise ValueError("assembly_backend must be 'production', 'production_real_split', or 'reference'.")
 
 
 def _assemble_shift_target_batch_dispatch(
@@ -104,6 +113,14 @@ def _assemble_shift_target_batch_dispatch(
             return_device=return_device,
         )
 
+    if backend == "production_real_split":
+        return assemble_shift_target_batch_real_split_jax(
+            w_xi_batch, t_shift_batch, ell_all, offset, Tl_batch, Tp_batch,
+            float(wdm.dF), row_chunk_size=row_chunk_size,
+            lag_block_size=lag_block_size, precision=assembly_precision,
+            return_device=return_device,
+        )
+
     if backend == "reference":
         if Cnm is None:
             raise ValueError("The reference backend requires the Cnm array.")
@@ -119,7 +136,7 @@ def _assemble_shift_target_batch_dispatch(
             return_device=return_device,
         )
 
-    raise ValueError("assembly_backend must be 'production' or 'reference'.")
+    raise ValueError("assembly_backend must be 'production', 'production_real_split', or 'reference'.")
 
 
 def _assemble_shift_fixed_dispatch(

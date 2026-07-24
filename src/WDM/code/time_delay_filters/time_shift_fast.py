@@ -477,6 +477,8 @@ def _normalize_assembly_backend(backend):
         "auto",
     ):
         return "production"
+    if key in ("production_real_split", "real_split"):
+        return "production_real_split"
     if key in (
         "reference",
         "legacy",
@@ -488,7 +490,7 @@ def _normalize_assembly_backend(backend):
     ):
         return "reference"
     raise ValueError(
-        "assembly_backend must be 'production' or 'reference'."
+        "assembly_backend must be 'production', 'production_real_split', or 'reference'."
     )
 
 

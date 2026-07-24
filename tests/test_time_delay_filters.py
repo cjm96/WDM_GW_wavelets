@@ -305,3 +305,69 @@ def test_historical_production_alias_maps_to_production():
     assert tsf._normalize_assembly_backend(
         "lagfirst_chunked_lagblock"
     ) == "production"
+
+@pytest.mark.parametrize(
+    "precision, rtol, atol",
+    [("complex64", 2e-5, 2e-6), ("complex128", 1e-12, 1e-12)],
+)
+def test_real_split_matches_production_for_real_coefficients(
+    precision, rtol, atol
+):
+    wdm, coefficients, delays = _small_shift_case(
+        real_coefficients=True, num_jobs=1
+    )
+    common = dict(
+        Nf=wdm.Nf, L_trunc=3, tl_tp_mode="exact",
+        assembly_precision=precision, row_chunk_size=8, lag_block_size=3,
+    )
+    production = tsf.wdm_time_shift_variable(
+        wdm, coefficients[0], delays[0],
+        assembly_backend="production", **common
+    )
+    candidate = tsf.wdm_time_shift_variable(
+        wdm, coefficients[0], delays[0],
+        assembly_backend="production_real_split", **common
+    )
+    np.testing.assert_allclose(candidate, production, rtol=rtol, atol=atol)
+    expected = np.float32 if precision == "complex64" else np.float64
+    assert candidate.dtype == expected
+
+
+def test_real_split_complex_input_falls_back_to_production():
+    wdm, coefficients, delays = _small_shift_case(
+        real_coefficients=False, num_jobs=1
+    )
+    common = dict(
+        Nf=wdm.Nf, L_trunc=3, tl_tp_mode="exact",
+        assembly_precision="complex64", row_chunk_size=8, lag_block_size=3,
+    )
+    production = tsf.wdm_time_shift_variable(
+        wdm, coefficients[0], delays[0],
+        assembly_backend="production", **common
+    )
+    candidate = tsf.wdm_time_shift_variable(
+        wdm, coefficients[0], delays[0],
+        assembly_backend="production_real_split", **common
+    )
+    np.testing.assert_array_equal(candidate, production)
+
+
+def test_real_split_batch_matches_production():
+    wdm, coefficients, delays = _small_shift_case(
+        real_coefficients=True, num_jobs=3
+    )
+    jobs = list(zip(coefficients, delays))
+    common = dict(
+        Nf=wdm.Nf, L_trunc=3, tl_tp_mode="interp",
+        tl_tp_interp_points=16, assembly_precision="complex64",
+        row_chunk_size=8, lag_block_size=3, batch_chunk=2,
+    )
+    production = tsf.wdm_time_shift_variable_batch(
+        wdm, jobs, assembly_backend="production", **common
+    )
+    candidate = tsf.wdm_time_shift_variable_batch(
+        wdm, jobs, assembly_backend="production_real_split", **common
+    )
+    np.testing.assert_allclose(
+        np.stack(candidate), np.stack(production), rtol=2e-5, atol=2e-6
+    )

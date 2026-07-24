@@ -772,6 +772,209 @@ def _make_shift_target_production_impl(
     return impl
 
 
+
+def _make_shift_target_real_split_impl(*, complex_dtype, real_dtype):
+    """Create a real-arithmetic target kernel for physical real coefficients.
+
+    The operator and reduction order match the maintained production kernel,
+    but the hot carrier and sideband products are expanded into real and
+    imaginary components rather than materialising complex 3-D products.
+    """
+
+    def impl(
+        w_xi,
+        t_shift,
+        ell_all,
+        offset,
+        Tl_all,
+        Tp_all,
+        dF,
+        row_chunk_size,
+        lag_block_size,
+    ):
+        w_xi = jnp.asarray(w_xi, dtype=real_dtype)
+        t_shift = jnp.asarray(t_shift, dtype=real_dtype)
+        ell_all = jnp.asarray(ell_all, dtype=jnp.int32)
+        Tl_all = jnp.asarray(Tl_all, dtype=complex_dtype)
+        Tp_all = jnp.asarray(Tp_all, dtype=complex_dtype)
+        dF = jnp.asarray(dF, dtype=real_dtype)
+
+        Nt, Nm = w_xi.shape
+        n_lag = ell_all.shape[0]
+        two_pi = jnp.asarray(2.0 * np.pi, dtype=real_dtype)
+        pi = jnp.asarray(np.pi, dtype=real_dtype)
+
+        m_full = jnp.arange(Nm, dtype=real_dtype)
+        phase_angle = two_pi * (m_full[None, :] * dF) * t_shift[:, None]
+        ph_m_re_all = jnp.cos(phase_angle)
+        ph_m_im_all = jnp.sin(phase_angle)
+        half_angle = pi * dF * t_shift
+        half_re = jnp.cos(half_angle)
+        half_im = jnp.sin(half_angle)
+        ph_mid_re_all = (
+            ph_m_re_all[:, :-1] * half_re[:, None]
+            - ph_m_im_all[:, :-1] * half_im[:, None]
+        )
+        ph_mid_im_all = (
+            ph_m_re_all[:, :-1] * half_im[:, None]
+            + ph_m_im_all[:, :-1] * half_re[:, None]
+        )
+
+        row_sign_all = _analytic_parity_pm_one(
+            jnp.arange(Nt, dtype=jnp.int32), real_dtype
+        )
+        lag_even_all = jnp.mod(ell_all, 2) == 0
+        even_half_sign_all = _analytic_parity_pm_one(
+            jnp.floor_divide(ell_all, 2), real_dtype
+        )
+        odd_half_sign_all = _analytic_parity_pm_one(
+            jnp.floor_divide(ell_all - 1, 2), real_dtype
+        )
+        sideband_frequency_sign = _analytic_parity_pm_one(
+            jnp.arange(max(Nm - 1, 0), dtype=jnp.int32), real_dtype
+        )
+
+        n_chunks = (Nt + row_chunk_size - 1) // row_chunk_size
+        Nt_pad = n_chunks * row_chunk_size
+        n_lag_blocks = (n_lag + lag_block_size - 1) // lag_block_size
+        out0 = jnp.zeros((Nt_pad, Nm), dtype=real_dtype)
+        zero_col = jnp.zeros((row_chunk_size, 1), dtype=real_dtype)
+        row_offsets = jnp.arange(row_chunk_size, dtype=jnp.int32)
+        lag_offsets = jnp.arange(lag_block_size, dtype=jnp.int32)
+
+        def chunk_body(chunk_id, out_acc):
+            start = chunk_id * row_chunk_size
+            rows = start + row_offsets
+            valid_row = rows < Nt
+            rows_safe = jnp.clip(rows, 0, Nt - 1)
+            row_sign = row_sign_all[rows_safe]
+            ph_m_re = ph_m_re_all[rows_safe, :]
+            ph_m_im = ph_m_im_all[rows_safe, :]
+            ph_mid_re = ph_mid_re_all[rows_safe, :]
+            ph_mid_im = ph_mid_im_all[rows_safe, :]
+            out_chunk0 = jnp.zeros((row_chunk_size, Nm), dtype=real_dtype)
+
+            def lag_block_body(lag_block_id, chunk_out):
+                lag_start = lag_block_id * lag_block_size
+                lag_indices = lag_start + lag_offsets
+                valid_lag = lag_indices < n_lag
+                lag_indices_safe = jnp.clip(lag_indices, 0, n_lag - 1)
+                ell_block = ell_all[lag_indices_safe]
+                lag_even = lag_even_all[lag_indices_safe]
+                even_half_sign = even_half_sign_all[lag_indices_safe]
+                odd_half_sign = odd_half_sign_all[lag_indices_safe]
+                j_neg_block = -ell_block + offset
+
+                nprime = rows[:, None] + ell_block[None, :]
+                valid_n = (
+                    valid_row[:, None]
+                    & valid_lag[None, :]
+                    & (nprime >= 0)
+                    & (nprime < Nt)
+                )
+                nprime_safe = jnp.clip(nprime, 0, Nt - 1)
+                Tl_block = Tl_all[rows_safe, :][:, j_neg_block]
+                Tp_block = Tp_all[rows_safe, :][:, j_neg_block]
+                w_block = w_xi[nprime_safe, :]
+
+                Tl_re = Tl_block.real[:, :, None]
+                Tl_im = Tl_block.imag[:, :, None]
+                row_sign_3d = row_sign[:, None, None]
+                effective_Tl_re = jnp.where(
+                    lag_even[None, :, None],
+                    Tl_re,
+                    -row_sign_3d * Tl_im,
+                )
+                effective_Tl_im = jnp.where(
+                    lag_even[None, :, None],
+                    Tl_im,
+                    row_sign_3d * Tl_re,
+                )
+                carrier_kernel = (
+                    ph_m_re[:, None, :] * effective_Tl_re
+                    - ph_m_im[:, None, :] * effective_Tl_im
+                )
+                carrier = carrier_kernel * w_block
+                carrier = jnp.where(
+                    valid_n[:, :, None], carrier, jnp.zeros_like(carrier)
+                )
+                block_sum = jnp.sum(carrier, axis=1)
+
+                def add_sidebands(block_acc):
+                    even_row_lag_sign = (
+                        row_sign[:, None] * even_half_sign[None, :]
+                    )
+                    low_row_lag_sign = jnp.where(
+                        lag_even[None, :],
+                        -even_row_lag_sign,
+                        odd_half_sign[None, :],
+                    )
+                    up_row_lag_sign = jnp.where(
+                        lag_even[None, :],
+                        even_row_lag_sign,
+                        odd_half_sign[None, :],
+                    )
+                    Tp_re = Tp_block.real[:, :, None]
+                    Tp_im = Tp_block.imag[:, :, None]
+                    # real(i * phase * Tp) = -(phase_re*Tp_im + phase_im*Tp_re)
+                    sideband_base = -(
+                        ph_mid_re[:, None, :] * Tp_im
+                        + ph_mid_im[:, None, :] * Tp_re
+                    )
+                    frequency_sign = sideband_frequency_sign[None, None, :]
+                    low = (
+                        low_row_lag_sign[:, :, None]
+                        * frequency_sign
+                        * sideband_base
+                        * w_block[:, :, :-1]
+                    )
+                    up = (
+                        up_row_lag_sign[:, :, None]
+                        * frequency_sign
+                        * sideband_base
+                        * w_block[:, :, 1:]
+                    )
+                    low = jnp.where(
+                        valid_n[:, :, None], low, jnp.zeros_like(low)
+                    )
+                    up = jnp.where(
+                        valid_n[:, :, None], up, jnp.zeros_like(up)
+                    )
+                    low_sum = jnp.sum(low, axis=1)
+                    up_sum = jnp.sum(up, axis=1)
+                    return block_acc + jnp.concatenate(
+                        (zero_col, low_sum), axis=1
+                    ) + jnp.concatenate((up_sum, zero_col), axis=1)
+
+                block_sum = jax.lax.cond(
+                    Nm > 1, add_sidebands, lambda value: value, block_sum
+                )
+                return chunk_out + block_sum
+
+            out_chunk = jax.lax.fori_loop(
+                0, n_lag_blocks, lag_block_body, out_chunk0
+            )
+            return jax.lax.dynamic_update_slice(out_acc, out_chunk, (start, 0))
+
+        out_padded = jax.lax.fori_loop(0, n_chunks, chunk_body, out0)
+        return out_padded[:Nt, :]
+
+    return impl
+
+
+_real_split_c64_impl = _make_shift_target_real_split_impl(
+    complex_dtype=jnp.complex64, real_dtype=jnp.float32
+)
+_real_split_c128_impl = _make_shift_target_real_split_impl(
+    complex_dtype=jnp.complex128, real_dtype=jnp.float64
+)
+_real_split_c64_core = jax.jit(
+    _real_split_c64_impl, static_argnums=(3, 7, 8)
+)
+_real_split_c128_core = jax.jit(
+    _real_split_c128_impl, static_argnums=(3, 7, 8)
+)
+
 # Four compiled variants retain both the natural real implementation and the
 # complex implementation used by the faster CPU execution path.
 _prod_c64_complex_impl = _make_shift_target_production_impl(
@@ -873,6 +1076,22 @@ _prod_batch_c128_complex_core = jax.jit(
 _prod_batch_c128_real_core = jax.jit(
     _make_shift_target_batch_production_impl(
         single_job_impl=_prod_c128_real_impl,
+        output_dtype=jnp.float64,
+    ),
+    static_argnums=(3, 7, 8),
+)
+
+
+_real_split_batch_c64_core = jax.jit(
+    _make_shift_target_batch_production_impl(
+        single_job_impl=_real_split_c64_impl,
+        output_dtype=jnp.float32,
+    ),
+    static_argnums=(3, 7, 8),
+)
+_real_split_batch_c128_core = jax.jit(
+    _make_shift_target_batch_production_impl(
+        single_job_impl=_real_split_c128_impl,
         output_dtype=jnp.float64,
     ),
     static_argnums=(3, 7, 8),
@@ -1059,6 +1278,110 @@ def assemble_shift_target_batch_production_jax(
 
     if not is_complex and use_complex_kernel:
         out = out.real
+    return out if return_device else np.asarray(out)
+
+
+
+def assemble_shift_target_real_split_jax(
+    w_xi,
+    t_shift,
+    ell_all,
+    offset,
+    Tl_all,
+    Tp_all,
+    dF,
+    *,
+    row_chunk_size=128,
+    lag_block_size=1,
+    precision="complex64",
+    return_device=False,
+):
+    """Apply the experimental explicit real-arithmetic target kernel.
+
+    Genuinely complex coefficients fall back to the maintained production
+    implementation because the real split is valid only for physical real WDM
+    coefficients.
+    """
+    w_xi_array = jnp.asarray(w_xi)
+    if _input_is_complex(w_xi_array):
+        return assemble_shift_target_production_jax(
+            w_xi_array, t_shift, ell_all, offset, Tl_all, Tp_all, dF,
+            row_chunk_size=row_chunk_size,
+            lag_block_size=lag_block_size,
+            precision=precision,
+            return_device=return_device,
+        )
+    precision = _normalize_precision(precision)
+    row_chunk_size = int(row_chunk_size)
+    lag_block_size = int(lag_block_size)
+    if row_chunk_size < 1 or lag_block_size < 1:
+        raise ValueError("row_chunk_size and lag_block_size must be >= 1.")
+    ell = jnp.asarray(ell_all, dtype=jnp.int32)
+    if precision == "complex64":
+        out = _real_split_c64_core(
+            jnp.asarray(w_xi_array, dtype=jnp.float32),
+            jnp.asarray(t_shift, dtype=jnp.float32), ell, int(offset),
+            jnp.asarray(Tl_all, dtype=jnp.complex64),
+            jnp.asarray(Tp_all, dtype=jnp.complex64),
+            jnp.asarray(dF, dtype=jnp.float32), row_chunk_size, lag_block_size,
+        )
+    else:
+        out = _real_split_c128_core(
+            jnp.asarray(w_xi_array, dtype=jnp.float64),
+            jnp.asarray(t_shift, dtype=jnp.float64), ell, int(offset),
+            jnp.asarray(Tl_all, dtype=jnp.complex128),
+            jnp.asarray(Tp_all, dtype=jnp.complex128),
+            jnp.asarray(dF, dtype=jnp.float64), row_chunk_size, lag_block_size,
+        )
+    return out if return_device else np.asarray(out)
+
+
+def assemble_shift_target_batch_real_split_jax(
+    w_xi_batch,
+    t_shift_batch,
+    ell_all,
+    offset,
+    Tl_batch,
+    Tp_batch,
+    dF,
+    *,
+    row_chunk_size=128,
+    lag_block_size=1,
+    precision="complex64",
+    return_device=False,
+):
+    """Apply the experimental explicit real-arithmetic kernel to a batch."""
+    values = jnp.asarray(w_xi_batch)
+    if _input_is_complex(values):
+        return assemble_shift_target_batch_production_jax(
+            values, t_shift_batch, ell_all, offset, Tl_batch, Tp_batch, dF,
+            row_chunk_size=row_chunk_size,
+            lag_block_size=lag_block_size,
+            precision=precision,
+            return_device=return_device,
+        )
+    precision = _normalize_precision(precision)
+    row_chunk_size = int(row_chunk_size)
+    lag_block_size = int(lag_block_size)
+    if row_chunk_size < 1 or lag_block_size < 1:
+        raise ValueError("row_chunk_size and lag_block_size must be >= 1.")
+    ell = jnp.asarray(ell_all, dtype=jnp.int32)
+    if precision == "complex64":
+        out = _real_split_batch_c64_core(
+            jnp.asarray(values, dtype=jnp.float32),
+            jnp.asarray(t_shift_batch, dtype=jnp.float32), ell, int(offset),
+            jnp.asarray(Tl_batch, dtype=jnp.complex64),
+            jnp.asarray(Tp_batch, dtype=jnp.complex64),
+            jnp.asarray(dF, dtype=jnp.float32), row_chunk_size, lag_block_size,
+        )
+    else:
+        out = _real_split_batch_c128_core(
+            jnp.asarray(values, dtype=jnp.float64),
+            jnp.asarray(t_shift_batch, dtype=jnp.float64), ell, int(offset),
+            jnp.asarray(Tl_batch, dtype=jnp.complex128),
+            jnp.asarray(Tp_batch, dtype=jnp.complex128),
+            jnp.asarray(dF, dtype=jnp.float64), row_chunk_size, lag_block_size,
+        )
     return out if return_device else np.asarray(out)
 
 

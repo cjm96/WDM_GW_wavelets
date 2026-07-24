@@ -215,3 +215,24 @@ def test_config_can_be_replaced_for_benchmark_chunks():
     updated = replace(base, row_chunk_size=16, lag_block_size=4)
     assert updated.row_chunk_size == 16
     assert updated.lag_block_size == 4
+
+
+def test_real_split_plan_matches_production(variable_shift_case):
+    wdm, coefficients, delays = variable_shift_case
+    base = VariableShiftPlanConfig.production(
+        lag_truncation=3, interpolation_points=16,
+        row_chunk_size=8, lag_block_size=3, batch_chunk=2,
+    )
+    production_plan = VariableShiftBatchPlan.build(wdm, delays, config=base)
+    real_split_plan = VariableShiftBatchPlan.build(
+        wdm, delays,
+        config=replace(base, assembly_backend="production_real_split"),
+    )
+    production = production_plan.apply_device(coefficients)
+    candidate = real_split_plan.apply_device(coefficients)
+    production.block_until_ready()
+    candidate.block_until_ready()
+    assert str(candidate.dtype) == "float32"
+    np.testing.assert_allclose(
+        np.asarray(candidate), np.asarray(production), rtol=2e-5, atol=2e-6
+    )
