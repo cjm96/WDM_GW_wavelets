@@ -21,6 +21,8 @@ from .time_shift_fast import (
     _build_signed_lag_idx,
     _build_TlTp_from_shift_matrix,
     _build_TlTp_from_shift_matrix_interp,
+    TlTpInterpolationTable,
+    build_tl_tp_interpolation_table,
     _get_Cnm_parity,
     _get_kernel_precomputes,
     _infer_Nf,
@@ -75,6 +77,283 @@ def _jax_coefficient_dtype(values, precision):
     if precision == "complex64":
         return jnp.complex64 if is_complex else jnp.float32
     return jnp.complex128 if is_complex else jnp.float64
+
+
+
+@dataclass(frozen=True, slots=True)
+class VariableShiftKernelContext:
+    """Reusable variable-shift kernel state for runtime delay fields.
+
+    Unlike :class:`VariableShiftBatchPlan`, this object does not bind a fixed
+    delay matrix. It stores the WDM/lag configuration and one global ``Tl/Tp``
+    interpolation table, allowing sky-dependent delays to be supplied during
+    repeated response evaluations.
+    """
+
+    wdm: Any
+    config: VariableShiftPlanConfig
+    ell_all: np.ndarray
+    offset: int
+    Nf: int
+    Nker: int
+    Nt: int
+    Nm: int
+    interpolation_table: TlTpInterpolationTable
+    resolved_assembly_backend: str
+    resolved_assembly_precision: str
+    build_seconds: float
+
+    _device_cache: dict[str, Any] = field(
+        default_factory=dict,
+        repr=False,
+        compare=False,
+    )
+
+    @classmethod
+    def build(
+        cls,
+        wdm: Any,
+        *,
+        delay_min: float,
+        delay_max: float,
+        config: VariableShiftPlanConfig | None = None,
+        Nf: int | None = None,
+        Nker: int | None = None,
+        safety: float = 1.02,
+        kernel_kwargs: dict[str, Any] | None = None,
+        interpolation_points: int = 1024,
+        interpolation_pad: float = 0.02,
+        interpolation_kind: str | None = None,
+    ) -> "VariableShiftKernelContext":
+        started = perf_counter()
+        config = VariableShiftPlanConfig.production() if config is None else config
+        backend = _normalize_assembly_backend(config.assembly_backend)
+        precision = _normalize_assembly_precision(config.assembly_precision)
+        if backend == "reference":
+            raise ValueError(
+                "VariableShiftKernelContext is intended for interpolated "
+                "production runtime delays; use VariableShiftBatchPlan for "
+                "the exact reference backend."
+            )
+        _validate_row_chunk_size(config.row_chunk_size)
+        _validate_lag_block_size(config.lag_block_size)
+
+        kind = (
+            config.tl_tp_interp_kind
+            if interpolation_kind is None
+            else str(interpolation_kind)
+        )
+        table, ell_all, offset, resolved_Nker = build_tl_tp_interpolation_table(
+            wdm,
+            delay_min=delay_min,
+            delay_max=delay_max,
+            L_trunc=config.lag_truncation,
+            Nf=Nf,
+            Nker=Nker,
+            safety=safety,
+            kernel_kwargs=kernel_kwargs,
+            interpolation_points=interpolation_points,
+            interpolation_pad=interpolation_pad,
+            interpolation_kind=kind,
+        )
+        return cls(
+            wdm=wdm,
+            config=config,
+            ell_all=np.asarray(ell_all, dtype=np.int32),
+            offset=int(offset),
+            Nf=int(wdm.Nf if Nf is None else Nf),
+            Nker=int(resolved_Nker),
+            Nt=int(wdm.Nt),
+            Nm=int(wdm.Nf),
+            interpolation_table=table,
+            resolved_assembly_backend=backend,
+            resolved_assembly_precision=precision,
+            build_seconds=float(perf_counter() - started),
+        )
+
+    def _validate_delays(self, delays: np.ndarray) -> np.ndarray:
+        values = _as_delay_matrix(delays)
+        if values.shape[1] != self.Nt:
+            raise ValueError(
+                f"Expected runtime delays with Nt={self.Nt}, got {values.shape}."
+            )
+        # Reuse the table's explicit host-side range validation.
+        self.interpolation_table._validate_delays(values)
+        return values
+
+    def _validate_coefficients(self, coefficients, num_jobs):
+        return _coefficient_batch_shape(
+            coefficients,
+            num_jobs=num_jobs,
+            Nt=self.Nt,
+            Nm=self.Nm,
+        )
+
+    def apply(
+        self,
+        coefficients: np.ndarray,
+        delays: np.ndarray,
+        *,
+        return_profile: bool = False,
+    ):
+        """Interpolate runtime delay kernels and return a NumPy batch."""
+
+        delays = self._validate_delays(delays)
+        coefficients = self._validate_coefficients(coefficients, delays.shape[0])
+        started = perf_counter()
+        interp_started = perf_counter()
+        Tl_all, Tp_all = self.interpolation_table.evaluate(delays)
+        interpolation_seconds = perf_counter() - interp_started
+
+        assembly_started = perf_counter()
+        shifted = _assemble_shift_target_batch_dispatch(
+            self.wdm,
+            coefficients,
+            delays,
+            self.ell_all,
+            self.offset,
+            Tl_all,
+            Tp_all,
+            Cnm=None,
+            assembly_backend=self.resolved_assembly_backend,
+            assembly_precision=self.resolved_assembly_precision,
+            row_chunk_size=self.config.row_chunk_size,
+            lag_block_size=self.config.lag_block_size,
+        )
+        assembly_seconds = perf_counter() - assembly_started
+        result = np.asarray(shifted)
+        if not return_profile:
+            return result
+        return result, {
+            "n_jobs": int(delays.shape[0]),
+            "runtime_interpolation_s": float(interpolation_seconds),
+            "assembly_s": float(assembly_seconds),
+            "total_s": float(perf_counter() - started),
+            "kernel_context_build_s": float(self.build_seconds),
+            "interpolation_table_memory_bytes": int(
+                self.interpolation_table.memory_bytes
+            ),
+            "assembly_backend": self.resolved_assembly_backend,
+            "assembly_precision": self.resolved_assembly_precision,
+            "returned_on_device": False,
+        }
+
+    def _device_static_arrays(self):
+        import jax.numpy as jnp
+        if not self._device_cache:
+            if self.resolved_assembly_precision == "complex64":
+                complex_dtype = jnp.complex64
+            else:
+                complex_dtype = jnp.complex128
+            self._device_cache.update(
+                {
+                    "ell_all": jnp.asarray(self.ell_all, dtype=jnp.int32),
+                    "Tl_grid": jnp.asarray(
+                        self.interpolation_table.Tl_grid,
+                        dtype=complex_dtype,
+                    ),
+                    "Tp_grid": jnp.asarray(
+                        self.interpolation_table.Tp_grid,
+                        dtype=complex_dtype,
+                    ),
+                }
+            )
+        return self._device_cache
+
+    def apply_device(
+        self,
+        coefficients,
+        delays,
+        *,
+        return_profile: bool = False,
+        cache_device_context: bool = True,
+    ):
+        """Interpolate runtime delays and assemble entirely on the JAX device."""
+
+        import jax.numpy as jnp
+        started = perf_counter()
+        host_delays = self._validate_delays(np.asarray(delays))
+        coefficient_dtype = _jax_coefficient_dtype(
+            coefficients,
+            self.resolved_assembly_precision,
+        )
+        coefficients_device = jnp.asarray(coefficients, dtype=coefficient_dtype)
+        if coefficients_device.ndim == 2:
+            coefficients_device = coefficients_device[None, :, :]
+        expected = (host_delays.shape[0], self.Nt, self.Nm)
+        if tuple(coefficients_device.shape) != expected:
+            raise ValueError(
+                f"Expected coefficients with shape {expected}, "
+                f"got {tuple(coefficients_device.shape)}."
+            )
+
+        if self.resolved_assembly_precision == "complex64":
+            real_dtype = jnp.float32
+            complex_dtype = jnp.complex64
+        else:
+            real_dtype = jnp.float64
+            complex_dtype = jnp.complex128
+        delay_device = jnp.asarray(host_delays, dtype=real_dtype)
+
+        interp_started = perf_counter()
+        Tl_all, Tp_all = self.interpolation_table.evaluate_device(
+            delay_device,
+            complex_dtype=complex_dtype,
+        )
+        interpolation_seconds = perf_counter() - interp_started
+        ell_all = (
+            self._device_static_arrays()["ell_all"]
+            if cache_device_context
+            else jnp.asarray(self.ell_all, dtype=jnp.int32)
+        )
+
+        assembly_started = perf_counter()
+        result = _assemble_shift_target_batch_dispatch(
+            self.wdm,
+            coefficients_device,
+            delay_device,
+            ell_all,
+            self.offset,
+            Tl_all,
+            Tp_all,
+            Cnm=None,
+            assembly_backend=self.resolved_assembly_backend,
+            assembly_precision=self.resolved_assembly_precision,
+            row_chunk_size=self.config.row_chunk_size,
+            lag_block_size=self.config.lag_block_size,
+            return_device=True,
+        )
+        if return_profile:
+            result.block_until_ready()
+        assembly_seconds = perf_counter() - assembly_started
+        if not return_profile:
+            return result
+        return result, {
+            "n_jobs": int(host_delays.shape[0]),
+            "runtime_interpolation_s": float(interpolation_seconds),
+            "assembly_s": float(assembly_seconds),
+            "total_s": float(perf_counter() - started),
+            "kernel_context_build_s": float(self.build_seconds),
+            "interpolation_table_memory_bytes": int(
+                self.interpolation_table.memory_bytes
+            ),
+            "assembly_backend": self.resolved_assembly_backend,
+            "assembly_precision": self.resolved_assembly_precision,
+            "returned_on_device": True,
+            "device_context_cached": bool(cache_device_context),
+        }
+
+    def build_fixed_plan(self, delays: np.ndarray) -> "VariableShiftBatchPlan":
+        """Materialise a conventional fixed-delay plan from this context."""
+
+        return VariableShiftBatchPlan.build_from_kernel_context(self, delays)
+
+    def clear_device_cache(self) -> None:
+        self._device_cache.clear()
+
+    @property
+    def kernel_memory_bytes(self) -> int:
+        return int(self.interpolation_table.memory_bytes)
 
 
 @dataclass(frozen=True, slots=True)
@@ -244,6 +523,45 @@ class VariableShiftBatchPlan:
             Nm=Nm,
             num_jobs=num_jobs,
             resolved_assembly_backend=backend,
+            resolved_assembly_precision=precision,
+            build_seconds=float(perf_counter() - started),
+        )
+
+    @classmethod
+    def build_from_kernel_context(
+        cls,
+        kernel_context: VariableShiftKernelContext,
+        delays: np.ndarray,
+    ) -> "VariableShiftBatchPlan":
+        """Materialise fixed ``Tl/Tp`` arrays using a reusable kernel context."""
+
+        started = perf_counter()
+        construction_delays = kernel_context._validate_delays(delays)
+        Tl_all, Tp_all = kernel_context.interpolation_table.evaluate(
+            construction_delays
+        )
+        precision = kernel_context.resolved_assembly_precision
+        if precision == "complex64":
+            real_dtype = np.float32
+            complex_dtype = np.complex64
+        else:
+            real_dtype = np.float64
+            complex_dtype = np.complex128
+        return cls(
+            wdm=kernel_context.wdm,
+            config=kernel_context.config,
+            delays=np.asarray(construction_delays, dtype=real_dtype),
+            ell_all=np.asarray(kernel_context.ell_all, dtype=np.int32),
+            offset=int(kernel_context.offset),
+            Tl_all=np.asarray(Tl_all, dtype=complex_dtype),
+            Tp_all=np.asarray(Tp_all, dtype=complex_dtype),
+            Cnm=None,
+            Nf=int(kernel_context.Nf),
+            Nker=int(kernel_context.Nker),
+            Nt=int(kernel_context.Nt),
+            Nm=int(kernel_context.Nm),
+            num_jobs=int(construction_delays.shape[0]),
+            resolved_assembly_backend=kernel_context.resolved_assembly_backend,
             resolved_assembly_precision=precision,
             build_seconds=float(perf_counter() - started),
         )

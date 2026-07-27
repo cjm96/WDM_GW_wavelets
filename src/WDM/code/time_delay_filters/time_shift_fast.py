@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import time
 import warnings
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -22,6 +24,268 @@ from ._time_shift_assembly import (
 _KERNEL_WDM_CACHE = {}
 _KERNEL_PRECOMP_CACHE = {}
 _CNM_PARITY_CACHE = {}
+
+
+@dataclass(frozen=True, slots=True)
+class TlTpInterpolationTable:
+    """Reusable delay-only interpolation table for WDM shift kernels.
+
+    The table depends on the WDM basis, lag range and numerical kernel
+    configuration, but not on a particular delay field or sky position.
+    """
+
+    delay_grid: np.ndarray
+    Tl_grid: np.ndarray
+    Tp_grid: np.ndarray
+    interpolation_kind: str
+
+    @classmethod
+    def build(
+        cls,
+        *,
+        delay_min: float,
+        delay_max: float,
+        interpolation_points: int,
+        interpolation_pad: float,
+        interpolation_kind: str,
+        freqs_u: np.ndarray,
+        W0_u: np.ndarray,
+        W1_u: np.ndarray,
+        scale: float,
+        signed_lag_idx: np.ndarray,
+    ) -> "TlTpInterpolationTable":
+        delay_min = float(delay_min)
+        delay_max = float(delay_max)
+        if not np.isfinite(delay_min) or not np.isfinite(delay_max):
+            raise ValueError("Interpolation-table delay bounds must be finite.")
+        if delay_max < delay_min:
+            raise ValueError("delay_max must be greater than or equal to delay_min.")
+
+        n_grid = max(2, int(interpolation_points))
+        kind = str(interpolation_kind).lower()
+        if kind not in ("linear", "cubic"):
+            raise ValueError("interpolation_kind must be 'linear' or 'cubic'.")
+        if kind == "cubic" and n_grid < 4:
+            raise ValueError("Cubic interpolation requires at least 4 grid points.")
+        if interpolation_pad < 0.0:
+            raise ValueError("interpolation_pad must be non-negative.")
+
+        if delay_max == delay_min:
+            # Retain a non-zero grid spacing so device interpolation remains
+            # well-defined for a constant-delay table.
+            width = max(1.0, abs(delay_min)) * 1.0e-12
+            grid_min = delay_min - width
+            grid_max = delay_max + width
+        else:
+            span = delay_max - delay_min
+            pad = float(interpolation_pad) * span
+            grid_min = delay_min - pad
+            grid_max = delay_max + pad
+
+        delay_grid = np.linspace(grid_min, grid_max, n_grid, dtype=np.float64)
+        Tl_grid, Tp_grid = _build_TlTp_from_shift_matrix(
+            delay_grid[:, None],
+            freqs_u,
+            W0_u,
+            W1_u,
+            scale,
+            signed_lag_idx,
+        )
+        return cls(
+            delay_grid=delay_grid,
+            Tl_grid=np.asarray(Tl_grid[:, 0, :]),
+            Tp_grid=np.asarray(Tp_grid[:, 0, :]),
+            interpolation_kind=kind,
+        )
+
+    @property
+    def delay_min(self) -> float:
+        return float(self.delay_grid[0])
+
+    @property
+    def delay_max(self) -> float:
+        return float(self.delay_grid[-1])
+
+    @property
+    def memory_bytes(self) -> int:
+        return int(
+            self.delay_grid.nbytes + self.Tl_grid.nbytes + self.Tp_grid.nbytes
+        )
+
+    def _validate_delays(self, delays: np.ndarray) -> np.ndarray:
+        values = np.asarray(delays, dtype=np.float64)
+        if values.size == 0:
+            raise ValueError("Cannot interpolate an empty delay array.")
+        if not np.all(np.isfinite(values)):
+            raise ValueError("Delay array contains NaN or infinite values.")
+        tolerance = 16.0 * np.finfo(np.float64).eps * max(
+            1.0, abs(self.delay_min), abs(self.delay_max)
+        )
+        if np.min(values) < self.delay_min - tolerance or np.max(values) > self.delay_max + tolerance:
+            raise ValueError(
+                "Runtime delays fall outside the precomputed Tl/Tp table: "
+                f"table=[{self.delay_min}, {self.delay_max}], "
+                f"runtime=[{float(np.min(values))}, {float(np.max(values))}]."
+            )
+        return np.clip(values, self.delay_min, self.delay_max)
+
+    def evaluate(self, delays: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Interpolate the table on NumPy arrays."""
+
+        values = self._validate_delays(delays)
+        grid = self.delay_grid
+        step = float(grid[1] - grid[0])
+        positions = (values.reshape(-1) - float(grid[0])) / step
+        positions = np.clip(positions, 0.0, float(grid.size - 1))
+        idx1 = np.floor(positions).astype(np.int64)
+        idx1 = np.clip(idx1, 0, grid.size - 2)
+        frac = positions - idx1
+
+        if self.interpolation_kind == "linear":
+            t = frac[:, None]
+            Tl = (1.0 - t) * self.Tl_grid[idx1] + t * self.Tl_grid[idx1 + 1]
+            Tp = (1.0 - t) * self.Tp_grid[idx1] + t * self.Tp_grid[idx1 + 1]
+        else:
+            i0 = np.clip(idx1 - 1, 0, grid.size - 1)
+            i2 = np.clip(idx1 + 1, 0, grid.size - 1)
+            i3 = np.clip(idx1 + 2, 0, grid.size - 1)
+            t = frac[:, None]
+            t2 = t * t
+            t3 = t2 * t
+
+            def cubic(values_grid):
+                p0 = values_grid[i0]
+                p1 = values_grid[idx1]
+                p2 = values_grid[i2]
+                p3 = values_grid[i3]
+                return 0.5 * (
+                    2.0 * p1
+                    + (-p0 + p2) * t
+                    + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2
+                    + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3
+                )
+
+            Tl = cubic(self.Tl_grid)
+            Tp = cubic(self.Tp_grid)
+
+        shape = values.shape + (self.Tl_grid.shape[1],)
+        return Tl.reshape(shape), Tp.reshape(shape)
+
+    def evaluate_device(
+        self,
+        delays,
+        *,
+        complex_dtype=None,
+    ):
+        """Interpolate the table with JAX while keeping arrays on-device."""
+
+        import jax.numpy as jnp
+
+        values = jnp.asarray(delays)
+        if complex_dtype is None:
+            complex_dtype = (
+                jnp.complex64 if values.dtype == jnp.float32 else jnp.complex128
+            )
+        real_dtype = (
+            jnp.float32 if complex_dtype == jnp.complex64 else jnp.float64
+        )
+        values = jnp.asarray(values, dtype=real_dtype)
+        grid = jnp.asarray(self.delay_grid, dtype=real_dtype)
+        Tl_grid = jnp.asarray(self.Tl_grid, dtype=complex_dtype)
+        Tp_grid = jnp.asarray(self.Tp_grid, dtype=complex_dtype)
+
+        # Host-side callers validate bounds before device execution. Clipping
+        # here protects against tiny floating-point excursions at the endpoints.
+        values = jnp.clip(values, grid[0], grid[-1])
+        step = grid[1] - grid[0]
+        positions = (values.reshape(-1) - grid[0]) / step
+        positions = jnp.clip(positions, 0.0, grid.shape[0] - 1.0)
+        idx1 = jnp.floor(positions).astype(jnp.int32)
+        idx1 = jnp.clip(idx1, 0, grid.shape[0] - 2)
+        frac = positions - idx1.astype(real_dtype)
+
+        if self.interpolation_kind == "linear":
+            t = frac[:, None]
+            Tl = (1.0 - t) * Tl_grid[idx1] + t * Tl_grid[idx1 + 1]
+            Tp = (1.0 - t) * Tp_grid[idx1] + t * Tp_grid[idx1 + 1]
+        else:
+            i0 = jnp.clip(idx1 - 1, 0, grid.shape[0] - 1)
+            i2 = jnp.clip(idx1 + 1, 0, grid.shape[0] - 1)
+            i3 = jnp.clip(idx1 + 2, 0, grid.shape[0] - 1)
+            t = frac[:, None]
+            t2 = t * t
+            t3 = t2 * t
+
+            def cubic(values_grid):
+                p0 = values_grid[i0]
+                p1 = values_grid[idx1]
+                p2 = values_grid[i2]
+                p3 = values_grid[i3]
+                return 0.5 * (
+                    2.0 * p1
+                    + (-p0 + p2) * t
+                    + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2
+                    + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3
+                )
+
+            Tl = cubic(Tl_grid)
+            Tp = cubic(Tp_grid)
+
+        shape = tuple(values.shape) + (int(self.Tl_grid.shape[1]),)
+        return Tl.reshape(shape), Tp.reshape(shape)
+
+
+def build_tl_tp_interpolation_table(
+    wdm,
+    *,
+    delay_min,
+    delay_max,
+    L_trunc=None,
+    Nf=None,
+    Nker=None,
+    safety=1.02,
+    kernel_kwargs=None,
+    interpolation_points=1024,
+    interpolation_pad=0.02,
+    interpolation_kind="linear",
+):
+    """Build an all-runtime reusable ``Tl/Tp`` interpolation table."""
+
+    Nt = int(wdm.Nt)
+    Nf = _infer_Nf(wdm, Nt, Nf)
+    ell_all, offset = _resolve_ell_range(Nt, L_trunc)
+    if Nker is None:
+        Nker = choose_Nker(
+            offset,
+            Nf,
+            safety=safety,
+            require_even_Ntker=True,
+            require_even_Nker=True,
+        )
+    wdm_kernel, freqs_u, W0_u, W1_u, scale = _get_kernel_precomputes(
+        wdm=wdm,
+        Nker=Nker,
+        Nf=Nf,
+        kernel_kwargs=kernel_kwargs,
+    )
+    signed_lag_idx = _build_signed_lag_idx(
+        ell_all,
+        Nf,
+        int(wdm_kernel.N),
+    )
+    table = TlTpInterpolationTable.build(
+        delay_min=delay_min,
+        delay_max=delay_max,
+        interpolation_points=interpolation_points,
+        interpolation_pad=interpolation_pad,
+        interpolation_kind=interpolation_kind,
+        freqs_u=freqs_u,
+        W0_u=W0_u,
+        W1_u=W1_u,
+        scale=scale,
+        signed_lag_idx=signed_lag_idx,
+    )
+    return table, ell_all, offset, int(wdm_kernel.N)
 
 def _normalise_kernel_kwargs(kernel_kwargs):
     """Return a dictionary of kernel keyword arguments.
@@ -349,115 +613,36 @@ def _build_TlTp_from_shift_matrix_interp(
     interp_pad=0.0,
     interp_kind="linear",
 ):
-    """Approximate ``Tl/Tp`` by interpolation on a delay grid.
+    """Approximate ``Tl/Tp`` using a delay-grid table local to this call.
 
-    Parameters
-    ----------
-    t_shift_mat : ndarray
-        Delay matrix with shape ``(B, Nt)``.
-    freqs_u, W0_u, W1_u, scale, idx : ndarray or float
-        Precomputed kernel-frequency arrays and lag indices.
-    interp_points : int, optional
-        Number of delay grid points.
-    interp_pad : float, optional
-        Fractional padding applied to the delay span
-        ``[min(t_shift), max(t_shift)]``.
-    interp_kind : {"linear", "cubic"}, optional
-        Interpolation kernel. Cubic uses a Catmull-Rom-style stencil.
-
-    Notes
-    -----
-    This function is an approximation relative to exact FFT-based ``Tl/Tp``
-    construction. Accuracy depends on ``interp_points``, ``interp_pad``, and
-    delay distribution.
+    New runtime code should build :class:`TlTpInterpolationTable` once and
+    reuse it. This compatibility helper preserves the historical local-range
+    behaviour for direct calls and fixed-delay plans.
     """
+
     t_shift_mat = np.asarray(t_shift_mat, dtype=np.float64)
     if t_shift_mat.ndim != 2:
-        raise ValueError(f"Expected t_shift_mat to have shape (B, Nt), got ndim={t_shift_mat.ndim}")
-
-    flat_shift = t_shift_mat.reshape(-1)
-    if flat_shift.size == 0:
+        raise ValueError(
+            f"Expected t_shift_mat to have shape (B, Nt), got ndim={t_shift_mat.ndim}"
+        )
+    if t_shift_mat.size == 0:
         raise ValueError("Interpolation requested with empty shift matrix.")
-
-    n_grid = max(2, int(interp_points))
-    t_min = float(np.min(flat_shift))
-    t_max = float(np.max(flat_shift))
-
-    if not np.isfinite(t_min) or not np.isfinite(t_max):
+    if not np.all(np.isfinite(t_shift_mat)):
         raise ValueError("Non-finite delays detected in t_shift_mat.")
 
-    if t_max == t_min:
-        return _build_TlTp_from_shift_matrix(t_shift_mat, freqs_u, W0_u, W1_u, scale, idx)
-
-    span = t_max - t_min
-    pad = float(interp_pad) * span
-    grid_min = t_min - pad
-    grid_max = t_max + pad
-
-    if grid_max <= grid_min:
-        return _build_TlTp_from_shift_matrix(t_shift_mat, freqs_u, W0_u, W1_u, scale, idx)
-
-    shift_grid = np.linspace(grid_min, grid_max, n_grid, dtype=np.float64)
-    Tl_grid, Tp_grid = _build_TlTp_from_shift_matrix(
-        shift_grid[:, None], freqs_u, W0_u, W1_u, scale, idx
+    table = TlTpInterpolationTable.build(
+        delay_min=float(np.min(t_shift_mat)),
+        delay_max=float(np.max(t_shift_mat)),
+        interpolation_points=interp_points,
+        interpolation_pad=interp_pad,
+        interpolation_kind=interp_kind,
+        freqs_u=freqs_u,
+        W0_u=W0_u,
+        W1_u=W1_u,
+        scale=scale,
+        signed_lag_idx=idx,
     )
-    Tl_grid = Tl_grid[:, 0, :]
-    Tp_grid = Tp_grid[:, 0, :]
-
-    step = (grid_max - grid_min) / float(n_grid - 1)
-    positions = (flat_shift - grid_min) / step
-    positions = np.clip(positions, 0.0, float(n_grid - 1))
-    idx0 = np.floor(positions).astype(np.int64)
-    idx0 = np.clip(idx0, 0, n_grid - 2)
-    frac = positions - idx0
-
-    if interp_kind == "linear":
-        frac_col = frac[:, None]
-        Tl_flat = (1.0 - frac_col) * Tl_grid[idx0, :] + frac_col * Tl_grid[idx0 + 1, :]
-        Tp_flat = (1.0 - frac_col) * Tp_grid[idx0, :] + frac_col * Tp_grid[idx0 + 1, :]
-    elif interp_kind == "cubic":
-        if n_grid < 4:
-            raise ValueError("Cubic interpolation requires interp_points >= 4.")
-
-        i1 = idx0
-        i0 = np.clip(i1 - 1, 0, n_grid - 1)
-        i2 = np.clip(i1 + 1, 0, n_grid - 1)
-        i3 = np.clip(i1 + 2, 0, n_grid - 1)
-
-        t = frac[:, None]
-        t2 = t * t
-        t3 = t2 * t
-
-        p0_Tl = Tl_grid[i0, :]
-        p1_Tl = Tl_grid[i1, :]
-        p2_Tl = Tl_grid[i2, :]
-        p3_Tl = Tl_grid[i3, :]
-
-        p0_Tp = Tp_grid[i0, :]
-        p1_Tp = Tp_grid[i1, :]
-        p2_Tp = Tp_grid[i2, :]
-        p3_Tp = Tp_grid[i3, :]
-
-        Tl_flat = 0.5 * (
-            2.0 * p1_Tl
-            + (-p0_Tl + p2_Tl) * t
-            + (2.0 * p0_Tl - 5.0 * p1_Tl + 4.0 * p2_Tl - p3_Tl) * t2
-            + (-p0_Tl + 3.0 * p1_Tl - 3.0 * p2_Tl + p3_Tl) * t3
-        )
-        Tp_flat = 0.5 * (
-            2.0 * p1_Tp
-            + (-p0_Tp + p2_Tp) * t
-            + (2.0 * p0_Tp - 5.0 * p1_Tp + 4.0 * p2_Tp - p3_Tp) * t2
-            + (-p0_Tp + 3.0 * p1_Tp - 3.0 * p2_Tp + p3_Tp) * t3
-        )
-    else:
-        raise ValueError("interp_kind must be 'linear' or 'cubic'.")
-
-    out_shape = t_shift_mat.shape + (idx.shape[0],)
-    Tl_all = Tl_flat.reshape(out_shape)
-    Tp_all = Tp_flat.reshape(out_shape)
-    return Tl_all, Tp_all
-
+    return table.evaluate(t_shift_mat)
 
 def _normalize_assembly_backend(backend):
     """Return the canonical maintained backend name.
