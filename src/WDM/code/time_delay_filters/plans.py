@@ -125,6 +125,39 @@ class VariableShiftKernelContext:
         interpolation_pad: float = 0.02,
         interpolation_kind: str | None = None,
     ) -> "VariableShiftKernelContext":
+        """Build reusable production kernels for delays supplied at runtime.
+
+        Parameters
+        ----------
+        wdm : object
+            WDM transform defining the coefficient grid and basis windows.
+        delay_min, delay_max : float
+            Inclusive delay interval, in seconds, that must contain every runtime
+            delay value.
+        config : VariableShiftPlanConfig or None, optional
+            Production configuration. The reference backend is rejected because this
+            context is designed for interpolated runtime delays.
+        Nf, Nker, safety, kernel_kwargs : optional
+            Kernel-WDM construction controls.
+        interpolation_points : int, optional
+            Number of samples in the reusable delay-only ``Tl/Tp`` table.
+        interpolation_pad : float, optional
+            Fractional extension of the requested delay interval.
+        interpolation_kind : {'linear', 'cubic'} or None, optional
+            Interpolant; ``None`` uses ``config.tl_tp_interp_kind``.
+
+        Returns
+        -------
+        VariableShiftKernelContext
+            Lag metadata, interpolation table and assembly configuration reusable for
+            arbitrary delay matrices of shape ``(num_jobs, Nt)``.
+
+        Raises
+        ------
+        ValueError
+            If the reference backend is requested or interpolation settings are
+            invalid.
+        """
         started = perf_counter()
         config = VariableShiftPlanConfig.production() if config is None else config
         backend = _normalize_assembly_backend(config.assembly_backend)
@@ -349,10 +382,12 @@ class VariableShiftKernelContext:
         return VariableShiftBatchPlan.build_from_kernel_context(self, delays)
 
     def clear_device_cache(self) -> None:
+        """Release cached device copies of lag and interpolation-table arrays."""
         self._device_cache.clear()
 
     @property
     def kernel_memory_bytes(self) -> int:
+        """Bytes occupied by the persistent delay interpolation table."""
         return int(self.interpolation_table.memory_bytes)
 
 

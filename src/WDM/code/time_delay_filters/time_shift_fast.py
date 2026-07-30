@@ -54,6 +54,26 @@ class TlTpInterpolationTable:
         scale: float,
         signed_lag_idx: np.ndarray,
     ) -> "TlTpInterpolationTable":
+        """Construct an exact delay grid and its ``Tl`` and ``Tp`` values.
+
+        Parameters
+        ----------
+        delay_min, delay_max : float
+            Requested delay interval in seconds.
+        interpolation_points : int
+            Number of grid samples; at least two, or four for cubic interpolation.
+        interpolation_pad : float
+            Fractional padding applied to a nonzero delay span.
+        interpolation_kind : {'linear', 'cubic'}
+        freqs_u, W0_u, W1_u, scale, signed_lag_idx : ndarray or float
+            Precomputed kernel-frequency quantities used to evaluate the exact filters.
+
+        Returns
+        -------
+        TlTpInterpolationTable
+            Delay grid and exact complex filter values. ``Tl_grid`` and ``Tp_grid``
+            have shape ``(interpolation_points, num_lags)``.
+        """
         delay_min = float(delay_min)
         delay_max = float(delay_max)
         if not np.isfinite(delay_min) or not np.isfinite(delay_max):
@@ -100,14 +120,17 @@ class TlTpInterpolationTable:
 
     @property
     def delay_min(self) -> float:
+        """Smallest delay, in seconds, represented by the table."""
         return float(self.delay_grid[0])
 
     @property
     def delay_max(self) -> float:
+        """Largest delay, in seconds, represented by the table."""
         return float(self.delay_grid[-1])
 
     @property
     def memory_bytes(self) -> int:
+        """Total host memory occupied by the grid and filter arrays."""
         return int(
             self.delay_grid.nbytes + self.Tl_grid.nbytes + self.Tp_grid.nbytes
         )
