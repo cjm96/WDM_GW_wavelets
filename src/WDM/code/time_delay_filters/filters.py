@@ -5,9 +5,12 @@ from WDM.code.discrete_wavelet_transform import WDM
 from WDM.code.utils.utils import C_nm
 
 
-def time_delay_filter_Tl(wdm : WDM.WDM_transform, 
-                         ell : int,
-                         delta_t : float) -> float:
+def time_delay_filter_Tl(ell : int,
+                         delta_t : float,
+                         freqs : jnp.array,
+                         window_FD : jnp.array,
+                         dT : float,
+                         df : float) -> float:
     r"""
     The time-delay filter for the case :math:`m'=m` is defined as
 
@@ -15,24 +18,35 @@ def time_delay_filter_Tl(wdm : WDM.WDM_transform,
         T_{\ell}(\delta t)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta t)) 
                             |\tilde{\Phi}(f)|^2 .
 
+    This function is SLOW. It is intended to be called when the main 
+    `WDM_transform` class is initialised to build a fast interpolant for 
+    subsequent use.
+
     Parameters
     ----------
-    wdm : WDM.WDM_transform
-        An instance of the WDM_transform class. This defines the wavelet basis.
     ell : int
         The time index difference :math:`\ell=n-n'`.
     delta_t : float
         The time delay :math:`\delta t`, in the time units of `wdm`.
+    freqs : jnp.ndarray
+        The sample frequencies of the wdm object time series.
+    window_FD : jnp.ndarray
+        The frequency-domain Meyer window function, :math:`\tilde{\Phi}(f)` of 
+        the wdm object.
+    dT : float
+        Time resolution of the the wdm object.
+    df : float
+        The frequency resolution of the wdm object time series.
 
     Returns
     -------
     T_l : float
         The time-delay filter :math:`T_{\ell}(\delta t)`.
     """
-    integrand = jnp.exp(2*jnp.pi*(1j)*wdm.freqs*(ell*wdm.dT-delta_t)) * \
-                  wdm.window_FD**2
 
-    T_l = jnp.sum(integrand) * wdm.df
+    integrand = jnp.exp(2*jnp.pi*(1j)**(ell*dT-delta_t)) * window_FD**2
+
+    T_l = jnp.sum(integrand) * df
 
     return float(T_l.real)
 
