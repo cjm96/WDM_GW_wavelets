@@ -1350,20 +1350,35 @@ class WDM_transform:
         def apply_func(idx):
             return jax.lax.switch(idx, self.list_of_Tl_functions, delta)
 
-        return jax.vmap(apply_func)(lag_index_l)
+        Tl = jax.vmap(apply_func)(lag_index_l)
 
-        # Index by i to select which function result for each row
-        return results[i]  # shape (a, n)
+        return Tl
 
     def time_delay_filter_Tprimel(self,
                                   lag_index_l : jnp.array, 
                                   delta : jnp.array) -> jnp.array:
         r""" 
+        Fast, vectorised way of calling the time-delay filter function 
+        :math:`T'_l(\delta)` which calls the pre-built interpolants.
+
+        Parameters
+        ----------
+        lag_index_l : jnp.array
+            Array of lag indices, dtype=int, shape=(A,)
+        delta : jnp.array
+            Array of time delays, dtype=float, shape=(B,)
+
+        Returns
+        -------
+        Tprimel : jnp.array
+                Array of time-delay filters, dtype=float, shape=(A, B)
         """
         def apply_func(idx):
             return jax.lax.switch(idx, self.list_of_Tprimel_functions, delta)
         
-        return jax.vmap(apply_func)(lag_index_l)
+        Tprimel = jax.vmap(apply_func)(lag_index_l)
+
+        return Tprimel
 
     def __repr__(self) -> str:
         r"""
