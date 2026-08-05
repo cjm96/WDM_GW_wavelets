@@ -2,8 +2,12 @@ import jax
 import jax.numpy as jnp
 from matplotlib.pylab import indices
 
+from jax.scipy.interpolate import RegularGridInterpolator
+
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, overlapping_windows
+from WDM.code.time_delay_filters.filters import time_delay_filter_Tl
+from WDM.code.time_delay_filters.filters import time_delay_filter_Tprimel
 
 from typing import Tuple
 from functools import partial
@@ -1244,6 +1248,84 @@ class WDM_transform:
         assert jnp.all(jnp.isreal(w)), "wavelet coefficients must be real."
 
         return self.inverse_transform(w)
+
+    def build_time_delay_filter_interpolants(self,
+                                             max_lag_L : int,
+                                             num_interp_points : int) -> None:
+        r""" 
+        Description.
+
+        Parameters
+        ----------
+        max_lag_L : int
+            pass
+        num_interp_points : int
+            pass
+
+        Returns
+        -------
+        None
+        """
+        assert max_lag_L > 0, \
+                        "Max lag must be positive"
+        
+        assert max_lag_L < self.Nt, \
+                "Max lag can't be larger than number of time points"
+
+        self.max_lag_L = int(max_lag_L)
+        self.num_interp_points = int(num_interp_points)
+
+        self.delta_interp_grid = jnp.linspace(-0.5*self.dT,
+                                              +0.5*self.dT,
+                                              self.num_interp_points)
+
+        # build Tl and Tlprime interpolants
+        self.Tl_interp = {}
+        self.Tlprime_interp = {}
+        for l in range(-max_lag_L, max_lag_L+1):
+            # Tl interpolants
+            Tl_data = jnp.zeros(self.num_interp_points)
+            for delta_idx in range(self.num_interp_points): 
+                delta = self.delta_interp_grid[delta_idx]
+                Tl_delta = time_delay_filter_Tl(l, 
+                                         delta, 
+                                         self.freqs, 
+                                         self.window_FD, 
+                                         self.dT, 
+                                         self.df)
+                Tl_data = Tl_data.at[delta_idx].set(Tl_delta) 
+            self.Tl_interp[l] = RegularGridInterpolator((self.delta_interp_grid,), 
+                                                        Tl_data)
+
+            # Tlprime interpolants
+            Tlprime_data = jnp.zeros(self.num_interp_points)
+            for delta_idx in range(self.num_interp_points): 
+                delta = self.delta_interp_grid[delta_idx]
+                Tlprime_delta = time_delay_filter_Tprimel(l, 
+                                            delta, 
+                                            self.freqs, 
+                                            self.window_FD, 
+                                            self.dT, 
+                                            self.dF,
+                                            self.N,
+                                            self.df)
+                Tlprime_data = Tlprime_data.at[delta_idx].set(Tlprime_delta) 
+            self.Tl_interp[l] = RegularGridInterpolator((self.delta_interp_grid,), 
+                                                        Tlprime_data)
+
+        return None
+
+    def Tl(self, 
+           l : jnp.array, 
+           delta : jnp.array) -> None:
+        r""" 
+        """
+        pass
+
+    def Tlprime(self) -> None:
+        r""" 
+        """
+        pass
 
     def __repr__(self) -> str:
         r"""
