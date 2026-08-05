@@ -1422,6 +1422,58 @@ class WDM_transform:
 
         return Tprimel
 
+    def time_delay_matrix_X(self, n, m, l, sigma, delta) -> jnp.array:
+        r"""
+        Description.
+
+        Parameters
+        ----------
+        n : jnp.array
+            Time indices. Array, dtype=int, shape=(Nt,)
+        m : jnp.array
+            Freq indices. Array, dtype=int, shape=(Nf,)
+        l : int
+            Time lag index. 
+        sigma : int
+            Freq lag. This should be :math:`0` or :math:`\pm 1`
+        delta : jnp.array
+            Array, dtype=float, shape=(Nt,)
+        
+        Returns
+        -------
+        X : jnp.array
+            The X coefficients. Array, dtype=floar, shape=(Nt, Nf)
+        """
+        sigma_idx = sigma + 1
+
+        def case_minus_1(n, m, l, delta):
+            # Code for sigma = -1
+            n_ = n - l
+            m_ = m
+            X = 1
+            return jnp.real(X)
+
+        def case_0(n, m, l, delta):
+            # Code for sigma = 0
+            n_ = n - l
+            m_ = m
+            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \
+                jnp.exp(-2*jnp.pi*(1j)*m[jnp.newaxis,:]*self.dF*delta[:,jnp.newaxis]) * \
+                jnp.conjugate((1j)**((n[:,jnp.newaxis] + m[jnp.newaxis,:])%2)) * \
+                (1j)**((n_[:,jnp.newaxis] + m[jnp.newaxis,:])%2) * \
+                self.time_delay_filter_Tl(jnp.array([l]), -delta)[0][:,jnp.newaxis]
+            return jnp.real(X)
+
+        def case_plus_1(n, m, l, delta):
+            # Code for sigma = +1
+            n_ = n - l
+            m_ = m
+            return jnp.real(X)
+
+        X = jax.lax.switch(sigma_idx, [case_minus_1, case_0, case_plus_1])
+
+        return X
+
     def __repr__(self) -> str:
         r"""
         String representation of the WDM_transform instance.
