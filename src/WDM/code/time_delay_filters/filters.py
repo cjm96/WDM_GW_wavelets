@@ -40,8 +40,7 @@ def time_delay_filter_Tl(ell : int,
     T_l : float
         The time-delay filter :math:`T_{\ell}(\delta)`.
     """
-
-    integrand = jnp.exp(2*jnp.pi*(1j)**(ell*dT-delta)) * window_FD**2
+    integrand = jnp.exp(2*jnp.pi*(1j)*freqs*(ell*dT-delta)) * window_FD**2
 
     T_l = jnp.sum(integrand) * df
 
@@ -69,24 +68,24 @@ def time_delay_filter_Tprimel(ell : int,
         subsequent use.
 
     Parameters
-        ----------
-        ell : int
-            The time index difference :math:`\ell=n-n'`.
-        delta : float
-            The time delay :math:`\delta`, in the time units of `wdm`.
-        freqs : jnp.ndarray
-            The sample frequencies of the wdm object time series.
-        window_FD : jnp.ndarray
-            The frequency-domain Meyer window function, :math:`\tilde{\Phi}(f)` of 
-            the wdm object.
-        dT : float
-            Time resolution of the the wdm object.
-        dF : float 
-            Frequency resolution of the wdm object.
-        N : int 
-            Length of the input time series. 
-        df : float
-            The frequency resolution of the wdm object time series.
+    ----------
+    ell : int
+        The time index difference :math:`\ell=n-n'`.
+    delta : float
+        The time delay :math:`\delta`, in the time units of `wdm`.
+    freqs : jnp.ndarray
+        The sample frequencies of the wdm object time series.
+    window_FD : jnp.ndarray
+        The frequency-domain Meyer window function, :math:`\tilde{\Phi}(f)` of 
+        the wdm object.
+    dT : float
+        Time resolution of the the wdm object.
+    dF : float 
+        Frequency resolution of the wdm object.
+    N : int 
+        Length of the input time series. 
+    df : float
+        The frequency resolution of the wdm object time series.
 
     Returns
     -------

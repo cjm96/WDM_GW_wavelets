@@ -1347,6 +1347,9 @@ class WDM_transform:
         Tl : jnp.array
              Array of time-delay filters, dtype=float, shape=(A, B)
         """
+
+        # TO DO : deal with out of range delta vals
+
         def apply_func(idx):
             return jax.lax.switch(idx, self.list_of_Tl_functions, delta)
 
@@ -1373,6 +1376,10 @@ class WDM_transform:
         Tprimel : jnp.array
                 Array of time-delay filters, dtype=float, shape=(A, B)
         """
+
+        # TO DO : deal with out of range delta vals
+
+
         def apply_func(idx):
             return jax.lax.switch(idx, self.list_of_Tprimel_functions, delta)
         
@@ -1396,6 +1403,8 @@ class WDM_transform:
         lines.append( f"{self.Nf = } frequency cells" )
         lines.append( f"{self.dT = } time resolution" )
         lines.append( f"{self.dF = } frequency resolution" )
+        lines.append( f"{self.dt = } time series cadence" )
+        lines.append( f"{self.df = } time series fft frequency resolution" )
         lines.append( f"{self.K = } window length" )
         text = "\n".join(lines)
         return text
