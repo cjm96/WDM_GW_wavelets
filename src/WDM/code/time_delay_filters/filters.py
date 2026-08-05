@@ -96,15 +96,15 @@ def time_delay_filter_Tprimel(ell : int,
     Tprime_l : float
         The time-delay filter :math:`T'_{\ell}(\delta t)`.
     """
-    indices = jnp.arange(wdm.N)
+    indices = jnp.arange(N)
 
-    shift = int(0.5*wdm.dF/wdm.df)
+    shift = int(0.5*dF/df)
 
-    integrand = jnp.exp(2*jnp.pi*(1j)*wdm.freqs*(ell*wdm.dT-delta_t)) * \
-                    wdm.window_FD[(indices-shift)%wdm.N] * \
-                    wdm.window_FD[(indices+shift)%wdm.N]
+    integrand = jnp.exp(2*jnp.pi*(1j)*freqs*(ell*dT-delta_t)) * \
+                    window_FD[(indices-shift)%N] * \
+                    window_FD[(indices+shift)%N]
 
-    Tprime_l = jnp.sum(integrand) * wdm.df
+    Tprime_l = jnp.sum(integrand) * df
 
     return float(Tprime_l.real)
 
