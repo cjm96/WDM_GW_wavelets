@@ -1253,14 +1253,19 @@ class WDM_transform:
                                              max_lag_L : int,
                                              num_interp_points : int) -> None:
         r""" 
-        Description.
+        If the user needs to do any time-shift operations involving the 
+        WDM wavelets, then this function should be called first. It builds 
+        interpolants for the time-delay filer functions :math:`T_l(\delta)` and
+        :math:`T'_l(\delta)` for :math:`l=-L,\ldots,L-1, L` (where L is the max 
+        lag) in the range :math:`-\Delta T/2\leq \delta\leq \Delta T/2`.
 
         Parameters
         ----------
         max_lag_L : int
-            pass
+            The maximum lag index, :math:`L`.
         num_interp_points : int
-            pass
+            The number of interpolation points in the range 
+            :math:`-\Delta T/2\leq \delta\leq \Delta T/2.`
 
         Returns
         -------
@@ -1279,53 +1284,86 @@ class WDM_transform:
                                               +0.5*self.dT,
                                               self.num_interp_points)
 
-        # build Tl and Tlprime interpolants
-        self.Tl_interp = {}
-        self.Tlprime_interp = {}
+        # build Tl and Tlprime interpolants, store these functions in dicts
+        Tl_interp = {}
+        Tprimel_interp = {}
+
         for l in range(-max_lag_L, max_lag_L+1):
+            data = jnp.zeros(self.num_interp_points)
+
             # Tl interpolants
-            Tl_data = jnp.zeros(self.num_interp_points)
             for delta_idx in range(self.num_interp_points): 
                 delta = self.delta_interp_grid[delta_idx]
                 Tl_delta = time_delay_filter_Tl(l, 
-                                         delta, 
-                                         self.freqs, 
-                                         self.window_FD, 
-                                         self.dT, 
-                                         self.df)
-                Tl_data = Tl_data.at[delta_idx].set(Tl_delta) 
-            self.Tl_interp[l] = RegularGridInterpolator((self.delta_interp_grid,), 
-                                                        Tl_data)
+                                                delta, 
+                                                self.freqs, 
+                                                self.window_FD, 
+                                                self.dT, 
+                                                self.df)
+                data = data.at[delta_idx].set(Tl_delta) 
+            Tl_interp[l] = RegularGridInterpolator(
+                                (self.delta_interp_grid,), data)
 
             # Tlprime interpolants
-            Tlprime_data = jnp.zeros(self.num_interp_points)
             for delta_idx in range(self.num_interp_points): 
                 delta = self.delta_interp_grid[delta_idx]
                 Tlprime_delta = time_delay_filter_Tprimel(l, 
-                                            delta, 
-                                            self.freqs, 
-                                            self.window_FD, 
-                                            self.dT, 
-                                            self.dF,
-                                            self.N,
-                                            self.df)
-                Tlprime_data = Tlprime_data.at[delta_idx].set(Tlprime_delta) 
-            self.Tl_interp[l] = RegularGridInterpolator((self.delta_interp_grid,), 
-                                                        Tlprime_data)
+                                                          delta, 
+                                                          self.freqs, 
+                                                          self.window_FD, 
+                                                          self.dT, 
+                                                          self.dF,
+                                                          self.N,
+                                                          self.df)
+                data = data.at[delta_idx].set(Tlprime_delta) 
+            Tprimel_interp[l] = RegularGridInterpolator(
+                                    (self.delta_interp_grid,), data)
+
+        # store the functions in lists
+        self.list_of_Tl_functions = [Tl_interp[l] 
+                        for l in range(-self.max_lag_L, self.max_lag_L+1)]
+
+        self.list_of_Tprimel_functions = [Tprimel_interp[l] 
+                        for l in range(-self.max_lag_L, self.max_lag_L+1)]
 
         return None
 
-    def Tl(self, 
-           l : jnp.array, 
-           delta : jnp.array) -> None:
+    def time_delay_filter_Tl(self, 
+                             lag_index_l : jnp.array, 
+                             delta : jnp.array) -> jnp.array:
         r""" 
-        """
-        pass
+        Fast, vectorised way of calling the time-delay filter function 
+        :math:`T_l(\delta)` which calls the pre-built interpolants.
 
-    def Tlprime(self) -> None:
+        Parameters
+        ----------
+        lag_index_l : jnp.array
+            Array of lag indices, dtype=int, shape=(A,)
+        delta : jnp.array
+            Array of time delays, dtype=float, shape=(B,)
+
+        Returns
+        -------
+        Tl : jnp.array
+             Array of time-delay filters, dtype=float, shape=(A, B)
+        """
+        def apply_func(idx):
+            return jax.lax.switch(idx, self.list_of_Tl_functions, delta)
+
+        return jax.vmap(apply_func)(lag_index_l)
+
+        # Index by i to select which function result for each row
+        return results[i]  # shape (a, n)
+
+    def time_delay_filter_Tprimel(self,
+                                  lag_index_l : jnp.array, 
+                                  delta : jnp.array) -> jnp.array:
         r""" 
         """
-        pass
+        def apply_func(idx):
+            return jax.lax.switch(idx, self.list_of_Tprimel_functions, delta)
+        
+        return jax.vmap(apply_func)(lag_index_l)
 
     def __repr__(self) -> str:
         r"""
