@@ -6,7 +6,7 @@ from WDM.code.utils.utils import C_nm
 
 
 def time_delay_filter_Tl(ell : int,
-                         delta_t : float,
+                         delta : float,
                          freqs : jnp.array,
                          window_FD : jnp.array,
                          dT : float,
@@ -15,7 +15,7 @@ def time_delay_filter_Tl(ell : int,
     The time-delay filter for the case :math:`m'=m` is defined as
 
     .. math::
-        T_{\ell}(\delta t)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta t)) 
+        T_{\ell}(\delta)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta)) 
                             |\tilde{\Phi}(f)|^2 .
 
     This function is SLOW. It is intended to be called when the main 
@@ -26,8 +26,8 @@ def time_delay_filter_Tl(ell : int,
     ----------
     ell : int
         The time index difference :math:`\ell=n-n'`.
-    delta_t : float
-        The time delay :math:`\delta t`, in the time units of `wdm`.
+    delta : float
+        The time delay :math:`\delta`, in the time units of `wdm`.
     freqs : jnp.ndarray
         The sample frequencies of the wdm object time series.
     window_FD : jnp.ndarray
@@ -41,10 +41,10 @@ def time_delay_filter_Tl(ell : int,
     Returns
     -------
     T_l : float
-        The time-delay filter :math:`T_{\ell}(\delta t)`.
+        The time-delay filter :math:`T_{\ell}(\delta)`.
     """
 
-    integrand = jnp.exp(2*jnp.pi*(1j)**(ell*dT-delta_t)) * window_FD**2
+    integrand = jnp.exp(2*jnp.pi*(1j)**(ell*dT-delta)) * window_FD**2
 
     T_l = jnp.sum(integrand) * df
 
@@ -52,7 +52,7 @@ def time_delay_filter_Tl(ell : int,
 
 
 def time_delay_filter_Tprimel(ell : int,
-                         delta_t : float,
+                         delta : float,
                          freqs : jnp.array,
                          window_FD : jnp.array,
                          dT : float,
@@ -63,7 +63,7 @@ def time_delay_filter_Tprimel(ell : int,
     The time-delay filter for the case :math:`m'=m\pm 1` is defined as
 
     .. math::
-        T'_{\ell}(\delta t)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta t)) 
+        T'_{\ell}(\delta)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta)) 
                             \tilde{\Phi}\left(f-\frac{1}{2}\Delta F\right)
                             \tilde{\Phi}\left(f+\frac{1}{2}\Delta F\right) .
 
@@ -75,8 +75,8 @@ def time_delay_filter_Tprimel(ell : int,
         ----------
         ell : int
             The time index difference :math:`\ell=n-n'`.
-        delta_t : float
-            The time delay :math:`\delta t`, in the time units of `wdm`.
+        delta : float
+            The time delay :math:`\delta`, in the time units of `wdm`.
         freqs : jnp.ndarray
             The sample frequencies of the wdm object time series.
         window_FD : jnp.ndarray
@@ -94,13 +94,13 @@ def time_delay_filter_Tprimel(ell : int,
     Returns
     -------
     Tprime_l : float
-        The time-delay filter :math:`T'_{\ell}(\delta t)`.
+        The time-delay filter :math:`T'_{\ell}(\delta)`.
     """
     indices = jnp.arange(N)
 
     shift = int(0.5*dF/df)
 
-    integrand = jnp.exp(2*jnp.pi*(1j)*freqs*(ell*dT-delta_t)) * \
+    integrand = jnp.exp(2*jnp.pi*(1j)*freqs*(ell*dT-delta)) * \
                     window_FD[(indices-shift)%N] * \
                     window_FD[(indices+shift)%N]
 
