@@ -1289,33 +1289,33 @@ class WDM_transform:
         Tprimel_interp = {}
 
         for l in range(-max_lag_L, max_lag_L+1):
-            data = jnp.zeros(self.num_interp_points)
-
             # Tl interpolants
-            for delta_idx in range(self.num_interp_points): 
+            data = jnp.zeros(self.num_interp_points)
+            for delta_idx in range(self.num_interp_points):
                 delta = self.delta_interp_grid[delta_idx]
-                Tl_delta = time_delay_filter_Tl(l, 
-                                                delta, 
-                                                self.freqs, 
-                                                self.window_FD, 
-                                                self.dT, 
+                Tl_delta = time_delay_filter_Tl(l,
+                                                delta,
+                                                self.freqs,
+                                                self.window_FD,
+                                                self.dT,
                                                 self.df)
-                data = data.at[delta_idx].set(Tl_delta) 
+                data = data.at[delta_idx].set(Tl_delta)
             Tl_interp[l] = RegularGridInterpolator(
                                 (self.delta_interp_grid,), data)
 
             # Tlprime interpolants
-            for delta_idx in range(self.num_interp_points): 
+            data = jnp.zeros(self.num_interp_points)  # Reset data array!
+            for delta_idx in range(self.num_interp_points):
                 delta = self.delta_interp_grid[delta_idx]
-                Tlprime_delta = time_delay_filter_Tprimel(l, 
-                                                          delta, 
-                                                          self.freqs, 
-                                                          self.window_FD, 
-                                                          self.dT, 
+                Tlprime_delta = time_delay_filter_Tprimel(l,
+                                                          delta,
+                                                          self.freqs,
+                                                          self.window_FD,
+                                                          self.dT,
                                                           self.dF,
                                                           self.N,
                                                           self.df)
-                data = data.at[delta_idx].set(Tlprime_delta) 
+                data = data.at[delta_idx].set(Tlprime_delta)
             Tprimel_interp[l] = RegularGridInterpolator(
                                     (self.delta_interp_grid,), data)
 
@@ -1328,11 +1328,12 @@ class WDM_transform:
 
         return None
 
-    def time_delay_filter_Tl(self, 
-                             lag_index_l : jnp.array, 
+    @partial(jax.jit, static_argnums=0)
+    def time_delay_filter_Tl(self,
+                             lag_index_l : jnp.array,
                              delta : jnp.array) -> jnp.array:
-        r""" 
-        Fast, vectorised way of calling the time-delay filter function 
+        r"""
+        Fast, vectorised way of calling the time-delay filter function
         :math:`T_l(\delta)` which calls the pre-built interpolants.
 
         Parameters
@@ -1347,21 +1348,39 @@ class WDM_transform:
         Tl : jnp.array
              Array of time-delay filters, dtype=float, shape=(A, B)
         """
+        k, delta_wrapped = jnp.divmod(delta+0.5*self.dT, self.dT)
+        k = jnp.array(k, dtype=int)
+        delta_wrapped = delta_wrapped - 0.5*self.dT
 
-        # TO DO : deal with out of range delta vals
+        def apply_func_single_lag(l_idx):
+            # For a single lag index, evaluate across all deltas
+            adjusted_indices = l_idx - k + self.max_lag_L
 
-        def apply_func(idx):
-            return jax.lax.switch(idx, self.list_of_Tl_functions, delta)
+            # Check if indices are in valid range [0, 2*max_lag_L]
+            in_range = (adjusted_indices >= 0) & (adjusted_indices <= 2*self.max_lag_L)
 
-        Tl = jax.vmap(apply_func)(lag_index_l)
+            # Clamp indices for safe evaluation (actual values will be masked)
+            safe_indices = jnp.clip(adjusted_indices, 0, 2*self.max_lag_L)
+
+            def eval_single_delta(safe_idx, dw, mask):
+                result = jax.lax.switch(safe_idx,
+                                       self.list_of_Tl_functions,
+                                       jnp.array([dw]))
+                # Return 0 if out of range, otherwise return result
+                return jnp.where(mask, result, 0.0)
+
+            return jax.vmap(eval_single_delta)(safe_indices, delta_wrapped, in_range)
+
+        Tl = jax.vmap(apply_func_single_lag)(lag_index_l)
 
         return Tl
 
+    @partial(jax.jit, static_argnums=0)
     def time_delay_filter_Tprimel(self,
-                                  lag_index_l : jnp.array, 
+                                  lag_index_l : jnp.array,
                                   delta : jnp.array) -> jnp.array:
-        r""" 
-        Fast, vectorised way of calling the time-delay filter function 
+        r"""
+        Fast, vectorised way of calling the time-delay filter function
         :math:`T'_l(\delta)` which calls the pre-built interpolants.
 
         Parameters
@@ -1376,14 +1395,30 @@ class WDM_transform:
         Tprimel : jnp.array
                 Array of time-delay filters, dtype=float, shape=(A, B)
         """
+        k, delta_wrapped = jnp.divmod(delta+0.5*self.dT, self.dT)
+        k = jnp.array(k, dtype=int)
+        delta_wrapped = delta_wrapped - 0.5*self.dT
 
-        # TO DO : deal with out of range delta vals
+        def apply_func_single_lag(l_idx):
+            # For a single lag index, evaluate across all deltas
+            adjusted_indices = l_idx - k + self.max_lag_L
 
+            # Check if indices are in valid range [0, 2*max_lag_L]
+            in_range = (adjusted_indices >= 0) & (adjusted_indices <= 2*self.max_lag_L)
 
-        def apply_func(idx):
-            return jax.lax.switch(idx, self.list_of_Tprimel_functions, delta)
-        
-        Tprimel = jax.vmap(apply_func)(lag_index_l)
+            # Clamp indices for safe evaluation (actual values will be masked)
+            safe_indices = jnp.clip(adjusted_indices, 0, 2*self.max_lag_L)
+
+            def eval_single_delta(safe_idx, dw, mask):
+                result = jax.lax.switch(safe_idx,
+                                       self.list_of_Tprimel_functions,
+                                       jnp.array([dw]))
+                # Return 0 if out of range, otherwise return result
+                return jnp.where(mask, result, 0.0)
+
+            return jax.vmap(eval_single_delta)(safe_indices, delta_wrapped, in_range)
+
+        Tprimel = jax.vmap(apply_func_single_lag)(lag_index_l)
 
         return Tprimel
 
