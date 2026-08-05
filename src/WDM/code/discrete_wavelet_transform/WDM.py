@@ -1449,8 +1449,13 @@ class WDM_transform:
         def case_minus_1(n, m, l, delta):
             # Code for sigma = -1
             n_ = n - l
-            m_ = m
-            X = 1
+            m_ = m - 1
+            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \ 
+                (1j)**l * \ 
+                jnp.exp(-2*jnp.pi*(1j)*(m[jnp.newaxis,:]-0.5)*self.dF*delta[:,jnp.newaxis]) * \
+                jnp.conjugate((1j)**((n[:,jnp.newaxis] + m[jnp.newaxis,:])%2)) * \
+                (1j)**((n_[:,jnp.newaxis] + m_[jnp.newaxis,:])%2) * \
+                self.time_delay_filter_Tprimel(jnp.array([l]), -delta)[0][:,jnp.newaxis]
             return jnp.real(X)
 
         def case_0(n, m, l, delta):
@@ -1467,7 +1472,13 @@ class WDM_transform:
         def case_plus_1(n, m, l, delta):
             # Code for sigma = +1
             n_ = n - l
-            m_ = m
+            m_ = m + 1
+            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \ 
+                (-1j)**l * \ 
+                jnp.exp(-2*jnp.pi*(1j)*(m[jnp.newaxis,:]+0.5)*self.dF*delta[:,jnp.newaxis]) * \
+                jnp.conjugate((1j)**((n[:,jnp.newaxis] + m[jnp.newaxis,:])%2)) * \
+                (1j)**((n_[:,jnp.newaxis] + m_[jnp.newaxis,:])%2) * \
+                self.time_delay_filter_Tprimel(jnp.array([l]), -delta)[0][:,jnp.newaxis]
             return jnp.real(X)
 
         X = jax.lax.switch(sigma_idx, [case_minus_1, case_0, case_plus_1])
