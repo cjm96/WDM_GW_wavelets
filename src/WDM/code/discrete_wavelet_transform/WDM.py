@@ -1450,8 +1450,8 @@ class WDM_transform:
             # Code for sigma = -1
             n_ = n - l
             m_ = m - 1
-            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \ 
-                (1j)**l * \ 
+            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \
+                (1j)**l * \
                 jnp.exp(-2*jnp.pi*(1j)*(m[jnp.newaxis,:]-0.5)*self.dF*delta[:,jnp.newaxis]) * \
                 jnp.conjugate((1j)**((n[:,jnp.newaxis] + m[jnp.newaxis,:])%2)) * \
                 (1j)**((n_[:,jnp.newaxis] + m_[jnp.newaxis,:])%2) * \
@@ -1473,8 +1473,8 @@ class WDM_transform:
             # Code for sigma = +1
             n_ = n - l
             m_ = m + 1
-            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \ 
-                (-1j)**l * \ 
+            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \
+                (-1j)**l * \
                 jnp.exp(-2*jnp.pi*(1j)*(m[jnp.newaxis,:]+0.5)*self.dF*delta[:,jnp.newaxis]) * \
                 jnp.conjugate((1j)**((n[:,jnp.newaxis] + m[jnp.newaxis,:])%2)) * \
                 (1j)**((n_[:,jnp.newaxis] + m_[jnp.newaxis,:])%2) * \
