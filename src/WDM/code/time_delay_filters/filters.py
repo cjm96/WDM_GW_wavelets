@@ -51,9 +51,14 @@ def time_delay_filter_Tl(ell : int,
     return float(T_l.real)
 
 
-def time_delay_filter_Tprimel(wdm : WDM.WDM_transform, 
-                              ell : int,
-                              delta_t : float) -> complex:
+def time_delay_filter_Tprimel(ell : int,
+                         delta_t : float,
+                         freqs : jnp.array,
+                         window_FD : jnp.array,
+                         dT : float,
+                         dF : float,
+                         N : int,
+                         df : float) -> float:
     r"""
     The time-delay filter for the case :math:`m'=m\pm 1` is defined as
 
@@ -62,14 +67,29 @@ def time_delay_filter_Tprimel(wdm : WDM.WDM_transform,
                             \tilde{\Phi}\left(f-\frac{1}{2}\Delta F\right)
                             \tilde{\Phi}\left(f+\frac{1}{2}\Delta F\right) .
 
+     This function is SLOW. It is intended to be called when the main 
+        `WDM_transform` class is initialised to build a fast interpolant for 
+        subsequent use.
+
     Parameters
-    ----------
-    wdm : WDM.WDM_transform
-        An instance of the WDM_transform class. This defines the wavelet basis.
-    ell : int
-        The time index difference :math:`\ell=n-n'`.
-    delta_t : float
-        The time delay :math:`\delta t`, in the time units of `wdm`.
+        ----------
+        ell : int
+            The time index difference :math:`\ell=n-n'`.
+        delta_t : float
+            The time delay :math:`\delta t`, in the time units of `wdm`.
+        freqs : jnp.ndarray
+            The sample frequencies of the wdm object time series.
+        window_FD : jnp.ndarray
+            The frequency-domain Meyer window function, :math:`\tilde{\Phi}(f)` of 
+            the wdm object.
+        dT : float
+            Time resolution of the the wdm object.
+        dF : float 
+            Frequency resolution of the wdm object.
+        N : int 
+            Length of the input time series. 
+        df : float
+            The frequency resolution of the wdm object time series.
 
     Returns
     -------
