@@ -1426,6 +1426,9 @@ class WDM_transform:
         r"""
         Description.
 
+        Generate an array time delay matrix elements :math:`X_{n(n-l),m(m+\sigma)}(-\delta_n)` 
+        for fixed :math:'\sigma' and :math:'l' values.
+
         Parameters
         ----------
         n : jnp.array
@@ -1481,9 +1484,79 @@ class WDM_transform:
                 self.time_delay_filter_Tprimel(jnp.array([l]), -delta)[0][:,jnp.newaxis]
             return jnp.real(X)
 
-        X = jax.lax.switch(sigma_idx, [case_minus_1, case_0, case_plus_1])
+        X = jax.lax.switch(sigma_idx, [case_minus_1, case_0, case_plus_1], n, m, l, delta)
 
         return X
+
+    @partial(jax.jit, static_argnums=0, static_argnames=('unroll',))
+    def apply_variable_time_shift(self, wdm_coeff, delta, *, unroll: int = 1) -> jnp.array:
+        r"""
+
+        Perform the variable time shift operation on a grid of wdm coefficients by executing the sum:
+        :math:'\sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} \omega_{(n-l) (m+\sigma)}  \, X_{n(n-l);m(m+\sigma)}(-\delta_n)'
+
+        Physically, if the original grid represents the coefficinets of a function :math:'f(t) = \sum_{nm} \omega_{nm} g_{nm}(t)'
+        and we sample a time-shift :math:'\delta(t_n) = \delta_n' then the resulting shifted grid :math:'\tilde{\omega}_{nm}'
+        is the equivalent to the WDM transform of :math:'f(t-\delta(t))'.
+
+        Terms where :math:`n-l` or :math:`m+\sigma` fall outside the coefficient
+        grid are treated as zero (the grid has no support outside its edges).
+
+
+        Parameters
+        ----------
+        wdm_coeff : jnp.array
+            WDM coefficient grid. Array, dtype=float, shape=(Nt,Nf)
+        delta : jnp.array
+            Array, dtype=float, shape=(Nt,)
+        unroll : int or bool
+            Static unroll factor passed to ``lax.fori_loop`` over ``l``.
+
+        Returns
+        -------
+        shifted_wdm_coeff : jnp.array
+            Shifted wdm_coefficients. Array, dtype=float, shape=(Nt, Nf)
+        """
+        n_vals = jnp.arange(self.Nt)
+        m_vals = jnp.arange(self.Nf)
+        sigma_vals = jnp.array([-1, 0, 1])
+
+        # Zero-pad once so an out-of-grid read is a slice into the pad, not a masked gather.
+        padded_coeff = jnp.pad(wdm_coeff, ((self.max_lag_L, self.max_lag_L), (1, 1)))
+
+        # X_{n(n-l), m(m+sigma)}(-delta_n) for all three sigma at once: vmap-ing
+        # over sigma turns time_delay_matrix_X's internal lax.switch into a
+        # single batched op (all three case_* branches evaluated together),
+        # rather than three separately-traced calls to time_delay_matrix_X.
+        X_all_sigma = jax.vmap(self.time_delay_matrix_X, in_axes=(None, None, None, 0, None))
+
+        def body_fun(l, acc):
+            X = X_all_sigma(n_vals, m_vals, l, sigma_vals, delta)  # (3, Nt, Nf)
+
+            # One dynamic_slice per l (the only traced start index is the row);
+            # the three sigma-shifted (Nt, Nf) grids are then just static
+            # column slices of this (Nt, Nf+2) block, not three separate
+            # dynamic_slice calls. Out-of-grid entries come out zero courtesy
+            # of the padding.
+            block = jax.lax.dynamic_slice(
+                padded_coeff,
+                (self.max_lag_L - l, 0),
+                (self.Nt, self.Nf + 2),
+            )
+            shifted = jnp.stack([
+                block[:, 0:self.Nf],       # sigma = -1
+                block[:, 1:self.Nf + 1],   # sigma =  0
+                block[:, 2:self.Nf + 2],   # sigma = +1
+            ])  # (3, Nt, Nf)
+
+            return acc + jnp.sum(shifted * X, axis=0)
+
+        init = jnp.zeros((self.Nt, self.Nf), dtype=wdm_coeff.dtype)
+        shifted_wdm_coeff = jax.lax.fori_loop(
+            -self.max_lag_L, self.max_lag_L + 1, body_fun, init, unroll=unroll
+        )
+
+        return shifted_wdm_coeff
 
     def __repr__(self) -> str:
         r"""
