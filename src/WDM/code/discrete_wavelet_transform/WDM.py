@@ -1489,19 +1489,28 @@ class WDM_transform:
         return X
 
     @partial(jax.jit, static_argnums=0, static_argnames=('unroll',))
-    def apply_variable_time_shift(self, wdm_coeff, delta, *, unroll: int = 1) -> jnp.array:
+    def apply_variable_time_shift(self, 
+                                  wdm_coeff, 
+                                  delta, *, 
+                                  unroll: int=1) -> jnp.array:
         r"""
+        Perform the variable time shift operation on a grid of WDM coefficients 
+        by evaluating the sum
 
-        Perform the variable time shift operation on a grid of wdm coefficients by executing the sum:
-        :math:'\sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} \omega_{(n-l) (m+\sigma)}  \, X_{n(n-l);m(m+\sigma)}(-\delta_n)'
+        .. math::
 
-        Physically, if the original grid represents the coefficinets of a function :math:'f(t) = \sum_{nm} \omega_{nm} g_{nm}(t)'
-        and we sample a time-shift :math:'\delta(t_n) = \delta_n' then the resulting shifted grid :math:'\tilde{\omega}_{nm}'
+            '\sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} 
+             \omega_{(n-l) (m+\sigma)} \, X_{n(n-l);m(m+\sigma)}(-\delta_n) .
+
+        If the original grid represents the coefficinets of a function 
+        :math:'f(t) = \sum_{nm} \omega_{nm} g_{nm}(t)'
+        and we sample a time-shift :math:'\delta(t_n) = \delta_n' then the 
+        resulting shifted grid :math:'\tilde{\omega}_{nm}'
         is the equivalent to the WDM transform of :math:'f(t-\delta(t))'.
 
-        Terms where :math:`n-l` or :math:`m+\sigma` fall outside the coefficient
-        grid are treated as zero (the grid has no support outside its edges).
-
+        Terms where :math:`n-l` or :math:`m+\sigma` fall outside the array
+        limits are wrapped around periodically. It is the users reponsibility
+        to ensure that the input array `wdm_coeff` is suitably zero padded.
 
         Parameters
         ----------
