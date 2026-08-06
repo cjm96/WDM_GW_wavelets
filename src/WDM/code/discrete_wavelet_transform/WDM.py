@@ -1530,9 +1530,6 @@ class WDM_transform:
         m_vals = jnp.arange(self.Nf)
         sigma_vals = jnp.array([-1, 0, 1])
 
-        # Zero-pad once so an out-of-grid read is a slice into the pad, not a masked gather.
-        padded_coeff = jnp.pad(wdm_coeff, ((self.max_lag_L, self.max_lag_L), (1, 1)))
-
         # X_{n(n-l), m(m+sigma)}(-delta_n) for all three sigma at once: vmap-ing
         # over sigma turns time_delay_matrix_X's internal lax.switch into a
         # single batched op (all three case_* branches evaluated together),
@@ -1542,20 +1539,16 @@ class WDM_transform:
         def body_fun(l, acc):
             X = X_all_sigma(n_vals, m_vals, l, sigma_vals, delta)  # (3, Nt, Nf)
 
-            # One dynamic_slice per l (the only traced start index is the row);
-            # the three sigma-shifted (Nt, Nf) grids are then just static
-            # column slices of this (Nt, Nf+2) block, not three separate
-            # dynamic_slice calls. Out-of-grid entries come out zero courtesy
-            # of the padding.
-            block = jax.lax.dynamic_slice(
-                padded_coeff,
-                (self.max_lag_L - l, 0),
-                (self.Nt, self.Nf + 2),
-            )
+            # wdm_coeff[(n-l) % Nt, (m+sigma) % Nf], read via circular shifts
+            # rather than a padded gather. The row shift depends on l (traced,
+            # varies every fori_loop step) so it is done once and shared by
+            # all three sigma; the column shift only needs sigma, which is a
+            # static Python int in each of the three unrolled terms, so each
+            # of those rolls is cheap.
+            row_shifted = jnp.roll(wdm_coeff, shift=l, axis=0)
             shifted = jnp.stack([
-                block[:, 0:self.Nf],       # sigma = -1
-                block[:, 1:self.Nf + 1],   # sigma =  0
-                block[:, 2:self.Nf + 2],   # sigma = +1
+                jnp.roll(row_shifted, shift=-sigma, axis=1)
+                for sigma in (-1, 0, 1)
             ])  # (3, Nt, Nf)
 
             return acc + jnp.sum(shifted * X, axis=0)
