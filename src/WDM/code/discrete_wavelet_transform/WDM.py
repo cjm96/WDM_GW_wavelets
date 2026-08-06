@@ -1365,7 +1365,7 @@ class WDM_transform:
             def eval_single_delta(safe_idx, dw, mask):
                 result = jax.lax.switch(safe_idx,
                                        self.list_of_Tl_functions,
-                                       jnp.array([dw]))
+                                       jnp.array([dw]))[0]
                 # Return 0 if out of range, otherwise return result
                 return jnp.where(mask, result, 0.0)
 
@@ -1412,7 +1412,7 @@ class WDM_transform:
             def eval_single_delta(safe_idx, dw, mask):
                 result = jax.lax.switch(safe_idx,
                                        self.list_of_Tprimel_functions,
-                                       jnp.array([dw]))
+                                       jnp.array([dw]))[0]
                 # Return 0 if out of range, otherwise return result
                 return jnp.where(mask, result, 0.0)
 
@@ -1491,7 +1491,7 @@ class WDM_transform:
     @partial(jax.jit, static_argnums=0, static_argnames=('unroll',))
     def apply_variable_time_shift(self, 
                                   wdm_coeff, 
-                                  delta, *, 
+                                  delta, 
                                   unroll: int=1) -> jnp.array:
         r"""
         Perform the variable time shift operation on a grid of WDM coefficients 
