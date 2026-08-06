@@ -43,9 +43,9 @@ scales complicating the modelling of the response of the instrument.
 For these reasons, there is a need to devlop time-frequency methods for GW data 
 analysis.
 The Wilson-Daubechies-Meyer (WDM) wavelet basis [@Necula:2012], previosuly used 
-in a GW context by coherent wave burst (CWB) (see @Klimenko:2005 and 
-Klimenko:2016), has been identified as a promising set of basis functions for 
-this purpose @Cornish:2020. 
+in a GW context by coherent wave burst (CWB) (see, for example, 
+@Klimenko:2016 and @Drago:2021), has been identified as a promising set of basis 
+functions for this purpose @Cornish:2020. 
 The WDM wavelets expand time series signals ussing a discrete, orthogonal 
 basis of wavelet wavepackets; these map the time series onto a uniform grid of 
 pixels that cover the time-frequency plane (see, for example, figure 
@@ -74,9 +74,11 @@ documentation which describes the conventions used.
 # State of the field
 
 The WDM wavelets have been used previously in the context of GW data analysis 
-(see, for example, @Necula:2012, @Klimenko:2005 and Klimenko:2016).
-However, @Cornish:2020, was the first to clearly advocare for this wavelet 
-family
+(see, for example, @Necula:2012, @Klimenko:2016 and @Drago:2021).
+However, @Cornish:2020, was the first to clearly advocare the benefits of this 
+wavelet family for GW data analysis in the context of LISA.
+
+@Johnson:2026 and @Vajpeyi:2026
 
 # Software design
 
