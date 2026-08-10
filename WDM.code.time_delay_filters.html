@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WDM.code.time_delay_filters package &mdash; WDM 0.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/custom.css?v=86424434" />
 
   
@@ -105,49 +105,29 @@
 <section id="wdm-code-time-delay-filters-filters-module">
 <h2>WDM.code.time_delay_filters.filters module<a class="headerlink" href="#wdm-code-time-delay-filters-filters-module" title="Link to this heading"></a></h2>
 <dl class="py function" id="module-WDM.code.time_delay_filters.filters">
-<dt class="sig sig-object py" id="WDM.code.time_delay_filters.filters.time_delay_X">
-<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">time_delay_X</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wdm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><span class="pre">WDM_transform</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nprime</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mprime</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_t</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#time_delay_X"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.time_delay_X" title="Link to this definition"></a></dt>
-<dd><p>Compute the time-delay matrix element <span class="math notranslate nohighlight">\(X_{nn';mm'}(\delta t)\)</span>,</p>
-<div class="math notranslate nohighlight" id="equation-wdm-code-time-delay-filters-0">
-<span class="eqno">(69)<a class="headerlink" href="#equation-wdm-code-time-delay-filters-0" title="Link to this equation"></a></span>\[X_{nn';mm'}(\delta t) = \int\mathrm{d}t g_{nm}(t+\delta t)g^*_{n'm'}(t).\]</div>
-<p>This will return zero unless <span class="math notranslate nohighlight">\(m'=m\)</span>, or <span class="math notranslate nohighlight">\(m'=m\pm 1\)</span>.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>wdm</strong> (<a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><em>WDM.WDM_transform</em></a>) – An instance of the WDM_transform class. This defines the wavelet basis.</p></li>
-<li><p><strong>n</strong> (<em>int</em>) – The time index <span class="math notranslate nohighlight">\(n\)</span>.</p></li>
-<li><p><strong>nprime</strong> (<em>int</em>) – The time index <span class="math notranslate nohighlight">\(n'\)</span>.</p></li>
-<li><p><strong>m</strong> (<em>int</em>) – The frequency index <span class="math notranslate nohighlight">\(m\)</span>.</p></li>
-<li><p><strong>mprime</strong> (<em>int</em>) – The frequency index <span class="math notranslate nohighlight">\(m'\)</span>.</p></li>
-<li><p><strong>delta_t</strong> (<em>float</em>) – The time delay <span class="math notranslate nohighlight">\(\delta t\)</span>, in the time units of <cite>wdm</cite>.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>X</strong> – The time-delay matrix element <span class="math notranslate nohighlight">\(X_{nn';mm'}(\delta t)\)</span>.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
 <dt class="sig sig-object py" id="WDM.code.time_delay_filters.filters.time_delay_filter_Tl">
-<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">time_delay_filter_Tl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wdm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><span class="pre">WDM_transform</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ell</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_t</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#time_delay_filter_Tl"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.time_delay_filter_Tl" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">time_delay_filter_Tl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ell</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freqs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_FD</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dT</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#time_delay_filter_Tl"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.time_delay_filter_Tl" title="Link to this definition"></a></dt>
 <dd><p>The time-delay filter for the case <span class="math notranslate nohighlight">\(m'=m\)</span> is defined as</p>
-<div class="math notranslate nohighlight" id="equation-wdm-code-time-delay-filters-1">
-<span class="eqno">(70)<a class="headerlink" href="#equation-wdm-code-time-delay-filters-1" title="Link to this equation"></a></span>\[T_{\ell}(\delta t)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta t))
+<div class="math notranslate nohighlight" id="equation-wdm-code-time-delay-filters-0">
+<span class="eqno">(70)<a class="headerlink" href="#equation-wdm-code-time-delay-filters-0" title="Link to this equation"></a></span>\[T_{\ell}(\delta)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta))
                     |\tilde{\Phi}(f)|^2 .\]</div>
+<p>This function is SLOW. It is intended to be called when the main
+<cite>WDM_transform</cite> class is initialised to build a fast interpolant for
+subsequent use.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>wdm</strong> (<a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><em>WDM.WDM_transform</em></a>) – An instance of the WDM_transform class. This defines the wavelet basis.</p></li>
 <li><p><strong>ell</strong> (<em>int</em>) – The time index difference <span class="math notranslate nohighlight">\(\ell=n-n'\)</span>.</p></li>
-<li><p><strong>delta_t</strong> (<em>float</em>) – The time delay <span class="math notranslate nohighlight">\(\delta t\)</span>, in the time units of <cite>wdm</cite>.</p></li>
+<li><p><strong>delta</strong> (<em>float</em>) – The time delay <span class="math notranslate nohighlight">\(\delta\)</span>, in the time units of <cite>wdm</cite>.</p></li>
+<li><p><strong>freqs</strong> (<em>jnp.ndarray</em>) – The sample frequencies of the wdm object time series.</p></li>
+<li><p><strong>window_FD</strong> (<em>jnp.ndarray</em>) – The frequency-domain Meyer window function, <span class="math notranslate nohighlight">\(\tilde{\Phi}(f)\)</span> of
+the wdm object.</p></li>
+<li><p><strong>dT</strong> (<em>float</em>) – Time resolution of the the wdm object.</p></li>
+<li><p><strong>df</strong> (<em>float</em>) – The frequency resolution of the wdm object time series.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>T_l</strong> – The time-delay filter <span class="math notranslate nohighlight">\(T_{\ell}(\delta t)\)</span>.</p>
+<dd class="field-even"><p><strong>T_l</strong> – The time-delay filter <span class="math notranslate nohighlight">\(T_{\ell}(\delta)\)</span>.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>float</p>
@@ -157,22 +137,30 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="WDM.code.time_delay_filters.filters.time_delay_filter_Tprimel">
-<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">time_delay_filter_Tprimel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wdm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><span class="pre">WDM_transform</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ell</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_t</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">complex</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#time_delay_filter_Tprimel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.time_delay_filter_Tprimel" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">time_delay_filter_Tprimel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ell</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freqs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_FD</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dT</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dF</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#time_delay_filter_Tprimel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.time_delay_filter_Tprimel" title="Link to this definition"></a></dt>
 <dd><p>The time-delay filter for the case <span class="math notranslate nohighlight">\(m'=m\pm 1\)</span> is defined as</p>
-<div class="math notranslate nohighlight" id="equation-wdm-code-time-delay-filters-2">
-<span class="eqno">(71)<a class="headerlink" href="#equation-wdm-code-time-delay-filters-2" title="Link to this equation"></a></span>\[T'_{\ell}(\delta t)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta t))
-                    \tilde{\Phi}\left(f-\frac{1}{2}\Delta F\right)
-                    \tilde{\Phi}\left(f+\frac{1}{2}\Delta F\right) .\]</div>
+<div class="math notranslate nohighlight" id="equation-wdm-code-time-delay-filters-1">
+<span class="eqno">(71)<a class="headerlink" href="#equation-wdm-code-time-delay-filters-1" title="Link to this equation"></a></span>\[ \begin{align}\begin{aligned}T'_{\ell}(\delta)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta))
+                       \tilde{\Phi}\left(f-\frac{1}{2}\Delta F\right)
+                       \tilde{\Phi}\left(f+\frac{1}{2}\Delta F\right) .\\This function is SLOW. It is intended to be called when the main
+   `WDM_transform` class is initialised to build a fast interpolant for
+   subsequent use.\end{aligned}\end{align} \]</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>wdm</strong> (<a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform"><em>WDM.WDM_transform</em></a>) – An instance of the WDM_transform class. This defines the wavelet basis.</p></li>
 <li><p><strong>ell</strong> (<em>int</em>) – The time index difference <span class="math notranslate nohighlight">\(\ell=n-n'\)</span>.</p></li>
-<li><p><strong>delta_t</strong> (<em>float</em>) – The time delay <span class="math notranslate nohighlight">\(\delta t\)</span>, in the time units of <cite>wdm</cite>.</p></li>
+<li><p><strong>delta</strong> (<em>float</em>) – The time delay <span class="math notranslate nohighlight">\(\delta\)</span>, in the time units of <cite>wdm</cite>.</p></li>
+<li><p><strong>freqs</strong> (<em>jnp.ndarray</em>) – The sample frequencies of the wdm object time series.</p></li>
+<li><p><strong>window_FD</strong> (<em>jnp.ndarray</em>) – The frequency-domain Meyer window function, <span class="math notranslate nohighlight">\(\tilde{\Phi}(f)\)</span> of
+the wdm object.</p></li>
+<li><p><strong>dT</strong> (<em>float</em>) – Time resolution of the the wdm object.</p></li>
+<li><p><strong>dF</strong> (<em>float</em>) – Frequency resolution of the wdm object.</p></li>
+<li><p><strong>N</strong> (<em>int</em>) – Length of the input time series.</p></li>
+<li><p><strong>df</strong> (<em>float</em>) – The frequency resolution of the wdm object time series.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>Tprime_l</strong> – The time-delay filter <span class="math notranslate nohighlight">\(T'_{\ell}(\delta t)\)</span>.</p>
+<dd class="field-even"><p><strong>Tprime_l</strong> – The time-delay filter <span class="math notranslate nohighlight">\(T'_{\ell}(\delta)\)</span>.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>float</p>
