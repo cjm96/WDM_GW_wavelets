@@ -2,8 +2,12 @@ import jax
 import jax.numpy as jnp
 from matplotlib.pylab import indices
 
+from jax.scipy.interpolate import RegularGridInterpolator
+
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, overlapping_windows
+from WDM.code.time_delay_filters.filters import time_delay_filter_Tl
+from WDM.code.time_delay_filters.filters import time_delay_filter_Tprimel
 
 from typing import Tuple
 from functools import partial
@@ -1245,6 +1249,317 @@ class WDM_transform:
 
         return self.inverse_transform(w)
 
+    def build_time_delay_filter_interpolants(self,
+                                             max_lag_L : int,
+                                             num_interp_points : int) -> None:
+        r""" 
+        If the user needs to do any time-shift operations involving the 
+        WDM wavelets, then this function should be called first. It builds 
+        interpolants for the time-delay filer functions :math:`T_l(\delta)` and
+        :math:`T'_l(\delta)` for :math:`l=-L,\ldots,L-1, L` (where L is the max 
+        lag) in the range :math:`-\Delta T/2\leq \delta\leq \Delta T/2`.
+
+        Parameters
+        ----------
+        max_lag_L : int
+            The maximum lag index, :math:`L`.
+        num_interp_points : int
+            The number of interpolation points in the range 
+            :math:`-\Delta T/2\leq \delta\leq \Delta T/2.`
+
+        Returns
+        -------
+        None
+        """
+        assert max_lag_L > 0, \
+                        "Max lag must be positive"
+        
+        assert max_lag_L < self.Nt, \
+                "Max lag can't be larger than number of time points"
+
+        self.max_lag_L = int(max_lag_L)
+        self.num_interp_points = int(num_interp_points)
+
+        self.delta_interp_grid = jnp.linspace(-0.5*self.dT,
+                                              +0.5*self.dT,
+                                              self.num_interp_points)
+
+        # build Tl and Tlprime interpolants, store these functions in dicts
+        Tl_interp = {}
+        Tprimel_interp = {}
+
+        for l in range(-max_lag_L, max_lag_L+1):
+            # Tl interpolants
+            data = jnp.zeros(self.num_interp_points)
+            for delta_idx in range(self.num_interp_points):
+                delta = self.delta_interp_grid[delta_idx]
+                Tl_delta = time_delay_filter_Tl(l,
+                                                delta,
+                                                self.freqs,
+                                                self.window_FD,
+                                                self.dT,
+                                                self.df)
+                data = data.at[delta_idx].set(Tl_delta)
+            Tl_interp[l] = RegularGridInterpolator(
+                                (self.delta_interp_grid,), data)
+
+            # Tlprime interpolants
+            data = jnp.zeros(self.num_interp_points)  # Reset data array!
+            for delta_idx in range(self.num_interp_points):
+                delta = self.delta_interp_grid[delta_idx]
+                Tlprime_delta = time_delay_filter_Tprimel(l,
+                                                          delta,
+                                                          self.freqs,
+                                                          self.window_FD,
+                                                          self.dT,
+                                                          self.dF,
+                                                          self.N,
+                                                          self.df)
+                data = data.at[delta_idx].set(Tlprime_delta)
+            Tprimel_interp[l] = RegularGridInterpolator(
+                                    (self.delta_interp_grid,), data)
+
+        # store the functions in lists
+        self.list_of_Tl_functions = [Tl_interp[l] 
+                        for l in range(-self.max_lag_L, self.max_lag_L+1)]
+
+        self.list_of_Tprimel_functions = [Tprimel_interp[l] 
+                        for l in range(-self.max_lag_L, self.max_lag_L+1)]
+
+        return None
+
+    @partial(jax.jit, static_argnums=0)
+    def time_delay_filter_Tl(self,
+                             lag_index_l : jnp.array,
+                             delta : jnp.array) -> jnp.array:
+        r"""
+        Fast, vectorised way of calling the time-delay filter function
+        :math:`T_l(\delta)` which calls the pre-built interpolants.
+
+        Parameters
+        ----------
+        lag_index_l : jnp.array
+            Array of lag indices, dtype=int, shape=(A,)
+        delta : jnp.array
+            Array of time delays, dtype=float, shape=(B,)
+
+        Returns
+        -------
+        Tl : jnp.array
+             Array of time-delay filters, dtype=float, shape=(A, B)
+        """
+        k, delta_wrapped = jnp.divmod(delta+0.5*self.dT, self.dT)
+        k = jnp.array(k, dtype=int)
+        delta_wrapped = delta_wrapped - 0.5*self.dT
+
+        def apply_func_single_lag(l_idx):
+            # For a single lag index, evaluate across all deltas
+            adjusted_indices = l_idx - k + self.max_lag_L
+
+            # Check if indices are in valid range [0, 2*max_lag_L]
+            in_range = (adjusted_indices >= 0) & (adjusted_indices <= 2*self.max_lag_L)
+
+            # Clamp indices for safe evaluation (actual values will be masked)
+            safe_indices = jnp.clip(adjusted_indices, 0, 2*self.max_lag_L)
+
+            def eval_single_delta(safe_idx, dw, mask):
+                result = jax.lax.switch(safe_idx,
+                                       self.list_of_Tl_functions,
+                                       jnp.array([dw]))[0]
+                # Return 0 if out of range, otherwise return result
+                return jnp.where(mask, result, 0.0)
+
+            return jax.vmap(eval_single_delta)(safe_indices, delta_wrapped, in_range)
+
+        Tl = jax.vmap(apply_func_single_lag)(lag_index_l)
+
+        return Tl
+
+    @partial(jax.jit, static_argnums=0)
+    def time_delay_filter_Tprimel(self,
+                                  lag_index_l : jnp.array,
+                                  delta : jnp.array) -> jnp.array:
+        r"""
+        Fast, vectorised way of calling the time-delay filter function
+        :math:`T'_l(\delta)` which calls the pre-built interpolants.
+
+        Parameters
+        ----------
+        lag_index_l : jnp.array
+            Array of lag indices, dtype=int, shape=(A,)
+        delta : jnp.array
+            Array of time delays, dtype=float, shape=(B,)
+
+        Returns
+        -------
+        Tprimel : jnp.array
+                Array of time-delay filters, dtype=float, shape=(A, B)
+        """
+        k, delta_wrapped = jnp.divmod(delta+0.5*self.dT, self.dT)
+        k = jnp.array(k, dtype=int)
+        delta_wrapped = delta_wrapped - 0.5*self.dT
+
+        def apply_func_single_lag(l_idx):
+            # For a single lag index, evaluate across all deltas
+            adjusted_indices = l_idx - k + self.max_lag_L
+
+            # Check if indices are in valid range [0, 2*max_lag_L]
+            in_range = (adjusted_indices >= 0) & (adjusted_indices <= 2*self.max_lag_L)
+
+            # Clamp indices for safe evaluation (actual values will be masked)
+            safe_indices = jnp.clip(adjusted_indices, 0, 2*self.max_lag_L)
+
+            def eval_single_delta(safe_idx, dw, mask):
+                result = jax.lax.switch(safe_idx,
+                                       self.list_of_Tprimel_functions,
+                                       jnp.array([dw]))[0]
+                # Return 0 if out of range, otherwise return result
+                return jnp.where(mask, result, 0.0)
+
+            return jax.vmap(eval_single_delta)(safe_indices, delta_wrapped, in_range)
+
+        Tprimel = jax.vmap(apply_func_single_lag)(lag_index_l)
+
+        return Tprimel
+
+    def time_delay_matrix_X(self, n, m, l, sigma, delta) -> jnp.array:
+        r"""
+        Description.
+
+        Generate an array time delay matrix elements :math:`X_{n(n-l),m(m+\sigma)}(-\delta_n)` 
+        for fixed :math:'\sigma' and :math:'l' values.
+
+        Parameters
+        ----------
+        n : jnp.array
+            Time indices. Array, dtype=int, shape=(Nt,)
+        m : jnp.array
+            Freq indices. Array, dtype=int, shape=(Nf,)
+        l : int
+            Time lag index. 
+        sigma : int
+            Freq lag. This should be :math:`0` or :math:`\pm 1`
+        delta : jnp.array
+            Array, dtype=float, shape=(Nt,)
+        
+        Returns
+        -------
+        X : jnp.array
+            The X coefficients. Array, dtype=floar, shape=(Nt, Nf)
+        """
+        sigma_idx = sigma + 1
+
+        def case_minus_1(n, m, l, delta):
+            # Code for sigma = -1
+            n_ = n - l
+            m_ = m - 1
+            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \
+                (1j)**l * \
+                jnp.exp(-2*jnp.pi*(1j)*(m[jnp.newaxis,:]-0.5)*self.dF*delta[:,jnp.newaxis]) * \
+                jnp.conjugate((1j)**((n[:,jnp.newaxis] + m[jnp.newaxis,:])%2)) * \
+                (1j)**((n_[:,jnp.newaxis] + m_[jnp.newaxis,:])%2) * \
+                self.time_delay_filter_Tprimel(jnp.array([l]), -delta)[0][:,jnp.newaxis]
+            return jnp.real(X)
+
+        def case_0(n, m, l, delta):
+            # Code for sigma = 0
+            n_ = n - l
+            m_ = m
+            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \
+                jnp.exp(-2*jnp.pi*(1j)*m[jnp.newaxis,:]*self.dF*delta[:,jnp.newaxis]) * \
+                jnp.conjugate((1j)**((n[:,jnp.newaxis] + m[jnp.newaxis,:])%2)) * \
+                (1j)**((n_[:,jnp.newaxis] + m[jnp.newaxis,:])%2) * \
+                self.time_delay_filter_Tl(jnp.array([l]), -delta)[0][:,jnp.newaxis]
+            return jnp.real(X)
+
+        def case_plus_1(n, m, l, delta):
+            # Code for sigma = +1
+            n_ = n - l
+            m_ = m + 1
+            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \
+                (-1j)**l * \
+                jnp.exp(-2*jnp.pi*(1j)*(m[jnp.newaxis,:]+0.5)*self.dF*delta[:,jnp.newaxis]) * \
+                jnp.conjugate((1j)**((n[:,jnp.newaxis] + m[jnp.newaxis,:])%2)) * \
+                (1j)**((n_[:,jnp.newaxis] + m_[jnp.newaxis,:])%2) * \
+                self.time_delay_filter_Tprimel(jnp.array([l]), -delta)[0][:,jnp.newaxis]
+            return jnp.real(X)
+
+        X = jax.lax.switch(sigma_idx, [case_minus_1, case_0, case_plus_1], n, m, l, delta)
+
+        return X
+
+    @partial(jax.jit, static_argnums=0, static_argnames=('unroll',))
+    def apply_variable_time_shift(self, 
+                                  wdm_coeff, 
+                                  delta, 
+                                  unroll: int=1) -> jnp.array:
+        r"""
+        Perform the variable time shift operation on a grid of WDM coefficients 
+        by evaluating the sum
+
+        .. math::
+
+            '\sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} 
+             \omega_{(n-l) (m+\sigma)} \, X_{n(n-l);m(m+\sigma)}(-\delta_n) .
+
+        If the original grid represents the coefficinets of a function 
+        :math:'f(t) = \sum_{nm} \omega_{nm} g_{nm}(t)'
+        and we sample a time-shift :math:'\delta(t_n) = \delta_n' then the 
+        resulting shifted grid :math:'\tilde{\omega}_{nm}'
+        is the equivalent to the WDM transform of :math:'f(t-\delta(t))'.
+
+        Terms where :math:`n-l` or :math:`m+\sigma` fall outside the array
+        limits are wrapped around periodically. It is the users reponsibility
+        to ensure that the input array `wdm_coeff` is suitably zero padded.
+
+        Parameters
+        ----------
+        wdm_coeff : jnp.array
+            WDM coefficient grid. Array, dtype=float, shape=(Nt,Nf)
+        delta : jnp.array
+            Array, dtype=float, shape=(Nt,)
+        unroll : int or bool
+            Static unroll factor passed to ``lax.fori_loop`` over ``l``.
+
+        Returns
+        -------
+        shifted_wdm_coeff : jnp.array
+            Shifted wdm_coefficients. Array, dtype=float, shape=(Nt, Nf)
+        """
+        n_vals = jnp.arange(self.Nt)
+        m_vals = jnp.arange(self.Nf)
+        sigma_vals = jnp.array([-1, 0, 1])
+
+        # X_{n(n-l), m(m+sigma)}(-delta_n) for all three sigma at once: vmap-ing
+        # over sigma turns time_delay_matrix_X's internal lax.switch into a
+        # single batched op (all three case_* branches evaluated together),
+        # rather than three separately-traced calls to time_delay_matrix_X.
+        X_all_sigma = jax.vmap(self.time_delay_matrix_X, in_axes=(None, None, None, 0, None))
+
+        def body_fun(l, acc):
+            X = X_all_sigma(n_vals, m_vals, l, sigma_vals, delta)  # (3, Nt, Nf)
+
+            # wdm_coeff[(n-l) % Nt, (m+sigma) % Nf], read via circular shifts
+            # rather than a padded gather. The row shift depends on l (traced,
+            # varies every fori_loop step) so it is done once and shared by
+            # all three sigma; the column shift only needs sigma, which is a
+            # static Python int in each of the three unrolled terms, so each
+            # of those rolls is cheap.
+            row_shifted = jnp.roll(wdm_coeff, shift=l, axis=0)
+            shifted = jnp.stack([
+                jnp.roll(row_shifted, shift=-sigma, axis=1)
+                for sigma in (-1, 0, 1)
+            ])  # (3, Nt, Nf)
+
+            return acc + jnp.sum(shifted * X, axis=0)
+
+        init = jnp.zeros((self.Nt, self.Nf), dtype=wdm_coeff.dtype)
+        shifted_wdm_coeff = jax.lax.fori_loop(
+            -self.max_lag_L, self.max_lag_L + 1, body_fun, init, unroll=unroll
+        )
+
+        return shifted_wdm_coeff
+
     def __repr__(self) -> str:
         r"""
         String representation of the WDM_transform instance.
@@ -1261,6 +1576,8 @@ class WDM_transform:
         lines.append( f"{self.Nf = } frequency cells" )
         lines.append( f"{self.dT = } time resolution" )
         lines.append( f"{self.dF = } frequency resolution" )
+        lines.append( f"{self.dt = } time series cadence" )
+        lines.append( f"{self.df = } time series fft frequency resolution" )
         lines.append( f"{self.K = } window length" )
         text = "\n".join(lines)
         return text

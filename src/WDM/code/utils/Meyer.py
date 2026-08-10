@@ -59,8 +59,8 @@ def Meyer(omega: jnp.ndarray,
             0, & \text{otherwise}
             \end{cases}
 
-    where :math:`\\nu_d(x)` is a smooth transition function defined using the
-    normalized incomplete beta function, and :math:`\\Delta \\Omega = 2A + B` is 
+    where :math:`\nu_d(x)` is a smooth transition function defined using the
+    normalized incomplete beta function, and :math:`\Delta \Omega = 2A + B` is 
     the total frequency support of the window.
 
     Parameters
