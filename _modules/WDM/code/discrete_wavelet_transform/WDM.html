@@ -1586,10 +1586,9 @@
 <a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_matrix_X">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">time_delay_matrix_X</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">delta</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Description.</span>
-
-<span class="sd">        Generate an array time delay matrix elements :math:`X_{n(n-l),m(m+\sigma)}(-\delta_n)` </span>
-<span class="sd">        for fixed :math:&#39;\sigma&#39; and :math:&#39;l&#39; values.</span>
+<span class="sd">        Generate an array time delay matrix elements </span>
+<span class="sd">        :math:`X_{n(n-l),m(m+\sigma)}(-\delta_n)` used in the variable time </span>
+<span class="sd">        shifting method for fixed :math:&#39;\sigma&#39; and :math:&#39;l&#39; values.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -1664,7 +1663,7 @@
 
 <span class="sd">        .. math::</span>
 
-<span class="sd">            &#39;\sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} </span>
+<span class="sd">            \sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} </span>
 <span class="sd">             \omega_{(n-l) (m+\sigma)} \, X_{n(n-l);m(m+\sigma)}(-\delta_n) .</span>
 
 <span class="sd">        If the original grid represents the coefficinets of a function </span>

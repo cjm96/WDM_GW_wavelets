@@ -151,9 +151,9 @@
 <span class="sd">                            \tilde{\Phi}\left(f-\frac{1}{2}\Delta F\right)</span>
 <span class="sd">                            \tilde{\Phi}\left(f+\frac{1}{2}\Delta F\right) .</span>
 
-<span class="sd">     This function is SLOW. It is intended to be called when the main </span>
-<span class="sd">        `WDM_transform` class is initialised to build a fast interpolant for </span>
-<span class="sd">        subsequent use.</span>
+<span class="sd">    This function is SLOW. It is intended to be called when the main </span>
+<span class="sd">    `WDM_transform` class is initialised to build a fast interpolant for </span>
+<span class="sd">    subsequent use.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -191,7 +191,6 @@
     <span class="n">Tprime_l</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">integrand</span><span class="p">)</span> <span class="o">*</span> <span class="n">df</span>
 
     <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">Tprime_l</span><span class="o">.</span><span class="n">real</span><span class="p">)</span></div>
-
 
 </pre></div>
 

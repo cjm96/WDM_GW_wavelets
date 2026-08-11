@@ -96,15 +96,16 @@
 This is based on the results in section 4 of Ref. <a class="footnote-reference brackets" href="#id2" id="id1" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a> .</p>
 <nav class="contents local" id="contents">
 <ul class="simple">
-<li><p><a class="reference internal" href="#introduction" id="id4">Introduction</a></p></li>
-<li><p><a class="reference internal" href="#derivation" id="id5">Derivation</a></p></li>
-<li><p><a class="reference internal" href="#references" id="id6">References</a></p></li>
+<li><p><a class="reference internal" href="#introduction" id="id5">Introduction</a></p></li>
+<li><p><a class="reference internal" href="#derivation" id="id6">Derivation</a></p></li>
+<li><p><a class="reference internal" href="#references" id="id7">References</a></p></li>
 </ul>
 </nav>
 <section id="introduction">
-<h2><a class="toc-backref" href="#id4" role="doc-backlink">Introduction</a><a class="headerlink" href="#introduction" title="Link to this heading"></a></h2>
+<h2><a class="toc-backref" href="#id5" role="doc-backlink">Introduction</a><a class="headerlink" href="#introduction" title="Link to this heading"></a></h2>
 <p>The WDM wavelets <span class="math notranslate nohighlight">\(\{g_{nm}(t)|n\in\{0,1,\ldots,N_t-f\}, m\in\{0,1,\ldots,N_f-1\}\}\)</span>
-form a complete basis, meaning that any time series can be expanded in terms of these wavelets.
+form a complete orthonormal basis, meaning that any time series can be expanded in terms
+of these wavelets.
 In particular, if we take a single wavelet and shift it in time, <span class="math notranslate nohighlight">\(g_{nm}(t+\delta t)\)</span>
 we can rexpand this in terms of the original, unshifted wavelet basis.
 The coefficients of this expansion are given by the overlap integrals</p>
@@ -114,11 +115,12 @@ The coefficients of this expansion are given by the overlap integrals</p>
 They can be written as an integral over frequency;</p>
 <div class="math notranslate nohighlight" id="equation-time-delay-filters-1">
 <span class="eqno">(39)<a class="headerlink" href="#equation-time-delay-filters-1" title="Link to this equation"></a></span>\[X_{nn';mm'}(\delta t) = \int \mathrm{d}f \, \exp(-2\pi i f\delta t) \tilde{G}^*_{nm}(f) \tilde{G}_{n'm'}(f) .\]</div>
-<p>Most of the <span class="math notranslate nohighlight">\(X_{nn';mm'}(\delta t)\)</span> coefficients are zero because the wavelets <span class="math notranslate nohighlight">\(\tilde{G}_{nm}(f)\)</span>
-have compact support in the frequency domain and the integral will vanish unless the wavelets overlap.;
-the only non-zero coefficients are those for which <span class="math notranslate nohighlight">\(m'=m\)</span> or <span class="math notranslate nohighlight">\(m'=m\pm 1\)</span>.
-In the general case when <span class="math notranslate nohighlight">\(m\neq 0\)</span> and <span class="math notranslate nohighlight">\(m'\neq 0\)</span>, these integrals evaluate to give
-(the following results are derived in the section below)</p>
+<p>Most of the <span class="math notranslate nohighlight">\(X_{nn';mm'}(\delta t)\)</span> coefficients are zero because the wavelets
+<span class="math notranslate nohighlight">\(\tilde{G}_{nm}(f)\)</span> have compact support in the frequency domain and the integral
+will vanish unless the wavelets overlap.
+The only non-zero coefficients are those for which <span class="math notranslate nohighlight">\(m'=m\)</span> or <span class="math notranslate nohighlight">\(m'=m\pm 1\)</span>.
+In the general case when <span class="math notranslate nohighlight">\(m\neq 0\)</span> and <span class="math notranslate nohighlight">\(m'\neq 0\)</span>, these integrals evaluate
+to give (the following results are derived in the section below)</p>
 <div class="math notranslate nohighlight" id="equation-time-delay-filters-2">
 <span class="eqno">(40)<a class="headerlink" href="#equation-time-delay-filters-2" title="Link to this equation"></a></span>\[X_{nn';mm}(\delta t) = \mathrm{Re} \bigg\{ (-1)^{(n-n')m} \exp(2\pi i m \Delta F \delta t)
                         C^*_{nm} C_{n'm} T_{n-n'}(\delta t) \bigg\} ,\]</div>
@@ -136,11 +138,19 @@ defined as</p>
 <p>The time-delay filters <span class="math notranslate nohighlight">\(T_{\ell}(\delta t)\)</span> and <span class="math notranslate nohighlight">\(T'_{\ell}(\delta t)\)</span> are implemented in
 <a class="reference internal" href="WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.time_delay_filter_Tl" title="WDM.code.time_delay_filters.filters.time_delay_filter_Tl"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.time_delay_filters.filters.time_delay_filter_Tl()</span></code></a> and
 <code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.time_delay_filters.filters.time_delay_filter_Tl_prime()</span></code> respectively.</p>
-<p>The full time-delay matrix elements <span class="math notranslate nohighlight">\(X_{nn';mm'}(\delta t)\)</span> are implemented in
-<code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.time_delay_filters.filters.time_delay_X()</span></code>.</p>
-<p>These functions can be precomputed and interpolated for efficient use later.
-As can be seen from the plots in  <a class="reference internal" href="#fig-time-delay-filters"><span class="std std-numref">Figure 7</span></a>, these time-delay filters
-only need to be interpolated in the narrow range <span class="math notranslate nohighlight">\(0\leq \delta t &lt; 2\Delta T\)</span>.</p>
+<p>The time-delay filters satisfy</p>
+<div class="math notranslate nohighlight" id="equation-time-delay-filters-6">
+<span class="eqno">(44)<a class="headerlink" href="#equation-time-delay-filters-6" title="Link to this equation"></a></span>\[T_{\ell}(\delta+\Delta T) = T_{\ell-1}(\delta) ,\]</div>
+<p>and similarly for <span class="math notranslate nohighlight">\(T'_{\ell}(\delta)\)</span>.
+This property is important as is means that the filters only need to be
+interpolated in the range <span class="math notranslate nohighlight">\(-\Delta T/2 \leq \delta &lt; \Delta T/2\)</span>.
+In this range the filters satisfy</p>
+<div class="math notranslate nohighlight" id="equation-time-delay-filters-7">
+<span class="eqno">(45)<a class="headerlink" href="#equation-time-delay-filters-7" title="Link to this equation"></a></span>\[T_l(\delta) \rightarrow 0 \quad \mathrm{as} \quad |l| \rightarrow \infty ,\]</div>
+<p>and similarly for <span class="math notranslate nohighlight">\(T'_l(\delta)\)</span>.
+This is also important as is means that the filters are only needed for
+<span class="math notranslate nohighlight">\(|l|\leq L\)</span>, where <span class="math notranslate nohighlight">\(L`\)</span> is the max lag index.
+These properties can both be seen in the figure below.</p>
 <figure class="align-center" id="id3">
 <span id="fig-time-delay-filters"></span><a class="reference internal image-reference" href="_images/time_delay_filters.png"><img alt="Time_Delay_Filters" src="_images/time_delay_filters.png" style="width: 90%;" />
 </a>
@@ -150,20 +160,52 @@ only need to be interpolated in the narrow range <span class="math notranslate n
 for several values of <span class="math notranslate nohighlight">\(\ell\)</span>.</span><a class="headerlink" href="#id3" title="Link to this image"></a></p>
 </figcaption>
 </figure>
+<p>In the main <cite>WDM</cite> class, the time delay filter functions with <span class="math notranslate nohighlight">\(|\ell|\leq L\)</span>
+are precomputed at <cite>num_interp_points</cite> values of <span class="math notranslate nohighlight">\(\delta\)</span> in the interval
+<span class="math notranslate nohighlight">\([-\Delta T, \Delta T]\)</span> and interpolated.
+These interpolants are set up by calling the method
+<a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants()</span></code></a>.
+These interpolants can then be called using the methods
+<a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tl" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tl"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tl()</span></code></a>
+and <a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tprimel" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tprimel"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tprimel()</span></code></a>.</p>
+<p>The full time-delay matrix elements <span class="math notranslate nohighlight">\(X_{nn';mm'}(\delta t)\)</span> are implemented in
+<a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_matrix_X" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_matrix_X"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_matrix_X()</span></code></a>.</p>
+<p>The time delays themselves are implemented in the method
+<a class="reference internal" href="WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift" title="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift"><code class="xref py py-func docutils literal notranslate"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift()</span></code></a>.
+This implements a generalised version of the time shift for a variable shift
+<span class="math notranslate nohighlight">\(\delta(t)\)</span> where the shift is approximated as constant across each wavelet.
+The shift is implemented using the formula</p>
+<div class="math notranslate nohighlight" id="equation-time-delay-filters-8">
+<span class="eqno">(46)<a class="headerlink" href="#equation-time-delay-filters-8" title="Link to this equation"></a></span>\[\hat{w}_{nm} = \sum_{\ell=-L}^{L} \sum_{\sigma=-1}^{1} w_{(n-l)(m+\sigma)}
+                X_{(n-l)n;(m+\sigma)m}(\delta(t_{n})) .\]</div>
+<p>Terms in the sum where the indices are out of range for the arrays are assumed
+to be zero.
+This requires that the signals to be time shifted have sufficient zero padding
+to avoid wrap around effects.
+The safe amounts are illustrated in the figure below.</p>
+<figure class="align-center" id="id4">
+<span id="fig-zero-padding-for-timeshift"></span><a class="reference internal image-reference" href="_images/zero_padding_for_timeshift.png"><img alt="zero_padding_for_timeshift" src="_images/zero_padding_for_timeshift.png" style="width: 70%;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Figure 8 </span><span class="caption-text">A diagram illustrating the amount of zero padding needed in the time-frequency
+grid of pixels for a signal to be safely timeshifted using the method described
+here while avoiding wrap around effects.</span><a class="headerlink" href="#id4" title="Link to this image"></a></p>
+</figcaption>
+</figure>
 </section>
 <section id="derivation">
-<h2><a class="toc-backref" href="#id5" role="doc-backlink">Derivation</a><a class="headerlink" href="#derivation" title="Link to this heading"></a></h2>
+<h2><a class="toc-backref" href="#id6" role="doc-backlink">Derivation</a><a class="headerlink" href="#derivation" title="Link to this heading"></a></h2>
 <p>This section contains a derivation of the results in Eqs. (40) to (43) above.</p>
 <p>Start from the definition of the time-delay matrix elements in the frequency domain in Eq. (39).</p>
 <p>First consider the case <span class="math notranslate nohighlight">\(m'=m\)</span> (and assume that <span class="math notranslate nohighlight">\(m&gt;0\)</span>).
 Using the frequency-domain definition of the WDM wavelets</p>
-<div class="math notranslate nohighlight" id="equation-time-delay-filters-6">
-<span class="eqno">(44)<a class="headerlink" href="#equation-time-delay-filters-6" title="Link to this equation"></a></span>\[\tilde{G}_{nm}(f) = \frac{1}{\sqrt{2}} \exp\left(-2\pi ifn\Delta T\right)
+<div class="math notranslate nohighlight" id="equation-time-delay-filters-9">
+<span class="eqno">(47)<a class="headerlink" href="#equation-time-delay-filters-9" title="Link to this equation"></a></span>\[\tilde{G}_{nm}(f) = \frac{1}{\sqrt{2}} \exp\left(-2\pi ifn\Delta T\right)
                     \left( C_{nm} \tilde{\Phi}(f+m\Delta F) +
                     C^*_{nm} \tilde{\Phi}(f-m\Delta F) \right)\]</div>
 <p>gives</p>
-<div class="math notranslate nohighlight" id="equation-time-delay-filters-7">
-<span class="eqno">(45)<a class="headerlink" href="#equation-time-delay-filters-7" title="Link to this equation"></a></span>\[\begin{split}\begin{align}
+<div class="math notranslate nohighlight" id="equation-time-delay-filters-10">
+<span class="eqno">(48)<a class="headerlink" href="#equation-time-delay-filters-10" title="Link to this equation"></a></span>\[\begin{split}\begin{align}
 X_{nn';mm}(\delta t) = \frac{1}{2} \int \mathrm{d}f \, \exp(-2\pi i f\delta t)
 \exp\left(2\pi if(n-n')\Delta T\right)
     \bigg[&amp;C^*_{nm} C_{n'm} \tilde{\Phi}(f+m\Delta F)\tilde{\Phi}(f-m\Delta F) + \\
@@ -174,8 +216,8 @@ X_{nn';mm}(\delta t) = \frac{1}{2} \int \mathrm{d}f \, \exp(-2\pi i f\delta t)
 <p>Using the fact that wavelets have compact support in frequency and the fact that <span class="math notranslate nohighlight">\(m&gt;0\)</span>,
 only the first and last terms in the square brackets are non-zero.
 Changing variables in the integrals to centre all the window functions around zero frequency gives</p>
-<div class="math notranslate nohighlight" id="equation-time-delay-filters-8">
-<span class="eqno">(46)<a class="headerlink" href="#equation-time-delay-filters-8" title="Link to this equation"></a></span>\[\begin{split}\begin{align}
+<div class="math notranslate nohighlight" id="equation-time-delay-filters-11">
+<span class="eqno">(49)<a class="headerlink" href="#equation-time-delay-filters-11" title="Link to this equation"></a></span>\[\begin{split}\begin{align}
     X_{nn';mm}(\delta t) &amp;= \frac{1}{2}\int\mathrm{d}f\;
                             \exp(-2\pi i f \delta t)
                             \exp(2\pi i m \Delta F \delta t)
@@ -190,16 +232,16 @@ Changing variables in the integrals to centre all the window functions around ze
                             C_{nm} C^*_{n'm} \left|\tilde{\Phi}(f)\right|^2 .
 \end{align}\end{split}\]</div>
 <p>Using <span class="math notranslate nohighlight">\(\Delta F \Delta T = 1/2\)</span> gives</p>
-<div class="math notranslate nohighlight" id="equation-time-delay-filters-9">
-<span class="eqno">(47)<a class="headerlink" href="#equation-time-delay-filters-9" title="Link to this equation"></a></span>\[\begin{split}\begin{align}
+<div class="math notranslate nohighlight" id="equation-time-delay-filters-12">
+<span class="eqno">(50)<a class="headerlink" href="#equation-time-delay-filters-12" title="Link to this equation"></a></span>\[\begin{split}\begin{align}
     X_{nn';mm}(\delta t) &amp;= \frac{(-1)^{(n-n')m}\exp(2\pi i m \Delta F \delta t)}{2}
                             C^*_{nm} C_{n'm} \int\mathrm{d}f\; \exp(2\pi i f ((n-n')\Delta T - \delta t)) \left|\tilde{\Phi}(f)\right|^2 \\
                          &amp;+ \frac{(-1)^{(n-n')m}\exp(-2\pi i m \Delta F \delta t)}{2}
                             C^*_{nm} C_{n'm} \int\mathrm{d}f\; \exp(2\pi i f ((n-n')\Delta T - \delta t)) \left|\tilde{\Phi}(f)\right|^2 .
 \end{align}\end{split}\]</div>
 <p>In the second integral, change the integration variable <span class="math notranslate nohighlight">\(f\to -f\)</span> to get</p>
-<div class="math notranslate nohighlight" id="equation-time-delay-filters-10">
-<span class="eqno">(48)<a class="headerlink" href="#equation-time-delay-filters-10" title="Link to this equation"></a></span>\[X_{nn';mm}(\delta t) = \mathrm{Re} \bigg\{
+<div class="math notranslate nohighlight" id="equation-time-delay-filters-13">
+<span class="eqno">(51)<a class="headerlink" href="#equation-time-delay-filters-13" title="Link to this equation"></a></span>\[X_{nn';mm}(\delta t) = \mathrm{Re} \bigg\{
                         (-1)^{(n-n')m} \exp(2\pi i m \Delta F \delta t)
                         C^*_{nm} C_{n'm} T_{n-n'}(\delta t) \bigg\} ,\]</div>
 <p>where the time-delay filter <span class="math notranslate nohighlight">\(T_{\ell}(\delta t)\)</span> is defined as above.
@@ -207,7 +249,7 @@ This is the desired result for <span class="math notranslate nohighlight">\(m'=m
 <p>The case <span class="math notranslate nohighlight">\(m'=m\pm 1\)</span> can be derived in a similar manner.</p>
 </section>
 <section id="references">
-<h2><a class="toc-backref" href="#id6" role="doc-backlink">References</a><a class="headerlink" href="#references" title="Link to this heading"></a></h2>
+<h2><a class="toc-backref" href="#id7" role="doc-backlink">References</a><a class="headerlink" href="#references" title="Link to this heading"></a></h2>
 <aside class="footnote-list brackets">
 <aside class="footnote brackets" id="id2" role="doc-footnote">
 <span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id1">1</a><span class="fn-bracket">]</span></span>
