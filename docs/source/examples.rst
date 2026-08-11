@@ -15,3 +15,4 @@ The following example notebooks from the repository demonstrate the use of the W
    m_equal_0_terms.ipynb
    wavelet_transform_examples.ipynb
    time_delay_filters_demo.ipynb
+   variable_time_shift_example.ipynb
