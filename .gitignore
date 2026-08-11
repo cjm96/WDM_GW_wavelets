@@ -4,7 +4,9 @@ __pycache__/
 # Sphinx build
 docs/build/
 
-# Packaging metadata
+# Python packaging
+dist/
+build/
 *.egg-info/
 
 # JAX compilation cache (if using)
