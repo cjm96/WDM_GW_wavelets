@@ -63,9 +63,9 @@ def time_delay_filter_Tprimel(ell : int,
                             \tilde{\Phi}\left(f-\frac{1}{2}\Delta F\right)
                             \tilde{\Phi}\left(f+\frac{1}{2}\Delta F\right) .
 
-     This function is SLOW. It is intended to be called when the main 
-        `WDM_transform` class is initialised to build a fast interpolant for 
-        subsequent use.
+    This function is SLOW. It is intended to be called when the main 
+    `WDM_transform` class is initialised to build a fast interpolant for 
+    subsequent use.
 
     Parameters
     ----------
@@ -103,4 +103,3 @@ def time_delay_filter_Tprimel(ell : int,
     Tprime_l = jnp.sum(integrand) * df
 
     return float(Tprime_l.real)
-

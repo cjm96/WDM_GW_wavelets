@@ -1424,10 +1424,9 @@ class WDM_transform:
 
     def time_delay_matrix_X(self, n, m, l, sigma, delta) -> jnp.array:
         r"""
-        Description.
-
-        Generate an array time delay matrix elements :math:`X_{n(n-l),m(m+\sigma)}(-\delta_n)` 
-        for fixed :math:'\sigma' and :math:'l' values.
+        Generate an array time delay matrix elements 
+        :math:`X_{n(n-l),m(m+\sigma)}(-\delta_n)` used in the variable time 
+        shifting method for fixed :math:'\sigma' and :math:'l' values.
 
         Parameters
         ----------
@@ -1499,7 +1498,7 @@ class WDM_transform:
 
         .. math::
 
-            '\sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} 
+            \sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} 
              \omega_{(n-l) (m+\sigma)} \, X_{n(n-l);m(m+\sigma)}(-\delta_n) .
 
         If the original grid represents the coefficinets of a function 

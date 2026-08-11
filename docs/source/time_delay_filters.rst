@@ -14,7 +14,8 @@ Introduction
 ------------
 
 The WDM wavelets :math:`\{g_{nm}(t)|n\in\{0,1,\ldots,N_t-f\}, m\in\{0,1,\ldots,N_f-1\}\}` 
-form a complete basis, meaning that any time series can be expanded in terms of these wavelets. 
+form a complete orthonormal basis, meaning that any time series can be expanded in terms 
+of these wavelets. 
 In particular, if we take a single wavelet and shift it in time, :math:`g_{nm}(t+\delta t)` 
 we can rexpand this in terms of the original, unshifted wavelet basis.
 The coefficients of this expansion are given by the overlap integrals
@@ -30,11 +31,12 @@ They can be written as an integral over frequency;
     
     X_{nn';mm'}(\delta t) = \int \mathrm{d}f \, \exp(-2\pi i f\delta t) \tilde{G}^*_{nm}(f) \tilde{G}_{n'm'}(f) .
 
-Most of the :math:`X_{nn';mm'}(\delta t)` coefficients are zero because the wavelets :math:`\tilde{G}_{nm}(f)` 
-have compact support in the frequency domain and the integral will vanish unless the wavelets overlap.;
-the only non-zero coefficients are those for which :math:`m'=m` or :math:`m'=m\pm 1`.
-In the general case when :math:`m\neq 0` and :math:`m'\neq 0`, these integrals evaluate to give
-(the following results are derived in the section below)
+Most of the :math:`X_{nn';mm'}(\delta t)` coefficients are zero because the wavelets 
+:math:`\tilde{G}_{nm}(f)` have compact support in the frequency domain and the integral 
+will vanish unless the wavelets overlap.
+The only non-zero coefficients are those for which :math:`m'=m` or :math:`m'=m\pm 1`.
+In the general case when :math:`m\neq 0` and :math:`m'\neq 0`, these integrals evaluate 
+to give (the following results are derived in the section below)
 
 .. math::
     
@@ -63,12 +65,25 @@ The time-delay filters :math:`T_{\ell}(\delta t)` and :math:`T'_{\ell}(\delta t)
 :func:`WDM.code.time_delay_filters.filters.time_delay_filter_Tl` and
 :func:`WDM.code.time_delay_filters.filters.time_delay_filter_Tl_prime` respectively.
 
-The full time-delay matrix elements :math:`X_{nn';mm'}(\delta t)` are implemented in
-:func:`WDM.code.time_delay_filters.filters.time_delay_X`.
+The time-delay filters satisfy 
 
-These functions can be precomputed and interpolated for efficient use later.
-As can be seen from the plots in  :numref:`fig-time_delay-filters`, these time-delay filters
-only need to be interpolated in the narrow range :math:`0\leq \delta t < 2\Delta T`.
+.. math::
+
+    T_{\ell}(\delta+\Delta T) = T_{\ell-1}(\delta) ,
+
+and similarly for :math:`T'_{\ell}(\delta)`. 
+This property is important as is means that the filters only need to be 
+interpolated in the range :math:`-\Delta T/2 \leq \delta < \Delta T/2`.
+In this range the filters satisfy
+
+.. math::
+
+    T_l(\delta) \rightarrow 0 \quad \mathrm{as} \quad |l| \rightarrow \infty ,
+
+and similarly for :math:`T'_l(\delta)`.
+This is also important as is means that the filters are only needed for 
+:math:`|l|\leq L`, where :math:`L`` is the max lag index.
+These properties can both be seen in the figure below.
 
 .. _fig-time_delay-filters:
 
@@ -80,6 +95,47 @@ only need to be interpolated in the narrow range :math:`0\leq \delta t < 2\Delta
    The time-delay filter functions :math:`T_\ell(\delta t)` (left) and 
    :math:`T'_\ell(\delta t)` (right) plotted as a function of :math:`\delta t`
    for several values of :math:`\ell`. 
+
+In the main `WDM` class, the time delay filter functions with :math:`|\ell|\leq L` 
+are precomputed at `num_interp_points` values of :math:`\delta` in the interval 
+:math:`[-\Delta T, \Delta T]` and interpolated.
+These interpolants are set up by calling the method 
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants`.
+These interpolants can then be called using the methods
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tl`
+and :func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tprimel`.
+
+The full time-delay matrix elements :math:`X_{nn';mm'}(\delta t)` are implemented in
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_matrix_X`.
+
+The time delays themselves are implemented in the method
+:func:`WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift`.
+This implements a generalised version of the time shift for a variable shift 
+:math:`\delta(t)` where the shift is approximated as constant across each wavelet.
+The shift is implemented using the formula
+
+.. math::
+
+    \hat{w}_{nm} = \sum_{\ell=-L}^{L} \sum_{\sigma=-1}^{1} w_{(n-l)(m+\sigma)} 
+                    X_{(n-l)n;(m+\sigma)m}(\delta(t_{n})) .
+
+Terms in the sum where the indices are out of range for the arrays are assumed
+to be zero. 
+This requires that the signals to be time shifted have sufficient zero padding
+to avoid wrap around effects.
+The safe amounts are illustrated in the figure below. 
+
+.. _fig-zero_padding_for_timeshift:
+
+.. figure:: ../figures/zero_padding_for_timeshift.png
+   :alt: zero_padding_for_timeshift
+   :align: center
+   :width: 70%
+
+   A diagram illustrating the amount of zero padding needed in the time-frequency
+   grid of pixels for a signal to be safely timeshifted using the method described
+   here while avoiding wrap around effects.
+
 
 
 Derivation
