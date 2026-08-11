@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: "WDM_GW_wavelets"
+version: "0.0.1"
+type: software
+license: MIT
+
+authors:
+
+* given-names: Christopher J.
+  family-names: Moore
+  orcid: "https://orcid.org/0000-0002-2527-0213"
+* given-names: Tomasz
+  family-names: Kinowski
+  orcid: "https://orcid.org/0009-0004-9474-7654"
+
+repository-code: "https://github.com/cjm96/WDM_GW_wavelets"
+url: "https://github.com/cjm96/WDM_GW_wavelets"
+documentation: "https://cjm96.github.io/WDM_GW_wavelets/"
+abstract: "A fast, JAX-based Python implementation of the Wilson-Daubechies-Meyer (WDM) wavelet transform for the time-frequency analysis of gravitational wave data."
+keywords:
+
+* gravitational waves
+* wavelets
+* WDM
+* time-frequency analysis
+* signal processing
+* astronomy
+* physics
