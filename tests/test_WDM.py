@@ -274,3 +274,81 @@ def test_fft_transform_thisone():
     assert (w_lots.shape==(3, wdm.Nt, wdm.Nf) and 
             np.allclose(w_, w_lots, rtol=1.0e-3, atol=1.0e-3)), \
         "Inverse transform vecorisation is not behaving correctly."
+
+def test_fft_transform_m0():
+    r"""
+    Test the frequency-domain m=0 calculation against the exact transform.
+    """
+    seed = 1234
+    key = jax.random.key(seed)
+
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(
+        dt=0.333,
+        Nf=4,
+        N=64,
+        q=8,
+        calc_m0=True,
+    )
+
+    key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape=(wdm.N,))
+
+    w_exact = wdm.forward_transform_exact(x)
+    w_fft = wdm.forward_transform_fft(x)
+
+    M = wdm.Nt // 2
+
+    # DC part of packed m=0 column
+    assert np.allclose(
+        w_exact[:M, 0],
+        w_fft[:M, 0],
+        rtol=1.0e-6,
+        atol=1.0e-6,
+    ), "FFT zero-frequency m=0 terms do not agree with exact transform."
+
+    # Nyquist part of packed m=0 column
+    assert np.allclose(
+        w_exact[M:, 0],
+        w_fft[M:, 0],
+        rtol=1.0e-6,
+        atol=1.0e-6,
+    ), "FFT Nyquist-frequency m=0 terms do not agree with exact transform."
+
+
+def test_fft_transform_m0_independent_of_q():
+    seed = 1234
+    key = jax.random.key(seed)
+
+    key, subkey = jax.random.split(key)
+
+    N = 64
+    Nf = 4
+    dt = 0.333
+
+    x = jax.random.normal(subkey, shape=(N,))
+
+    wdm_q2 = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(
+        dt=dt,
+        Nf=Nf,
+        N=N,
+        q=2,
+        calc_m0=True,
+    )
+
+    wdm_q8 = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(
+        dt=dt,
+        Nf=Nf,
+        N=N,
+        q=8,
+        calc_m0=True,
+    )
+
+    w_q2 = wdm_q2.forward_transform_fft(x)
+    w_q8 = wdm_q8.forward_transform_fft(x)
+
+    assert np.allclose(
+        w_q2[:, 0],
+        w_q8[:, 0],
+        rtol=1.0e-10,
+        atol=1.0e-10,
+    ), "FFT m=0 coefficients should be independent of q."
