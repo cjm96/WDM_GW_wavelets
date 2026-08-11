@@ -106,9 +106,9 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">WDM</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
+import matplotlib.pyplot as plt
+import WDM
 </pre></div>
 </div>
 </div>
@@ -117,24 +117,24 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;../data/waveform_SXS:BBH:0305_Reh22.txt&quot;</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>data = np.loadtxt(&quot;../data/waveform_SXS:BBH:0305_Reh22.txt&quot;)
 
-<span class="n">time</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-<span class="n">re_strain</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-<span class="n">im_strain</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+time = data[0]
+re_strain = data[1]
+im_strain = data[2]
 
-<span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">unwrap</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atan2</span><span class="p">(</span><span class="n">im_strain</span><span class="p">,</span> <span class="n">re_strain</span><span class="p">)),</span> <span class="n">prepend</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">prepend</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+frequency = np.diff(-np.unwrap(np.atan2(im_strain, re_strain)), prepend=0) / np.diff(time, prepend=0) / (2*np.pi)
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">re_strain</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Strain&#39;</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="mi">100</span><span class="p">:</span><span class="o">-</span><span class="mi">200</span><span class="p">],</span> <span class="n">frequency</span><span class="p">[</span><span class="mi">100</span><span class="p">:</span><span class="o">-</span><span class="mi">200</span><span class="p">],</span> <span class="s1">&#39;k-&#39;</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Frequency&#39;</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+fig, axes = plt.subplots(nrows=2, sharex=True)
+axes[0].plot(time, re_strain)
+axes[0].set_xlabel(&#39;Time&#39;)
+axes[0].set_ylabel(&#39;Strain&#39;)
+axes[0].grid()
+axes[1].plot(time[100:-200], frequency[100:-200], &#39;k-&#39;)
+axes[1].set_xlabel(&#39;Time&#39;)
+axes[1].set_ylabel(&#39;Frequency&#39;)
+axes[1].grid()
+plt.show()
 </pre></div>
 </div>
 </div>
@@ -149,9 +149,9 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">current_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">time</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>current_length = len(time)
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Current length of time series: </span><span class="si">{</span><span class="n">current_length</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+print(f&quot;Current length of time series: {current_length}&quot;)
 </pre></div>
 </div>
 </div>
@@ -168,18 +168,18 @@ Current length of time series: 7688
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">time</span><span class="p">))</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>dt = np.mean(np.diff(time))
 
-<span class="n">Nf</span> <span class="o">=</span> <span class="mi">512</span>
+Nf = 512
 
-<span class="n">N</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">next_multiple</span><span class="p">(</span><span class="n">current_length</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">Nf</span><span class="p">)</span>
+N = WDM.utils.next_multiple(current_length, 2*Nf)
 
-<span class="n">wdm</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span><span class="n">Nf</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">,</span> <span class="n">q</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">calc_m0</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+wdm = WDM.WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8, calc_m0=True)
 
-<span class="n">re_strain_padded</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">pad_signal</span><span class="p">(</span><span class="n">re_strain</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
-<span class="n">im_strain_padded</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">pad_signal</span><span class="p">(</span><span class="n">im_strain</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+re_strain_padded, mask = WDM.utils.pad_signal(re_strain, N)
+im_strain_padded, mask = WDM.utils.pad_signal(im_strain, N)
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Padded length of time series: </span><span class="si">{</span><span class="n">N</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+print(f&quot;Padded length of time series: {N}&quot;)
 <br/></pre></div>
 </div>
 </div>
@@ -196,7 +196,7 @@ Padded length of time series: 8192
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">wdm</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>print(wdm)
 </pre></div>
 </div>
 </div>
@@ -220,7 +220,7 @@ self.K = 8192 window length
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">dwt</span><span class="p">(</span><span class="n">re_strain_padded</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w = wdm.dwt(re_strain_padded)
 </pre></div>
 </div>
 </div>
@@ -229,10 +229,10 @@ self.K = 8192 window length
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">plotting</span><span class="o">.</span><span class="n">time_frequency_plot</span><span class="p">(</span><span class="n">wdm</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">part</span><span class="o">=</span><span class="s1">&#39;abs&#39;</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.1</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="mi">100</span><span class="p">:</span><span class="o">-</span><span class="mi">200</span><span class="p">],</span> <span class="n">frequency</span><span class="p">[</span><span class="mi">100</span><span class="p">:</span><span class="o">-</span><span class="mi">200</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = WDM.plotting.time_frequency_plot(wdm, w, part=&#39;abs&#39;, scale=&#39;linear&#39;)
+ax.set_ylim(0,0.1)
+ax.plot(time[100:-200], frequency[100:-200], color=&#39;k&#39;, lw=2)
+plt.show()
 </pre></div>
 </div>
 </div>
@@ -249,11 +249,11 @@ self.K = 8192 window length
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">re_strain_recovered</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">w</span><span class="p">)[</span><span class="n">mask</span><span class="p">]</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>re_strain_recovered = wdm.idwt(w)[mask]
 
-<span class="n">residuals</span> <span class="o">=</span> <span class="n">re_strain_recovered</span><span class="o">-</span><span class="n">re_strain</span>
+residuals = re_strain_recovered-re_strain
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Max residual: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">residuals</span><span class="p">))</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+print(f&quot;Max residual: {np.max(np.abs(residuals))}&quot;)
 </pre></div>
 </div>
 </div>
@@ -269,15 +269,15 @@ Max residual: 3.08801649615692e-14
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">re_strain</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;SXS:BBH:0305&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">re_strain_recovered</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;recovered&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">residuals</span><span class="p">,</span> <span class="s1">&#39;k:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;residuals&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Time (s)&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Strain&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
+ax.plot(time, re_strain, label=&#39;SXS:BBH:0305&#39;)
+ax.plot(time, re_strain_recovered, label=&#39;recovered&#39;)
+ax.plot(time, residuals, &#39;k:&#39;, label=&#39;residuals&#39;)
+ax.set_xlabel(&#39;Time (s)&#39;)
+ax.set_ylabel(&#39;Strain&#39;)
+ax.legend()
+ax.grid()
+plt.show()
 </pre></div>
 </div>
 </div>
@@ -294,17 +294,17 @@ Max residual: 3.08801649615692e-14
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">GW_signal_padded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">re_strain_padded</span><span class="p">,</span> <span class="n">re_strain_padded</span><span class="p">))</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>GW_signal_padded = np.vstack((re_strain_padded, re_strain_padded))
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Time series shape = </span><span class="si">{</span><span class="n">GW_signal_padded</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+print(f&quot;Time series shape = {GW_signal_padded.shape}&quot;)
 
-<span class="n">GW_w</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">dwt</span><span class="p">(</span><span class="n">GW_signal_padded</span><span class="p">)</span>
+GW_w = wdm.dwt(GW_signal_padded)
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Wavelet coefficients shape = </span><span class="si">{</span><span class="n">GW_w</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+print(f&quot;Wavelet coefficients shape = {GW_w.shape}&quot;)
 
-<span class="n">GW_signal_recovered</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">GW_w</span><span class="p">)</span>
+GW_signal_recovered = wdm.idwt(GW_w)
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Recovered time series shape = </span><span class="si">{</span><span class="n">GW_signal_padded</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+print(f&quot;Recovered time series shape = {GW_signal_padded.shape}&quot;)
 </pre></div>
 </div>
 </div>

@@ -105,13 +105,13 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[101]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
+import matplotlib.pyplot as plt
+import time
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">WDM</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.plotting.plotting</span><span class="w"> </span><span class="kn">import</span> <span class="n">time_frequency_plot</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.discrete_wavelet_transform</span><span class="w"> </span><span class="kn">import</span> <span class="n">WDM</span>
+import WDM
+from WDM.code.plotting.plotting import time_frequency_plot
+from WDM.code.discrete_wavelet_transform import WDM
 </pre></div>
 </div>
 </div>
@@ -120,18 +120,18 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[102]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">calc_mismatch</span><span class="p">(</span><span class="n">h1</span><span class="p">,</span> <span class="n">h2</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Computes the mismatch between signals h1 and h2.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">inner_product</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">h1</span><span class="p">,</span> <span class="n">h2</span><span class="p">))</span>
-    <span class="n">norm_h1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">h1</span><span class="p">,</span><span class="n">h1</span><span class="p">))</span>
-    <span class="n">norm_h2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">h2</span><span class="p">,</span><span class="n">h2</span><span class="p">))</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>def calc_mismatch(h1, h2):
+    &quot;&quot;&quot;
+    Computes the mismatch between signals h1 and h2.
+    &quot;&quot;&quot;
+    inner_product = np.abs(np.dot(h1, h2))
+    norm_h1 = np.sqrt(np.dot(h1,h1))
+    norm_h2 = np.sqrt(np.dot(h2,h2))
 
-    <span class="n">overlap</span> <span class="o">=</span> <span class="n">inner_product</span> <span class="o">/</span> <span class="p">(</span><span class="n">norm_h1</span> <span class="o">*</span> <span class="n">norm_h2</span><span class="p">)</span>
-    <span class="n">mismatch</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">overlap</span>
+    overlap = inner_product / (norm_h1 * norm_h2)
+    mismatch = 1 - overlap
 
-    <span class="k">return</span> <span class="n">mismatch</span>
+    return mismatch
 </pre></div>
 </div>
 </div>
@@ -140,22 +140,22 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[103]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span> <span class="o">=</span> <span class="mf">0.2</span>    <span class="c1"># sampling frequency [Hz]</span>
-<span class="n">T</span>  <span class="o">=</span> <span class="mf">1.0e5</span>  <span class="c1"># duration [s]</span>
-<span class="n">f0</span> <span class="o">=</span> <span class="mf">3.0e-3</span> <span class="c1"># central frequency [Hz]</span>
-<span class="n">w</span>  <span class="o">=</span> <span class="n">T</span><span class="o">/</span><span class="mf">15.</span>  <span class="c1"># duration [s]</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fs = 0.2    # sampling frequency [Hz]
+T  = 1.0e5  # duration [s]
+f0 = 3.0e-3 # central frequency [Hz]
+w  = T/15.  # duration [s]
 
-<span class="n">sine_gauss</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="p">((</span><span class="n">t</span><span class="o">-</span><span class="n">T</span><span class="o">/</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="n">w</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">f0</span><span class="o">*</span><span class="n">t</span><span class="p">)</span>
+sine_gauss = lambda t: np.exp(-0.5*((t-T/2.)/w)**2)*np.sin(2*np.pi*f0*t)
 
-<span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="mi">1</span><span class="o">/</span><span class="n">fs</span><span class="p">)</span>
-<span class="n">signal</span> <span class="o">=</span> <span class="n">sine_gauss</span><span class="p">(</span><span class="n">times</span><span class="p">)</span>
+times = np.arange(0, T, 1/fs)
+signal = sine_gauss(times)
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;time [s]&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;signal&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+fig, ax = plt.subplots(figsize=(5,3))
+ax.plot(times, signal)
+ax.set_xlim(0, T)
+ax.set_xlabel(r&#39;time [s]&#39;)
+ax.set_ylabel(&#39;signal&#39;)
+plt.show()
 </pre></div>
 </div>
 </div>
@@ -171,11 +171,11 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[104]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">N</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span> <span class="n">times</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">200</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>N, Nf= times.shape[0], 200
 
-<span class="n">wdm</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mi">1</span><span class="o">/</span><span class="n">fs</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span><span class="n">Nf</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">,</span> <span class="n">q</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">calc_m0</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+wdm = WDM.WDM_transform(dt=1/fs, Nf=Nf, N=N, q=32, calc_m0=True)
 
-<span class="nb">print</span><span class="p">(</span><span class="n">wdm</span><span class="p">)</span>
+print(wdm)
 </pre></div>
 </div>
 </div>
@@ -199,7 +199,7 @@ self.K = 12800 window length
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[105]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w</span> <span class="o">=</span> <span class="n">wdm</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w = wdm(signal)
 </pre></div>
 </div>
 </div>
@@ -208,8 +208,8 @@ self.K = 12800 window length
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[106]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">time_frequency_plot</span><span class="p">(</span><span class="n">wdm</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = time_frequency_plot(wdm, w, scale=&#39;log&#39;)
+plt.show()
 </pre></div>
 </div>
 </div>
@@ -225,11 +225,11 @@ self.K = 12800 window length
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[107]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">L</span> <span class="o">=</span> <span class="mi">25</span>  <span class="c1"># the maximum lag index</span>
-<span class="n">N</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># the number of interpolation points</span>
-<span class="n">wdm</span><span class="o">.</span><span class="n">build_time_delay_filter_interpolants</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>L = 25  # the maximum lag index
+N = 10  # the number of interpolation points
+wdm.build_time_delay_filter_interpolants(L, N)
 
-<span class="n">tn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span><span class="o">*</span><span class="n">wdm</span><span class="o">.</span><span class="n">dT</span>
+tn = np.arange(wdm.Nt)*wdm.dT
 </pre></div>
 </div>
 </div>
@@ -238,7 +238,7 @@ self.K = 12800 window length
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[108]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">delta_constant</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="p">(</span><span class="n">T</span><span class="o">/</span><span class="mf">10.</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>delta_constant = lambda t: (T/10.)*np.ones_like(t)
 </pre></div>
 </div>
 </div>
@@ -247,30 +247,30 @@ self.K = 12800 window length
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[109]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">shifted_signal_constant_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">times</span> <span class="o">+</span> <span class="n">delta_constant</span><span class="p">(</span><span class="n">times</span><span class="p">),</span>
-                                      <span class="n">times</span><span class="p">,</span>
-                                      <span class="n">signal</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>shifted_signal_constant_t = np.interp(times + delta_constant(times),
+                                      times,
+                                      signal)
 
-<span class="n">w_shifted_constant</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">apply_variable_time_shift</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">delta_constant</span><span class="p">(</span><span class="n">tn</span><span class="p">))</span>
-<span class="n">shifted_signal_constant_tf</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">w_shifted_constant</span><span class="p">)</span>
+w_shifted_constant = wdm.apply_variable_time_shift(w, delta_constant(tn))
+shifted_signal_constant_tf = wdm.idwt(w_shifted_constant)
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span>
-        <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Original signal&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="mi">2</span><span class="o">+</span><span class="n">shifted_signal_constant_t</span><span class="p">,</span>
-        <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C0&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Shifted signal</span><span class="se">\n</span><span class="s1">(time domain)&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="mi">4</span><span class="o">+</span><span class="n">shifted_signal_constant_tf</span><span class="p">,</span>
-        <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C1&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Shifted signal</span><span class="se">\n</span><span class="s1">(time-freq domain)&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="mi">6</span><span class="o">+</span><span class="mi">1000</span><span class="o">*</span><span class="p">(</span><span class="n">shifted_signal_constant_t</span><span class="o">-</span><span class="n">shifted_signal_constant_tf</span><span class="p">),</span>
-        <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C3&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Residuals ($\times 10^3$)&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;time [s]&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;signal&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Vertical offset added to separate signals&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+fig, ax = plt.subplots(figsize=(5,3))
+ax.plot(times, signal,
+        c=&#39;k&#39;, lw=1, label=&#39;Original signal&#39;)
+ax.plot(times, 2+shifted_signal_constant_t,
+        c=&#39;C0&#39;, lw=1, label=&#39;Shifted signal\n(time domain)&#39;)
+ax.plot(times, 4+shifted_signal_constant_tf,
+        c=&#39;C1&#39;, lw=1, label=&#39;Shifted signal\n(time-freq domain)&#39;)
+ax.plot(times, 6+1000*(shifted_signal_constant_t-shifted_signal_constant_tf),
+        c=&#39;C3&#39;, lw=2, label=r&#39;Residuals ($\times 10^3$)&#39;)
+ax.set_xlim(0, T)
+ax.set_xlabel(r&#39;time [s]&#39;)
+ax.set_ylabel(&#39;signal&#39;)
+ax.legend(fontsize=8, loc=&#39;upper right&#39;)
+ax.set_title(&#39;Vertical offset added to separate signals&#39;)
+plt.show()
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;The mismatch between the methods is:&quot;</span><span class="p">,</span> <span class="n">calc_mismatch</span><span class="p">(</span><span class="n">shifted_signal_constant_t</span><span class="p">,</span> <span class="n">shifted_signal_constant_tf</span><span class="p">))</span>
+print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_signal_constant_t, shifted_signal_constant_tf))
 </pre></div>
 </div>
 </div>
@@ -294,7 +294,7 @@ The mismatch between the methods is: 3.163538320194448e-10
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[110]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">delta_variable</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">t</span><span class="p">,</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">:</span> <span class="n">a</span><span class="o">+</span><span class="n">b</span><span class="o">*</span><span class="n">t</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>delta_variable = lambda t,a,b: a+b*t
 </pre></div>
 </div>
 </div>
@@ -303,33 +303,33 @@ The mismatch between the methods is: 3.163538320194448e-10
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[111]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">starting_shift</span> <span class="o">=</span> <span class="n">T</span><span class="o">/</span><span class="mf">10.</span>
-<span class="n">gradient</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="mf">1000.</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>starting_shift = T/10.
+gradient = 1/1000.
 
-<span class="n">shifted_signal_variable_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">times</span> <span class="o">+</span> <span class="n">delta_variable</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">starting_shift</span><span class="p">,</span> <span class="n">gradient</span><span class="p">),</span>
-                                      <span class="n">times</span><span class="p">,</span>
-                                      <span class="n">signal</span><span class="p">)</span>
+shifted_signal_variable_t = np.interp(times + delta_variable(times, starting_shift, gradient),
+                                      times,
+                                      signal)
 
-<span class="n">w_shifted_variable</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">apply_variable_time_shift</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">delta_variable</span><span class="p">(</span><span class="n">tn</span><span class="p">,</span> <span class="n">starting_shift</span><span class="p">,</span> <span class="n">gradient</span><span class="p">))</span>
-<span class="n">shifted_signal_variable_tf</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">w_shifted_variable</span><span class="p">)</span>
+w_shifted_variable = wdm.apply_variable_time_shift(w, delta_variable(tn, starting_shift, gradient))
+shifted_signal_variable_tf = wdm.idwt(w_shifted_variable)
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal</span><span class="p">,</span>
-        <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Original signal&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="mi">2</span><span class="o">+</span><span class="n">shifted_signal_variable_t</span><span class="p">,</span>
-        <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C0&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Shifted signal</span><span class="se">\n</span><span class="s1">(time domain)&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="mi">4</span><span class="o">+</span><span class="n">shifted_signal_variable_tf</span><span class="p">,</span>
-        <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C1&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Shifted signal</span><span class="se">\n</span><span class="s1">(time-freq domain)&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="mi">6</span><span class="o">+</span><span class="mi">1000</span><span class="o">*</span><span class="p">(</span><span class="n">shifted_signal_variable_t</span><span class="o">-</span><span class="n">shifted_signal_variable_tf</span><span class="p">),</span>
-        <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C3&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Residuals ($\times 10^3$)&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;time [s]&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;signal&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Vertical offset added to separate signals&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+fig, ax = plt.subplots(figsize=(5,3))
+ax.plot(times, signal,
+        c=&#39;k&#39;, lw=1, label=&#39;Original signal&#39;)
+ax.plot(times, 2+shifted_signal_variable_t,
+        c=&#39;C0&#39;, lw=1, label=&#39;Shifted signal\n(time domain)&#39;)
+ax.plot(times, 4+shifted_signal_variable_tf,
+        c=&#39;C1&#39;, lw=1, label=&#39;Shifted signal\n(time-freq domain)&#39;)
+ax.plot(times, 6+1000*(shifted_signal_variable_t-shifted_signal_variable_tf),
+        c=&#39;C3&#39;, lw=2, label=r&#39;Residuals ($\times 10^3$)&#39;)
+ax.set_xlim(0, T)
+ax.set_xlabel(r&#39;time [s]&#39;)
+ax.set_ylabel(&#39;signal&#39;)
+ax.legend(fontsize=8, loc=&#39;upper right&#39;)
+ax.set_title(&#39;Vertical offset added to separate signals&#39;)
+plt.show()
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;The mismatch between the methods is:&quot;</span><span class="p">,</span> <span class="n">calc_mismatch</span><span class="p">(</span><span class="n">shifted_signal_variable_t</span><span class="p">,</span> <span class="n">shifted_signal_variable_tf</span><span class="p">))</span>
+print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_signal_variable_t, shifted_signal_variable_tf))
 </pre></div>
 </div>
 </div>
@@ -353,31 +353,31 @@ The mismatch between the methods is: 6.748666203648668e-08
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[112]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">grad_list</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.0001</span><span class="p">,</span> <span class="mf">0.00001</span><span class="p">]</span>
-<span class="n">mismatch_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">grad_list</span><span class="p">)</span>
-<span class="n">starting_shift</span> <span class="o">=</span> <span class="n">T</span><span class="o">/</span><span class="mf">10.</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>grad_list = [0.1, 0.01, 0.001, 0.0001, 0.00001]
+mismatch_list = np.zeros_like(grad_list)
+starting_shift = T/10.
 
-<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">grad_list</span><span class="p">)):</span>
+for i in range(len(grad_list)):
 
-    <span class="n">grad</span> <span class="o">=</span> <span class="n">grad_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    grad = grad_list[i]
 
-    <span class="n">shifted_signal_variable_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">times</span> <span class="o">+</span> <span class="n">delta_variable</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">starting_shift</span><span class="p">,</span> <span class="n">grad</span><span class="p">),</span>
-                                      <span class="n">times</span><span class="p">,</span>
-                                      <span class="n">signal</span><span class="p">)</span>
+    shifted_signal_variable_t = np.interp(times + delta_variable(times, starting_shift, grad),
+                                      times,
+                                      signal)
 
-    <span class="n">w_shifted_variable</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">apply_variable_time_shift</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">delta_variable</span><span class="p">(</span><span class="n">tn</span><span class="p">,</span> <span class="n">starting_shift</span><span class="p">,</span> <span class="n">grad</span><span class="p">))</span>
-    <span class="n">shifted_signal_variable_tf</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">w_shifted_variable</span><span class="p">)</span>
+    w_shifted_variable = wdm.apply_variable_time_shift(w, delta_variable(tn, starting_shift, grad))
+    shifted_signal_variable_tf = wdm.idwt(w_shifted_variable)
 
-    <span class="n">mismatch_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">calc_mismatch</span><span class="p">(</span><span class="n">shifted_signal_variable_t</span><span class="p">,</span> <span class="n">shifted_signal_variable_tf</span><span class="p">)</span>
+    mismatch_list[i] = calc_mismatch(shifted_signal_variable_t, shifted_signal_variable_tf)
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">grad_list</span><span class="p">,</span> <span class="n">mismatch_list</span><span class="p">,</span>
-        <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,)</span>
+fig, ax = plt.subplots(figsize=(5,3))
+ax.loglog(grad_list, mismatch_list,
+        c=&#39;k&#39;, lw=1,)
 
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Variable Shift Gradient [s]&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Mismatch&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Accuracy of variable time shift as a function of gradient&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+ax.set_xlabel(r&#39;Variable Shift Gradient [s]&#39;)
+ax.set_ylabel(r&#39;Mismatch&#39;)
+ax.set_title(&#39;Accuracy of variable time shift as a function of gradient&#39;)
+plt.show()
 </pre></div>
 </div>
 </div>
@@ -395,22 +395,22 @@ The mismatch between the methods is: 6.748666203648668e-08
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[113]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span> <span class="o">=</span> <span class="mf">0.2</span>    <span class="c1"># sampling frequency [Hz]</span>
-<span class="n">T</span>  <span class="o">=</span> <span class="mf">1.0e5</span>  <span class="c1"># duration [s]</span>
-<span class="n">f0_m0</span> <span class="o">=</span> <span class="mf">2.0e-4</span> <span class="c1"># central frequency [Hz]</span>
-<span class="n">w</span>  <span class="o">=</span> <span class="n">T</span><span class="o">/</span><span class="mf">15.</span>  <span class="c1"># duration [s]</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fs = 0.2    # sampling frequency [Hz]
+T  = 1.0e5  # duration [s]
+f0_m0 = 2.0e-4 # central frequency [Hz]
+w  = T/15.  # duration [s]
 
-<span class="n">sine_gauss</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="p">((</span><span class="n">t</span><span class="o">-</span><span class="n">T</span><span class="o">/</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="n">w</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">f0_m0</span><span class="o">*</span><span class="n">t</span><span class="p">)</span>
+sine_gauss = lambda t: np.exp(-0.5*((t-T/2.)/w)**2)*np.sin(2*np.pi*f0_m0*t)
 
-<span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="mi">1</span><span class="o">/</span><span class="n">fs</span><span class="p">)</span>
-<span class="n">signal_m0_bin</span> <span class="o">=</span> <span class="n">sine_gauss</span><span class="p">(</span><span class="n">times</span><span class="p">)</span>
+times = np.arange(0, T, 1/fs)
+signal_m0_bin = sine_gauss(times)
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal_m0_bin</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;time [s]&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;signal&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+fig, ax = plt.subplots(figsize=(5,3))
+ax.plot(times, signal_m0_bin)
+ax.set_xlim(0, T)
+ax.set_xlabel(r&#39;time [s]&#39;)
+ax.set_ylabel(&#39;signal&#39;)
+plt.show()
 </pre></div>
 </div>
 </div>
@@ -426,17 +426,17 @@ The mismatch between the methods is: 6.748666203648668e-08
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[114]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w_m0</span> <span class="o">=</span> <span class="n">wdm</span><span class="p">(</span><span class="n">signal_m0_bin</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w_m0 = wdm(signal_m0_bin)
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
-<span class="n">im</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">w_m0</span><span class="o">.</span><span class="n">T</span><span class="p">)),</span>
-          <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;lower&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;jet&#39;</span><span class="p">,</span>
-          <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">f_Ny</span><span class="p">])</span>
-<span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;log10 Magnitude&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Time [s]&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Frequency [Hz]&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mf">0.01</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+fig, ax = plt.subplots(figsize=(5,3))
+im = ax.imshow(np.log(np.abs(w_m0.T)),
+          aspect=&#39;auto&#39;, origin=&#39;lower&#39;, cmap=&#39;jet&#39;,
+          extent=[0., wdm.T, 0., wdm.f_Ny])
+fig.colorbar(im, label=&#39;log10 Magnitude&#39;, ax=ax)
+ax.set_xlabel(r&#39;Time [s]&#39;)
+ax.set_ylabel(r&#39;Frequency [Hz]&#39;)
+ax.set_ylim(0,0.01)
+plt.show()
 </pre></div>
 </div>
 </div>
@@ -452,51 +452,51 @@ The mismatch between the methods is: 6.748666203648668e-08
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[115]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">starting_shift</span> <span class="o">=</span> <span class="n">T</span><span class="o">/</span><span class="mf">10.</span>
-<span class="n">gradient</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="mf">1000.</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>starting_shift = T/10.
+gradient = 1/1000.
 
-<span class="n">shifted_signal_m0_variable_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">times</span> <span class="o">+</span> <span class="n">delta_variable</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">starting_shift</span><span class="p">,</span> <span class="n">gradient</span><span class="p">),</span>
-                                      <span class="n">times</span><span class="p">,</span>
-                                      <span class="n">signal_m0_bin</span><span class="p">)</span>
+shifted_signal_m0_variable_t = np.interp(times + delta_variable(times, starting_shift, gradient),
+                                      times,
+                                      signal_m0_bin)
 
-<span class="n">w_m0_shifted_variable</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">apply_variable_time_shift</span><span class="p">(</span><span class="n">w_m0</span><span class="p">,</span> <span class="n">delta_variable</span><span class="p">(</span><span class="n">tn</span><span class="p">,</span> <span class="n">starting_shift</span><span class="p">,</span> <span class="n">gradient</span><span class="p">))</span>
-<span class="n">shifted_m0_signal_variable_tf</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">w_m0_shifted_variable</span><span class="p">)</span>
+w_m0_shifted_variable = wdm.apply_variable_time_shift(w_m0, delta_variable(tn, starting_shift, gradient))
+shifted_m0_signal_variable_tf = wdm.idwt(w_m0_shifted_variable)
 
-<span class="n">fig</span><span class="p">,</span> <span class="p">(</span><span class="n">ax1</span><span class="p">,</span> <span class="n">ax2</span><span class="p">)</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span>
-    <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
-    <span class="n">gridspec_kw</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;width_ratios&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">]}</span>
-<span class="p">)</span>
+fig, (ax1, ax2) = plt.subplots(
+    1, 2, figsize=(10, 3),
+    gridspec_kw={&#39;width_ratios&#39;: [2, 1]}
+)
 
-<span class="c1"># Signals</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal_m0_bin</span><span class="p">,</span>
-         <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Original signal</span><span class="se">\n</span><span class="s1">(time domain)&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">shifted_signal_m0_variable_t</span><span class="p">,</span>
-         <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C0&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Shifted signal</span><span class="se">\n</span><span class="s1">(time domain)&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">shifted_m0_signal_variable_tf</span><span class="p">,</span>
-         <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C1&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Shifted signal</span><span class="se">\n</span><span class="s1">(time-freq domain)&#39;</span><span class="p">)</span>
+# Signals
+ax1.plot(times, signal_m0_bin,
+         c=&#39;k&#39;, lw=1, label=&#39;Original signal\n(time domain)&#39;)
+ax1.plot(times, shifted_signal_m0_variable_t,
+         c=&#39;C0&#39;, lw=1, label=&#39;Shifted signal\n(time domain)&#39;)
+ax1.plot(times, shifted_m0_signal_variable_tf,
+         c=&#39;C1&#39;, lw=1, label=&#39;Shifted signal\n(time-freq domain)&#39;)
 
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;time [s]&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;signal&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;m0 bin effect&#39;</span><span class="p">)</span>
+ax1.set_xlim(0, T)
+ax1.set_xlabel(r&#39;time [s]&#39;)
+ax1.set_ylabel(&#39;signal&#39;)
+ax1.legend(fontsize=8, loc=&#39;upper right&#39;)
+ax1.set_title(&#39;m0 bin effect&#39;)
 
-<span class="c1"># Residuals</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
-    <span class="n">times</span><span class="p">,</span>
-    <span class="n">shifted_signal_m0_variable_t</span> <span class="o">-</span> <span class="n">shifted_m0_signal_variable_tf</span><span class="p">,</span>
-    <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C3&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span>
-<span class="p">)</span>
+# Residuals
+ax2.plot(
+    times,
+    shifted_signal_m0_variable_t - shifted_m0_signal_variable_tf,
+    c=&#39;C3&#39;, lw=1
+)
 
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;time [s]&#39;</span><span class="p">)</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;residual&#39;</span><span class="p">)</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Residuals&#39;</span><span class="p">)</span>
+ax2.set_xlim(0, T)
+ax2.set_xlabel(r&#39;time [s]&#39;)
+ax2.set_ylabel(&#39;residual&#39;)
+ax2.set_title(&#39;Residuals&#39;)
 
-<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+plt.tight_layout()
+plt.show()
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;The mismatch between the methods is:&quot;</span><span class="p">,</span> <span class="n">calc_mismatch</span><span class="p">(</span><span class="n">shifted_signal_m0_variable_t</span><span class="p">,</span> <span class="n">shifted_m0_signal_variable_tf</span><span class="p">))</span>
+print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_signal_m0_variable_t, shifted_m0_signal_variable_tf))
 </pre></div>
 </div>
 </div>
@@ -521,43 +521,43 @@ The mismatch between the methods is: 0.37937199095390706
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[116]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span> <span class="o">=</span> <span class="mf">0.2</span>    <span class="c1"># sampling frequency [Hz]</span>
-<span class="n">T</span>  <span class="o">=</span> <span class="mf">1.0e5</span>  <span class="c1"># duration [s]</span>
-<span class="n">f0</span> <span class="o">=</span> <span class="mf">3.0e-3</span> <span class="c1"># central frequency [Hz]</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fs = 0.2    # sampling frequency [Hz]
+T  = 1.0e5  # duration [s]
+f0 = 3.0e-3 # central frequency [Hz]
 
-<span class="n">w_wide</span> <span class="o">=</span> <span class="n">T</span><span class="o">/</span><span class="mf">7.</span>
-<span class="n">sine_gauss</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="p">((</span><span class="n">t</span><span class="o">-</span><span class="n">T</span><span class="o">/</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="n">w_wide</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">f0</span><span class="o">*</span><span class="n">t</span><span class="p">)</span>
+w_wide = T/7.
+sine_gauss = lambda t: np.exp(-0.5*((t-T/2.)/w_wide)**2) * np.sin(2*np.pi*f0*t)
 
-<span class="n">times</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="mi">1</span><span class="o">/</span><span class="n">fs</span><span class="p">)</span>
-<span class="n">signal_wide</span> <span class="o">=</span> <span class="n">sine_gauss</span><span class="p">(</span><span class="n">times</span><span class="p">)</span>
+times = np.arange(0, T, 1/fs)
+signal_wide = sine_gauss(times)
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
+fig, ax = plt.subplots(figsize=(5,3))
 
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal_wide</span><span class="p">)</span>
+ax.plot(times, signal_wide)
 
-<span class="n">padding_edge</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">L</span> <span class="o">*</span> <span class="n">wdm</span><span class="o">.</span><span class="n">dT</span>
+padding_edge = 0.5 * L * wdm.dT
 
-<span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span>
-    <span class="n">padding_edge</span><span class="p">,</span>
-    <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span>
-    <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-    <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C3&#39;</span><span class="p">,</span>
-    <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Zero padding region&#39;</span>
-<span class="p">)</span>
+ax.axvline(
+    padding_edge,
+    ls=&#39;--&#39;,
+    lw=1,
+    c=&#39;C3&#39;,
+    label=&#39;Zero padding region&#39;
+)
 
-<span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span>
-    <span class="n">T</span> <span class="o">-</span> <span class="n">padding_edge</span><span class="p">,</span>
-    <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span>
-    <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-    <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C3&#39;</span>
-<span class="p">)</span>
+ax.axvline(
+    T - padding_edge,
+    ls=&#39;--&#39;,
+    lw=1,
+    c=&#39;C3&#39;
+)
 
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;time [s]&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;signal&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+ax.set_xlim(0, T)
+ax.set_xlabel(r&#39;time [s]&#39;)
+ax.set_ylabel(&#39;signal&#39;)
+ax.legend(fontsize=8)
 
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+plt.show()
 </pre></div>
 </div>
 </div>
@@ -572,53 +572,53 @@ The mismatch between the methods is: 0.37937199095390706
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[117]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w_wide</span> <span class="o">=</span> <span class="n">wdm</span><span class="p">(</span><span class="n">signal_wide</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w_wide = wdm(signal_wide)
 
-<span class="n">starting_shift</span> <span class="o">=</span> <span class="n">T</span><span class="o">/</span><span class="mf">10.</span>
-<span class="n">gradient</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="mf">1000.</span>
+starting_shift = T/10.
+gradient = 1/1000.
 
-<span class="n">shifted_signal_wide_variable_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">times</span> <span class="o">+</span> <span class="n">delta_variable</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">starting_shift</span><span class="p">,</span> <span class="n">gradient</span><span class="p">),</span>
-                                      <span class="n">times</span><span class="p">,</span>
-                                      <span class="n">signal_wide</span><span class="p">)</span>
+shifted_signal_wide_variable_t = np.interp(times + delta_variable(times, starting_shift, gradient),
+                                      times,
+                                      signal_wide)
 
-<span class="n">w_wide_shifted_variable</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">apply_variable_time_shift</span><span class="p">(</span><span class="n">w_wide</span><span class="p">,</span> <span class="n">delta_variable</span><span class="p">(</span><span class="n">tn</span><span class="p">,</span> <span class="n">starting_shift</span><span class="p">,</span> <span class="n">gradient</span><span class="p">))</span>
-<span class="n">shifted_wide_signal_variable_tf</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">w_wide_shifted_variable</span><span class="p">)</span>
+w_wide_shifted_variable = wdm.apply_variable_time_shift(w_wide, delta_variable(tn, starting_shift, gradient))
+shifted_wide_signal_variable_tf = wdm.idwt(w_wide_shifted_variable)
 
-<span class="n">fig</span><span class="p">,</span> <span class="p">(</span><span class="n">ax1</span><span class="p">,</span> <span class="n">ax2</span><span class="p">)</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span>
-    <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
-    <span class="n">gridspec_kw</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;width_ratios&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">]}</span>
-<span class="p">)</span>
+fig, (ax1, ax2) = plt.subplots(
+    1, 2, figsize=(10, 3),
+    gridspec_kw={&#39;width_ratios&#39;: [2, 1]}
+)
 
-<span class="c1"># Signals</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">signal_wide</span><span class="p">,</span>
-         <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Original signal</span><span class="se">\n</span><span class="s1">(time domain)&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="mi">2</span><span class="o">+</span><span class="n">shifted_signal_wide_variable_t</span><span class="p">,</span>
-         <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C0&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Shifted signal</span><span class="se">\n</span><span class="s1">(time domain)&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="mi">4</span><span class="o">+</span><span class="n">shifted_wide_signal_variable_tf</span><span class="p">,</span>
-         <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C1&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Shifted signal</span><span class="se">\n</span><span class="s1">(time-freq domain)&#39;</span><span class="p">)</span>
+# Signals
+ax1.plot(times, signal_wide,
+         c=&#39;k&#39;, lw=1, label=&#39;Original signal\n(time domain)&#39;)
+ax1.plot(times, 2+shifted_signal_wide_variable_t,
+         c=&#39;C0&#39;, lw=1, label=&#39;Shifted signal\n(time domain)&#39;)
+ax1.plot(times, 4+shifted_wide_signal_variable_tf,
+         c=&#39;C1&#39;, lw=1, label=&#39;Shifted signal\n(time-freq domain)&#39;)
 
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;time [s]&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;signal&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;lower right&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Wide signal effect&#39;</span><span class="p">)</span>
+ax1.set_xlim(0, T)
+ax1.set_xlabel(r&#39;time [s]&#39;)
+ax1.set_ylabel(&#39;signal&#39;)
+ax1.legend(fontsize=8, loc=&#39;lower right&#39;)
+ax1.set_title(&#39;Wide signal effect&#39;)
 
-<span class="c1"># Residuals</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
-    <span class="n">times</span><span class="p">,</span>
-    <span class="n">shifted_signal_wide_variable_t</span> <span class="o">-</span> <span class="n">shifted_wide_signal_variable_tf</span><span class="p">,</span>
-    <span class="n">c</span><span class="o">=</span><span class="s1">&#39;C3&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span>
-<span class="p">)</span>
+# Residuals
+ax2.plot(
+    times,
+    shifted_signal_wide_variable_t - shifted_wide_signal_variable_tf,
+    c=&#39;C3&#39;, lw=1
+)
 
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;time [s]&#39;</span><span class="p">)</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;residual&#39;</span><span class="p">)</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Residuals&#39;</span><span class="p">)</span>
+ax2.set_xlim(0, T)
+ax2.set_xlabel(r&#39;time [s]&#39;)
+ax2.set_ylabel(&#39;residual&#39;)
+ax2.set_title(&#39;Residuals&#39;)
 
-<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+plt.tight_layout()
+plt.show()
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;The mismatch between the methods is:&quot;</span><span class="p">,</span> <span class="n">calc_mismatch</span><span class="p">(</span><span class="n">shifted_signal_wide_variable_t</span><span class="p">,</span> <span class="n">shifted_wide_signal_variable_tf</span><span class="p">))</span>
+print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_signal_wide_variable_t, shifted_wide_signal_variable_tf))
 <br/></pre></div>
 </div>
 </div>

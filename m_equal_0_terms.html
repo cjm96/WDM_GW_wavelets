@@ -111,9 +111,9 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">WDM</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
+import matplotlib.pyplot as plt
+import WDM
 </pre></div>
 </div>
 </div>
@@ -121,11 +121,11 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Nf</span> <span class="o">=</span> <span class="mi">32</span>
-<span class="n">N</span> <span class="o">=</span> <span class="mi">32</span><span class="o">*</span><span class="n">Nf</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>Nf = 32
+N = 32*Nf
 
-<span class="n">wdm_m_all</span>  <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span><span class="n">Nf</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">,</span> <span class="n">calc_m0</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">wdm_m_geq0</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span><span class="n">Nf</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">)</span> <span class="c1"># default calc_m0=False</span>
+wdm_m_all  = WDM.WDM.WDM_transform(dt=1, Nf=Nf, N=N, calc_m0=True)
+wdm_m_geq0 = WDM.WDM.WDM_transform(dt=1., Nf=Nf, N=N) # default calc_m0=False
 </pre></div>
 </div>
 </div>
@@ -134,7 +134,7 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">u</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">a</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">u</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="n">u</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>f = lambda u, a: np.sin(a*np.pi*u) * np.exp(-0.5*u**2)
 </pre></div>
 </div>
 </div>
@@ -142,18 +142,18 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">test_signal_lowf</span> <span class="o">=</span> <span class="n">f</span><span class="p">((</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="o">-</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">T</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">T</span><span class="o">/</span><span class="mi">16</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>test_signal_lowf = f((wdm_m_all.times-wdm_m_all.T/2)/(wdm_m_all.T/16), 1)
 
-<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">test_signal_lowf</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Test signal&#39;</span><span class="p">)</span>
+plt.plot(wdm_m_all.times, test_signal_lowf, label=&#39;Test signal&#39;)
 
-<span class="n">reconstructed_m_all</span> <span class="o">=</span> <span class="n">wdm_m_all</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">test_signal_lowf</span><span class="p">))</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">reconstructed_m_all</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Reconstructed (all $m$)&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+reconstructed_m_all = wdm_m_all.idwt(wdm_m_all.forward_transform_short_fft(test_signal_lowf))
+plt.plot(wdm_m_all.times, reconstructed_m_all, label=r&#39;Reconstructed (all $m$)&#39;, ls=&#39;--&#39;, lw=3)
 
-<span class="n">reconstructed_m_geq0</span> <span class="o">=</span> <span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">test_signal_lowf</span><span class="p">))</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">reconstructed_m_geq0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Reconstructed ($m&gt;0$)&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+reconstructed_m_geq0 = wdm_m_geq0.idwt(wdm_m_geq0.forward_transform_short_fft(test_signal_lowf))
+plt.plot(wdm_m_geq0.times, reconstructed_m_geq0, label=r&#39;Reconstructed ($m&gt;0$)&#39;, ls=&#39;--&#39;, lw=3)
 
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">);</span> <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Signal&#39;</span><span class="p">);</span> <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+plt.xlabel(&#39;Time&#39;); plt.ylabel(&#39;Signal&#39;); plt.legend(loc=&#39;upper right&#39;)
+plt.show()
 </pre></div>
 </div>
 </div>
@@ -169,18 +169,18 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">test_signal_highf</span> <span class="o">=</span> <span class="n">f</span><span class="p">((</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="o">-</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">T</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">T</span><span class="o">/</span><span class="mi">16</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>test_signal_highf = f((wdm_m_all.times-wdm_m_all.T/2)/(wdm_m_all.T/16), 4)
 
-<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">test_signal_highf</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Test signal&#39;</span><span class="p">)</span>
+plt.plot(wdm_m_all.times, test_signal_highf, label=&#39;Test signal&#39;)
 
-<span class="n">reconstructed_m_all</span> <span class="o">=</span> <span class="n">wdm_m_all</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">test_signal_highf</span><span class="p">))</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_all</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">reconstructed_m_all</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Reconstructed (all $m$)&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+reconstructed_m_all = wdm_m_all.idwt(wdm_m_all.forward_transform_short_fft(test_signal_highf))
+plt.plot(wdm_m_all.times, reconstructed_m_all, label=r&#39;Reconstructed (all $m$)&#39;, ls=&#39;--&#39;, lw=2)
 
-<span class="n">reconstructed_m_geq0</span> <span class="o">=</span> <span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">idwt</span><span class="p">(</span><span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">forward_transform_short_fft</span><span class="p">(</span><span class="n">test_signal_highf</span><span class="p">))</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm_m_geq0</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">reconstructed_m_geq0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;Reconstructed ($m&gt;0$)&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+reconstructed_m_geq0 = wdm_m_geq0.idwt(wdm_m_geq0.forward_transform_short_fft(test_signal_highf))
+plt.plot(wdm_m_geq0.times, reconstructed_m_geq0, label=r&#39;Reconstructed ($m&gt;0$)&#39;, ls=&#39;--&#39;, lw=2)
 
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">);</span> <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Signal&#39;</span><span class="p">);</span> <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+plt.xlabel(&#39;Time&#39;); plt.ylabel(&#39;Signal&#39;); plt.legend(loc=&#39;upper right&#39;)
+plt.show()
 </pre></div>
 </div>
 </div>

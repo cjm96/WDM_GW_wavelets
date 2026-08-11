@@ -104,15 +104,15 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+import jax
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">gridspec</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.patches</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">patches</span>
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
+import matplotlib.patches as patches
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">WDM</span>
+import WDM
 </pre></div>
 </div>
 </div>
@@ -121,9 +121,9 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dt</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="n">Nt</span><span class="p">,</span> <span class="n">Nf</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">8</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>dt, N, Nt, Nf = 0.5, 512, 64, 8
 
-<span class="k">assert</span> <span class="n">Nf</span><span class="o">*</span><span class="n">Nt</span><span class="o">==</span><span class="n">N</span><span class="p">,</span> <span class="s2">&quot;Incompatible dimensions&quot;</span>
+assert Nf*Nt==N, &quot;Incompatible dimensions&quot;
 </pre></div>
 </div>
 </div>
@@ -132,9 +132,9 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">key</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-<span class="n">key</span><span class="p">,</span> <span class="n">subkey</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-<span class="n">x</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">subkey</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">N</span><span class="p">,))</span> <span class="c1"># white noise</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>key = jax.random.key(0)
+key, subkey = jax.random.split(key)
+x = jax.random.normal(subkey, shape=(N,)) # white noise
 </pre></div>
 </div>
 </div>
@@ -144,22 +144,22 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">q_vals</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">4</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">12</span><span class="p">,</span><span class="mi">14</span><span class="p">,</span><span class="mi">16</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">25</span><span class="p">,</span><span class="mi">32</span><span class="p">]</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>q_vals = [1,2,4,8,10,12,14,16,20,25,32]
 
-<span class="n">err_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_vals</span><span class="p">))</span>
+err_vals = np.zeros(len(q_vals))
 
-<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">q</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">q_vals</span><span class="p">):</span>
-    <span class="n">wdm</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-                                <span class="n">Nf</span><span class="o">=</span><span class="n">Nf</span><span class="p">,</span>
-                                <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">,</span>
-                                <span class="n">q</span><span class="o">=</span><span class="n">q</span><span class="p">,</span>
-                                <span class="n">calc_m0</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+for i, q in enumerate(q_vals):
+    wdm = WDM.WDM.WDM_transform(dt=0.5,
+                                Nf=Nf,
+                                N=N,
+                                q=q,
+                                calc_m0=True)
 
-    <span class="n">w</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">forward_transform_truncated</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    w = wdm.forward_transform_truncated(x)
 
-    <span class="n">x_recovered</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+    x_recovered = wdm.inverse_transform(w)
 
-    <span class="n">err_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">x_recovered</span><span class="p">))</span>
+    err_vals[i] = np.max(np.abs(x - x_recovered))
 </pre></div>
 </div>
 </div>
@@ -168,16 +168,16 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">wdm</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-                            <span class="n">Nf</span><span class="o">=</span><span class="n">Nf</span><span class="p">,</span>
-                            <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">,</span>
-                            <span class="n">calc_m0</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>wdm = WDM.WDM.WDM_transform(dt=0.5,
+                            Nf=Nf,
+                            N=N,
+                            calc_m0=True)
 
-<span class="n">w</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">forward_transform_exact</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+w = wdm.forward_transform_exact(x)
 
-<span class="n">x_recovered</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">inverse_transform_exact</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+x_recovered = wdm.inverse_transform_exact(w)
 
-<span class="n">err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">x_recovered</span><span class="p">))</span>
+err = np.max(np.abs(x - x_recovered))
 </pre></div>
 </div>
 </div>
@@ -186,21 +186,21 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
-<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Truncated Wavelet Transform Error&quot;</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
+fig.suptitle(&quot;Truncated Wavelet Transform Error&quot;)
 
-<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">q_vals</span><span class="p">,</span> <span class="n">err_vals</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Truncated&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Exact&#39;</span><span class="p">)</span>
+ax.plot(q_vals, err_vals, marker=&#39;o&#39;, label=&#39;Truncated&#39;)
+ax.axhline(err, color=&#39;k&#39;, lw=3, linestyle=&#39;:&#39;, label=&#39;Exact&#39;)
 
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$q$&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Max error&quot;</span><span class="p">)</span>
+ax.set_xlabel(r&quot;$q$&quot;)
+ax.set_ylabel(r&quot;Max error&quot;)
 
-<span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+ax.set_yscale(&#39;log&#39;)
 
-<span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+ax.grid()
+ax.legend(loc=&#39;upper right&#39;)
 
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+plt.show()
 </pre></div>
 </div>
 </div>
@@ -216,29 +216,29 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">d_vals</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">16</span><span class="p">]</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>d_vals = [1, 4, 16]
 
-<span class="n">q_vals</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">4</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">12</span><span class="p">,</span><span class="mi">14</span><span class="p">,</span><span class="mi">16</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">25</span><span class="p">,</span><span class="mi">32</span><span class="p">]</span>
+q_vals = [1,2,4,8,10,12,14,16,20,25,32]
 
-<span class="n">err_vals</span> <span class="o">=</span> <span class="p">{}</span>
+err_vals = {}
 
-<span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">d_vals</span><span class="p">):</span>
+for j, d in enumerate(d_vals):
 
-    <span class="n">err_vals</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_vals</span><span class="p">))</span>
+    err_vals[d] = np.zeros(len(q_vals))
 
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">q</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">q_vals</span><span class="p">):</span>
-        <span class="n">wdm</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">code</span><span class="o">.</span><span class="n">discrete_wavelet_transform</span><span class="o">.</span><span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-                                                                    <span class="n">Nf</span><span class="o">=</span><span class="n">Nf</span><span class="p">,</span>
-                                                                    <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">,</span>
-                                                                    <span class="n">q</span><span class="o">=</span><span class="n">q</span><span class="p">,</span>
-                                                                    <span class="n">d</span><span class="o">=</span><span class="n">d</span><span class="p">,</span>
-                                                                    <span class="n">calc_m0</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    for i, q in enumerate(q_vals):
+        wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5,
+                                                                    Nf=Nf,
+                                                                    N=N,
+                                                                    q=q,
+                                                                    d=d,
+                                                                    calc_m0=True)
 
-        <span class="n">w</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">forward_transform_truncated</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        w = wdm.forward_transform_truncated(x)
 
-        <span class="n">x_recovered</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+        x_recovered = wdm.inverse_transform(w)
 
-        <span class="n">err_vals</span><span class="p">[</span><span class="n">d</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">x_recovered</span><span class="p">))</span>
+        err_vals[d][i] = np.max(np.abs(x - x_recovered))
 </pre></div>
 </div>
 </div>
@@ -246,22 +246,22 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
-<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Truncated Wavelet Transform Error&quot;</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
+fig.suptitle(&quot;Truncated Wavelet Transform Error&quot;)
 
-<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">d_vals</span><span class="p">:</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">q_vals</span><span class="p">,</span> <span class="n">err_vals</span><span class="p">[</span><span class="n">d</span><span class="p">],</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Truncated </span><span class="si">{</span><span class="n">d</span><span class="si">=}</span><span class="s1">&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Exact&#39;</span><span class="p">)</span>
+for d in d_vals:
+    ax.plot(q_vals, err_vals[d], marker=&#39;o&#39;, label=f&#39;Truncated {d=}&#39;)
+ax.axhline(err, color=&#39;k&#39;, lw=3, linestyle=&#39;:&#39;, label=&#39;Exact&#39;)
 
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$q$&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;Max error&quot;</span><span class="p">)</span>
+ax.set_xlabel(r&quot;$q$&quot;)
+ax.set_ylabel(r&quot;Max error&quot;)
 
-<span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+ax.set_yscale(&#39;log&#39;)
 
-<span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+ax.grid()
+ax.legend(loc=&#39;upper right&#39;)
 
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+plt.show()
 </pre></div>
 </div>
 </div>

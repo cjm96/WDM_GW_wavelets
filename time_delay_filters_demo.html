@@ -104,14 +104,14 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import jax
+import jax.numpy as jnp
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pylab</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+import matplotlib.pylab as plt
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">WDM</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.discrete_wavelet_transform</span><span class="w"> </span><span class="kn">import</span> <span class="n">WDM</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.time_delay_filters.filters</span><span class="w"> </span><span class="kn">import</span> <span class="n">time_delay_filter_Tl</span><span class="p">,</span> <span class="n">time_delay_filter_Tprimel</span>
+import WDM
+from WDM.code.discrete_wavelet_transform import WDM
+from WDM.code.time_delay_filters.filters import time_delay_filter_Tl, time_delay_filter_Tprimel
 </pre></div>
 </div>
 </div>
@@ -119,13 +119,13 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dt</span> <span class="o">=</span> <span class="mf">1.0</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>dt = 1.0
 
-<span class="n">Nt</span> <span class="o">=</span> <span class="mi">32</span>
-<span class="n">Nf</span> <span class="o">=</span> <span class="mi">16</span>
-<span class="n">N</span> <span class="o">=</span> <span class="n">Nt</span><span class="o">*</span><span class="n">Nf</span>
+Nt = 32
+Nf = 16
+N = Nt*Nf
 
-<span class="n">wdm</span> <span class="o">=</span> <span class="n">WDM</span><span class="o">.</span><span class="n">WDM_transform</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span><span class="n">Nf</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">,</span> <span class="n">q</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">calc_m0</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+wdm = WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8, calc_m0=True)
 </pre></div>
 </div>
 </div>
@@ -141,51 +141,51 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">delta_t_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">15</span><span class="o">*</span><span class="n">wdm</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="mi">15</span><span class="o">*</span><span class="n">wdm</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="mi">500</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>delta_t_vals = jnp.linspace(-15*wdm.dT, 15*wdm.dT, 500)
 
-<span class="n">Tl_vals</span> <span class="o">=</span> <span class="p">{}</span>
-<span class="n">Tprimel_vals</span> <span class="o">=</span> <span class="p">{}</span>
+Tl_vals = {}
+Tprimel_vals = {}
 
-<span class="n">ell_max</span> <span class="o">=</span> <span class="mi">2</span>
+ell_max = 2
 
-<span class="k">for</span> <span class="n">ell</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">ell_max</span><span class="p">,</span> <span class="n">ell_max</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
-    <span class="n">Tl_vals</span><span class="p">[</span><span class="n">ell</span><span class="p">]</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">time_delay_filter_Tl</span><span class="p">(</span><span class="n">ell</span><span class="p">,</span>
-                                                   <span class="n">delta_t</span><span class="p">,</span>
-                                                   <span class="n">wdm</span><span class="o">.</span><span class="n">freqs</span><span class="p">,</span>
-                                                   <span class="n">wdm</span><span class="o">.</span><span class="n">window_FD</span><span class="p">,</span>
-                                                   <span class="n">wdm</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span>
-                                                   <span class="n">wdm</span><span class="o">.</span><span class="n">df</span><span class="p">)</span> <span class="k">for</span> <span class="n">delta_t</span> <span class="ow">in</span> <span class="n">delta_t_vals</span><span class="p">])</span>
-    <span class="n">Tprimel_vals</span><span class="p">[</span><span class="n">ell</span><span class="p">]</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">time_delay_filter_Tprimel</span><span class="p">(</span><span class="n">ell</span><span class="p">,</span>
-                                                             <span class="n">delta_t</span><span class="p">,</span>
-                                                             <span class="n">wdm</span><span class="o">.</span><span class="n">freqs</span><span class="p">,</span>
-                                                             <span class="n">wdm</span><span class="o">.</span><span class="n">window_FD</span><span class="p">,</span>
-                                                             <span class="n">wdm</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span>
-                                                             <span class="n">wdm</span><span class="o">.</span><span class="n">dF</span><span class="p">,</span>
-                                                             <span class="n">wdm</span><span class="o">.</span><span class="n">N</span><span class="p">,</span>
-                                                             <span class="n">wdm</span><span class="o">.</span><span class="n">df</span><span class="p">)</span> <span class="k">for</span> <span class="n">delta_t</span> <span class="ow">in</span> <span class="n">delta_t_vals</span><span class="p">])</span>
+for ell in range(-ell_max, ell_max+1):
+    Tl_vals[ell] = jnp.array([time_delay_filter_Tl(ell,
+                                                   delta_t,
+                                                   wdm.freqs,
+                                                   wdm.window_FD,
+                                                   wdm.dT,
+                                                   wdm.df) for delta_t in delta_t_vals])
+    Tprimel_vals[ell] = jnp.array([time_delay_filter_Tprimel(ell,
+                                                             delta_t,
+                                                             wdm.freqs,
+                                                             wdm.window_FD,
+                                                             wdm.dT,
+                                                             wdm.dF,
+                                                             wdm.N,
+                                                             wdm.df) for delta_t in delta_t_vals])
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">ncols</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+fig, axes = plt.subplots(ncols=2, figsize=(10, 4))
 
-<span class="k">for</span> <span class="n">ell</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">ell_max</span><span class="p">,</span> <span class="n">ell_max</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">delta_t_vals</span><span class="o">/</span><span class="n">wdm</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="n">Tl_vals</span><span class="p">[</span><span class="n">ell</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;$\ell=</span><span class="si">{}</span><span class="s1">$&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ell</span><span class="p">))</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">delta_t_vals</span><span class="o">/</span><span class="n">wdm</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="n">Tprimel_vals</span><span class="p">[</span><span class="n">ell</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;$\ell=</span><span class="si">{}</span><span class="s1">$&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ell</span><span class="p">))</span>
+for ell in range(-ell_max, ell_max+1):
+    axes[0].plot(delta_t_vals/wdm.dT, Tl_vals[ell], label=r&#39;$\ell={}$&#39;.format(ell))
+    axes[1].plot(delta_t_vals/wdm.dT, Tprimel_vals[ell], label=r&#39;$\ell={}$&#39;.format(ell))
 
-<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">delta_t_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">wdm</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="n">delta_t_vals</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">wdm</span><span class="o">.</span><span class="n">dT</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Time-delay $\delta t/\Delta T$&#39;</span><span class="p">)</span>
+axes[0].set_xlim(delta_t_vals[0]/wdm.dT, delta_t_vals[-1]/wdm.dT)
+axes[0].set_xlabel(r&#39;Time-delay $\delta t/\Delta T$&#39;)
 
-<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">delta_t_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">wdm</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="n">delta_t_vals</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">wdm</span><span class="o">.</span><span class="n">dT</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Time-delay $\delta t/\Delta T$&#39;</span><span class="p">)</span>
+axes[1].set_xlim(delta_t_vals[0]/wdm.dT, delta_t_vals[-1]/wdm.dT)
+axes[1].set_xlabel(r&#39;Time-delay $\delta t/\Delta T$&#39;)
 
-<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">1.3</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Time-delay filter $T_\ell(\delta t)$&#39;</span><span class="p">)</span>
+axes[0].set_ylim(-0.3, 1.3)
+axes[0].set_ylabel(r&#39;Time-delay filter $T_\ell(\delta t)$&#39;)
 
-<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.11</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Time-delay filter $T^\prime_\ell(\delta t)$&#39;</span><span class="p">)</span>
+axes[1].set_ylim(0, 0.11)
+axes[1].set_ylabel(r&#39;Time-delay filter $T^\prime_\ell(\delta t)$&#39;)
 
-<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">ncols</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper center&#39;</span><span class="p">,</span> <span class="n">handlelength</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">columnspacing</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">ncols</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper center&#39;</span><span class="p">,</span> <span class="n">handlelength</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">columnspacing</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+axes[0].legend(ncols=5, loc=&#39;upper center&#39;, handlelength=1, columnspacing=1)
+axes[1].legend(ncols=5, loc=&#39;upper center&#39;, handlelength=1, columnspacing=1)
+plt.tight_layout()
+plt.show()
 </pre></div>
 </div>
 </div>
