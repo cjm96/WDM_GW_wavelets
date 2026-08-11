@@ -5,9 +5,7 @@ import WDM
 from WDM.code.discrete_wavelet_transform import WDM
 from WDM.code.time_delay_filters.filters import time_delay_filter_Tl
 from WDM.code.time_delay_filters.filters import time_delay_filter_Tprimel
-from WDM.code.time_delay_filters.filters import time_delay_X
 
-from scipy.interpolate import interp1d
 
 
 def test_filter_functions():
@@ -17,96 +15,66 @@ def test_filter_functions():
     """
     wdm = WDM.WDM_transform(dt=0.5, 
                             Nf=8, 
-                            N=64,
+                            N=256,
                             q=4,
                             calc_m0=True)
-    
-    ell = 0
-    delta_t = 1.0
 
-    Tl = time_delay_filter_Tl(wdm, ell, delta_t)
-    assert isinstance(Tl, float), "oh dear"
+    L = 25  # the maximum lag index
+    N = 10  # the number of interpolation points
+    wdm.build_time_delay_filter_interpolants(L, N)
 
-    Tprimel = time_delay_filter_Tprimel(wdm, ell, delta_t)
-    assert isinstance(Tprimel, float), "oh dear"
+    ell = jnp.array(jnp.arange(-L, L+1), dtype=int)
+    delta = jnp.linspace(-wdm.dT/2, wdm.dT/2, 100)
+
+    Tl = wdm.time_delay_filter_Tl(ell, delta)
+    assert Tl.shape==(len(ell), len(delta)), "Tl array wrong shape"
+
+    Tprimel = wdm.time_delay_filter_Tprimel(ell, delta)
+    assert Tprimel.shape==(len(ell), len(delta)), "Tprimel array wrong shape"
 
 
-def test_filter_X_orthogonality():
+def test_time_delay():
     r"""
-    Test the orthogonality of the time-delay matrix elements. We should have 
-    the following property hold with zero time delay:
-
-    .. math::
-        X_{nn';mm'}(\delta t = 0) = \delta_{nn'} \delta_{mm'}
+    Test the time delay method - check that shifting a signal using the 
+    time-delay filters gives the same result as simply interpolating the signal
+    in the time domain.
     """
-    wdm = WDM.WDM_transform(dt=0.5, 
-                            Nf=8, 
-                            N=64,
-                            q=4,
-                            calc_m0=True)
+    fs = 0.2    # sampling frequency [Hz]
+    T  = 1.0e5  # duration [s]
+    f0 = 3.0e-3 # central frequency [Hz]
+    w  = T/15.  # duration [s]
+
+    sine_gauss = lambda t: jnp.exp(-0.5*((t-T/2.)/w)**2)*jnp.sin(2*jnp.pi*f0*t)
+
+    times = jnp.arange(0, T, 1/fs)
+    signal = sine_gauss(times)
+
+    N, Nf= times.shape[0], 200
+    wdm = WDM.WDM_transform(dt=1/fs, Nf=Nf, N=N, q=32, calc_m0=True)
+
+    w = wdm(signal)
+
+    L = 25  # the maximum lag index
+    N = 10  # the number of interpolation points
+    wdm.build_time_delay_filter_interpolants(L, N)
+
+    tn = jnp.arange(wdm.Nt)*wdm.dT
+
+    delta_constant = lambda t: (T/10.)*jnp.ones_like(t)
+
+    # shift the signal in the time domain
+    shifted_signal_constant_t = jnp.interp(times + delta_constant(times), 
+                                           times, 
+                                           signal)
+
+    # shift the signal in the time-frequency domain
+    w_shifted_constant = wdm.apply_variable_time_shift(w, delta_constant(tn))
+    shifted_signal_constant_tf = wdm.idwt(w_shifted_constant)
+
+    # check the methods agree
+    residuals = shifted_signal_constant_tf - shifted_signal_constant_t
+    eps = jnp.max(jnp.abs(residuals))
+    tol = 1.0e-4
+    assert eps<tol, "residuals are too large"
     
-    delta_t = 0.0
-    
-    for n in range(wdm.Nt):
-        for n_ in range(wdm.Nt):
-
-            for m in range(wdm.Nf):
-                for m_ in range(wdm.Nf):
-
-                    X = time_delay_X(wdm, n, n_, m, m_, delta_t)
-
-                    expected = 1.0 if (n == n_ and m == m_) else 0.0
-
-                    assert jnp.isclose(X, expected), \
-                        "the X coefficients are not orthogonal!"
-                    
-
-def test_filter_X_expressions():
-    r"""
-    Test the expressions of the time-delay matrix elements implemented in the 
-    function `time_delay_X` by comparing against direct numerical integration
-    of the defining expression,
-
-    .. math::
-        X_{nn';mm'}(\delta t)=\int\mathrm{d}t g_{nm}(t+\delta t)g^*_{n'm'}(t).
-
-    This test only checks for :math:`n` times indices away from the edges of the 
-    allowed range (`boundary=12`) to avoid edge effects.
-    """
-    Nf = 8
-    Nt = 32
-
-    wdm = WDM.WDM_transform(dt=0.5, 
-                            Nf=Nf, 
-                            N=Nf*Nt,
-                            q=4,
-                            calc_m0=True)
-    
-    delta_t = 0.5 * wdm.dT
-
-    boundary = 12 # avoid periodic edge effects not captured by interpolation
-
-    for n in range(boundary, wdm.Nt - boundary):
-        for m in range(wdm.Nf):
-
-            for n_ in range(boundary, wdm.Nt - boundary):
-                for m_ in range(wdm.Nf):
-
-                    if m==0 or m_==0:
-                        pass
-
-                    else:
-                        X_expression = time_delay_X(wdm, n, n_, m, m_, delta_t)
-
-                        g_nprime_mprime = wdm.gnm(n_, m_)
-                        g_nm_shifted = interp1d(wdm.times, wdm.gnm(n,m), 
-                                                bounds_error=False, 
-                                                fill_value=0.0)(wdm.times+delta_t)
-
-                        X_direct_integral = wdm.dt*jnp.sum(g_nprime_mprime*g_nm_shifted)
-
-                        assert jnp.isclose(X_expression, X_direct_integral, atol=1e-3, rtol=1e-3), \
-                            "the X coefficients do not match the direct integral!" + \
-                            f" n={n}, m={m}, n'={n_}, m'={m_}, delta_t={delta_t}: " + \
-                            f"X_expression={X_expression}, X_direct_integral={X_direct_integral}"
 
