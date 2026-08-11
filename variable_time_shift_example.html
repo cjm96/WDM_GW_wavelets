@@ -102,7 +102,7 @@
 <h1>Variable Time Shifts<a class="headerlink" href="#Variable-Time-Shifts" title="Link to this heading"></a></h1>
 <p>This notebook contains an example of performing a variable time shift.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[93]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[101]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -117,7 +117,7 @@
 </div>
 <p>Small helper function to compare signals</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[94]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[102]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">calc_mismatch</span><span class="p">(</span><span class="n">h1</span><span class="p">,</span> <span class="n">h2</span><span class="p">):</span>
@@ -137,7 +137,7 @@
 </div>
 <p>Let’s start by creating an example signal. We will use a simple sine-Gaussian.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[95]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[103]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span> <span class="o">=</span> <span class="mf">0.2</span>    <span class="c1"># sampling frequency [Hz]</span>
@@ -168,7 +168,7 @@
 </div>
 <p>Now we set up the WDM transform object. We use 200 frequency slices.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[96]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[104]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">N</span><span class="p">,</span> <span class="n">Nf</span><span class="o">=</span> <span class="n">times</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">200</span>
@@ -196,7 +196,7 @@ self.K = 12800 window length
 </div>
 <p>Now take the discrete wavelet transform of our signal.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[97]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[105]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w</span> <span class="o">=</span> <span class="n">wdm</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
@@ -205,7 +205,7 @@ self.K = 12800 window length
 </div>
 <p>Just to check that everything is working, let’s plot the time-frequency coefficients.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[100]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[106]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">time_frequency_plot</span><span class="p">(</span><span class="n">wdm</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
@@ -222,7 +222,7 @@ self.K = 12800 window length
 </div>
 <p>In order to use the time-delay filters to peform time shifts using the <code class="docutils literal notranslate"><span class="pre">WDM</span></code> package it is first necessary to call the <code class="docutils literal notranslate"><span class="pre">build_time_delay_filter_interpolants</span></code> method. The arguments are the maximum lag index <code class="docutils literal notranslate"><span class="pre">L</span></code> and the number of interpolation points <code class="docutils literal notranslate"><span class="pre">N</span></code>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[107]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">L</span> <span class="o">=</span> <span class="mi">25</span>  <span class="c1"># the maximum lag index</span>
@@ -235,7 +235,7 @@ self.K = 12800 window length
 </div>
 <p>First, let’s consider the case of a constant time shift <span class="math notranslate nohighlight">\(\delta\)</span>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[108]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">delta_constant</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="p">(</span><span class="n">T</span><span class="o">/</span><span class="mf">10.</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
@@ -244,7 +244,7 @@ self.K = 12800 window length
 </div>
 <p>We will now apply this time shift to the signal using two methods. First, as a check, we do this simply in the time domain by interpoating the original signal. Second, using the <code class="docutils literal notranslate"><span class="pre">WDM</span></code> package, we apply the shift in the time-frequency domain using the time-delay filters.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[109]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">shifted_signal_constant_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">times</span> <span class="o">+</span> <span class="n">delta_constant</span><span class="p">(</span><span class="n">times</span><span class="p">),</span>
@@ -286,12 +286,12 @@ self.K = 12800 window length
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 3.1635660757700634e-10
+The mismatch between the methods is: 3.163538320194448e-10
 </pre></div></div>
 </div>
 <p>Second, let’s consider the case of a variable time shift <span class="math notranslate nohighlight">\(\delta(t)\)</span> of the form <span class="math notranslate nohighlight">\(a + bt\)</span>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[110]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">delta_variable</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">t</span><span class="p">,</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">:</span> <span class="n">a</span><span class="o">+</span><span class="n">b</span><span class="o">*</span><span class="n">t</span>
@@ -300,7 +300,7 @@ The mismatch between the methods is: 3.1635660757700634e-10
 </div>
 <p>We now apply this variable time shift using the same two methods as before.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[111]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">starting_shift</span> <span class="o">=</span> <span class="n">T</span><span class="o">/</span><span class="mf">10.</span>
@@ -345,12 +345,12 @@ The mismatch between the methods is: 3.1635660757700634e-10
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 6.748666370182121e-08
+The mismatch between the methods is: 6.748666203648668e-08
 </pre></div></div>
 </div>
 <p>The accuracy of the variable time-shift depends on the evolution of the time shift arguments</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[112]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">grad_list</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.0001</span><span class="p">,</span> <span class="mf">0.00001</span><span class="p">]</span>
@@ -392,7 +392,7 @@ The mismatch between the methods is: 6.748666370182121e-08
 <p>Case 1: Signal in m = 0 bin</p>
 <p>Consider a wavelet with a frequency that puts the signal in the m = 0 bin.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[113]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span> <span class="o">=</span> <span class="mf">0.2</span>    <span class="c1"># sampling frequency [Hz]</span>
@@ -423,7 +423,7 @@ The mismatch between the methods is: 6.748666370182121e-08
 </div>
 <p>As can be seen, this signal has support in the lowest bin</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[114]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w_m0</span> <span class="o">=</span> <span class="n">wdm</span><span class="p">(</span><span class="n">signal_m0_bin</span><span class="p">)</span>
@@ -449,7 +449,7 @@ The mismatch between the methods is: 6.748666370182121e-08
 </div>
 <p>Now if we apply the two variable time shifts to this system, we will observe a significant mismatch</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[115]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">starting_shift</span> <span class="o">=</span> <span class="n">T</span><span class="o">/</span><span class="mf">10.</span>
@@ -512,13 +512,13 @@ The mismatch between the methods is: 6.748666370182121e-08
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 0.37937199095390683
+The mismatch between the methods is: 0.37937199095390706
 </pre></div></div>
 </div>
 <p>Case 2: Signal too close to boundary</p>
 <p>The time shift operator performs a cyclic shift on indices by different lag values, hence the signal needs to be appropriately zero-padded to avoid issues with overlapping regions.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[116]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span> <span class="o">=</span> <span class="mf">0.2</span>    <span class="c1"># sampling frequency [Hz]</span>
@@ -569,7 +569,7 @@ The mismatch between the methods is: 0.37937199095390683
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[39]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[117]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w_wide</span> <span class="o">=</span> <span class="n">wdm</span><span class="p">(</span><span class="n">signal_wide</span><span class="p">)</span>
@@ -634,7 +634,7 @@ The mismatch between the methods is: 0.37937199095390683
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 1.4562770826231919e-05
+The mismatch between the methods is: 1.456277081857138e-05
 </pre></div></div>
 </div>
 </section>

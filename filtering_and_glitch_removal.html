@@ -188,7 +188,7 @@ Number of windows 128
 <p>The signal is in window number 63.</p>
 <p>We split the data into analysis_data (window 63) and off-source data (all other windows).</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">window_times</span><span class="o">&gt;</span><span class="n">trigger_time</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
@@ -317,6 +317,8 @@ self.Nt = 512 time cells
 self.Nf = 256 frequency cells
 self.dT = 0.0625 time resolution
 self.dF = 8.0 frequency resolution
+self.dt = 0.000244140625 time series cadence
+self.df = 0.03125 time series fft frequency resolution
 self.K = 8192 window length
 </pre></div></div>
 </div>
@@ -330,7 +332,7 @@ self.K = 8192 window length
 <p>Note, by performing this averaging we are still assuming that the instrumental noise is stationary. If you wanted to go beyond this assumption you would have to introduce some kind of model for the time dependence of the noise and fit this to the data. This is not done here.</p>
 <p>(Note, the <code class="docutils literal notranslate"><span class="pre">.dwt</span></code> method is vectorised and computes all the discrete wavelet transfroms at once.)</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">wavelet_covariance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">dwt</span><span class="p">(</span><span class="n">tukey_window</span><span class="o">*</span><span class="n">windows</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
@@ -345,7 +347,7 @@ self.K = 8192 window length
 </ul>
 <p>These three figures are shown below.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">ncols</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>

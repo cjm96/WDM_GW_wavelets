@@ -102,7 +102,7 @@
 <h1>Examples of wavelet transforms<a class="headerlink" href="#Examples-of-wavelet-transforms" title="Link to this heading"></a></h1>
 <p>This notebook contains plots for a few simple time series showing them in the time (left), frequency (middle) and wavelet time-frequency (right) domains.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -114,7 +114,7 @@
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dt</span> <span class="o">=</span> <span class="mf">1.0</span>
@@ -136,6 +136,8 @@ self.Nt = 16 time cells
 self.Nf = 512 frequency cells
 self.dT = 512.0 time resolution
 self.dF = 0.0009765625 frequency resolution
+self.dt = 1.0 time series cadence
+self.df = 0.0001220703125 time series fft frequency resolution
 self.K = 8192 window length
 </pre></div></div>
 </div>
@@ -143,7 +145,7 @@ self.K = 8192 window length
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-0">
 <span class="eqno">(79)<a class="headerlink" href="#equation-wavelet-transform-examples-0" title="Link to this equation"></a></span>\[x(t) = \sin(2\pi ft)\]</div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">t</span><span class="p">,</span> <span class="n">T</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">t</span><span class="o">/</span><span class="n">T</span><span class="p">)</span>
@@ -175,7 +177,7 @@ self.K = 8192 window length
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-1">
 <span class="eqno">(80)<a class="headerlink" href="#equation-wavelet-transform-examples-1" title="Link to this equation"></a></span>\[x(t) = \cos(2\pi ft)\]</div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">t</span><span class="p">,</span> <span class="n">T</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">t</span><span class="o">/</span><span class="n">T</span><span class="p">)</span>
@@ -207,7 +209,7 @@ self.K = 8192 window length
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-2">
 <span class="eqno">(81)<a class="headerlink" href="#equation-wavelet-transform-examples-2" title="Link to this equation"></a></span>\[x(t) = \sin(2\pi ft)\]</div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">t</span><span class="p">,</span> <span class="n">T</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">t</span><span class="o">/</span><span class="n">T</span><span class="p">)</span>
@@ -333,7 +335,7 @@ self.K = 8192 window length
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-6">
 <span class="eqno">(85)<a class="headerlink" href="#equation-wavelet-transform-examples-6" title="Link to this equation"></a></span>\[x[k] \equiv x(t_k) \sim \mathcal{N}(0,1)\]</div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">times</span><span class="p">))</span>
@@ -362,7 +364,7 @@ self.K = 8192 window length
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-7">
 <span class="eqno">(86)<a class="headerlink" href="#equation-wavelet-transform-examples-7" title="Link to this equation"></a></span>\[w_{nm} \sim \mathcal{N}(0,1)\]</div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">Nf</span><span class="p">))</span>
