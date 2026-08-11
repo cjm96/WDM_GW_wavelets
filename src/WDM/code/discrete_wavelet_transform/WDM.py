@@ -981,8 +981,13 @@ class WDM_transform:
             x_m[n] = \sum_{l=-N_t/2}^{N_t/2-1} \exp\left(\frac{2\pi i nl}{N_t}
                         \right) \Phi[l] X[l-mN_t/2] .
 
-        The :math:`m=0` terms, if required, are calculated using the same method
-        as in `forward_transform_truncated_window`. 
+        The :math:`m=0` terms are calculated separately in the frequency domain.
+        The zero- and Nyquist-frequency terms are evaluated together by folding
+        the compact frequency-domain Meyer window onto :math:`N_t/2` samples
+        and applying a batched inverse FFT of length :math:`N_t/2`.
+
+        This calculation is exact and does not depend on the time-domain
+        truncation parameter :math:`q`. 
 
         This is vectorised to allow for batch jobs computing the dwt for 
         multiple time series at once; note the shapes of the input and output 
@@ -1013,13 +1018,13 @@ class WDM_transform:
 
         l_vals = jnp.arange(-self.Nt//2, self.Nt//2)
         n_vals = jnp.arange(self.Nt)
-        m_vals = jnp.arange(self.Nf)
+        m_vals = jnp.arange(1, self.Nf)
         mask = l_vals[:,jnp.newaxis] - \
                 m_vals[jnp.newaxis,:]*self.Nt//2
 
-        X = jnp.fft.fft(x, axis=-1) * self.dt
+        X_full = jnp.fft.fft(x, axis=-1) * self.dt
 
-        X = jnp.take(X, mask, axis=-1, mode='wrap')
+        X = jnp.take(X_full, mask, axis=-1, mode='wrap')
 
         Phi = jnp.fft.ifftshift(self.window_FD)[*(jnp.newaxis,)*len(leading),
                                                 l_vals,
@@ -1027,36 +1032,64 @@ class WDM_transform:
 
         x_mn = self.Nt * jnp.fft.ifft(Phi*X, axis=-2)
 
-        w = jnp.sqrt(2.) * self.df * \
+        w_positive = jnp.sqrt(2.) * self.df * \
                 (-1)**(n_vals[:,jnp.newaxis] * m_vals[jnp.newaxis,:]) * \
-                    jnp.real( jnp.conj(self.Cnm[:,:]) * x_mn ) * \
+                    jnp.real( jnp.conj(self.Cnm[:,1:]) * x_mn ) * \
                         (-1)**(n_vals[:,jnp.newaxis]) 
 
-        k_vals = jnp.arange(-self.K//2, self.K//2)
+        # ------------------------------------------------------------
+        # Correct m=0 terms: DC and Nyquist together
+        # ------------------------------------------------------------
 
-        if self.calc_m0:
-            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-            n_vals = jnp.arange(self.Nt//2)
+        M = self.Nt // 2
+        l_vals_m0 = jnp.arange(-M, M)
 
-            k_plus_2n = (k_vals[:,jnp.newaxis]+2*n_vals[jnp.newaxis,:]*self.Nf)
+        Phi_m0 = jnp.fft.ifftshift(self.window_FD)[l_vals_m0]
 
-            f0_term = self.dt * jnp.sum(
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            jnp.take(x, k_plus_2n, axis=-1, mode='wrap'),
-                        axis=-2)
+        # First row: frequencies around DC
+        # Second row: frequencies around Nyquist
+        m0_indices = jnp.stack([
+            l_vals_m0,
+            l_vals_m0 + self.N//2,
+        ])
 
-            w = w.at[..., n_vals, 0].set(f0_term)
+        # Shape (..., 2, Nt)
+        X_m0 = jnp.take(
+            X_full,
+            m0_indices,
+            axis=-1,
+            mode='wrap',
+        )
 
-            # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
-            n_vals = jnp.arange(self.Nt//2, self.Nt)
+        # Apply the same Meyer window to both edge bands
+        X_m0 = X_m0 * Phi_m0
 
-            fNy_term = self.dt * jnp.sum( 
-                            (-1)**k_vals[:,jnp.newaxis] * \
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            jnp.take(x, k_plus_2n, axis=-1, mode='wrap'),
-                        axis=-2)
+        # Fold Nt samples -> Nt/2 samples
+        # Shape (..., 2, M)
+        X_m0 = X_m0[..., :M] + X_m0[..., M:]
 
-            w = w.at[..., n_vals, 0].set(fNy_term)
+        # One batched Nt/2-point IFFT:
+        #   [..., 0, :] = DC coefficients
+        #   [..., 1, :] = Nyquist coefficients
+        w_m0_edges = M * self.df * \
+        jnp.fft.ifft(X_m0, axis=-1).real
+
+        # Pack both halves into column m=0
+        w_m0 = jnp.concatenate(
+            (
+                w_m0_edges[..., 0, :],
+                w_m0_edges[..., 1, :],
+            ),
+            axis=-1,
+        )
+        # Combine the m=0 and m>0 terms together. 
+        w = jnp.concatenate(
+            (
+                w_m0[..., jnp.newaxis],
+                w_positive,
+            ),
+            axis=-1,
+        )
 
         return w
     
