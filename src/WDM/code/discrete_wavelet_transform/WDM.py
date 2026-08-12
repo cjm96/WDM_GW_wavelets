@@ -1482,6 +1482,13 @@ class WDM_transform:
         limits are wrapped around periodically. It is the users reponsibility
         to ensure that the input array `wdm_coeff` is suitably zero padded.
 
+        The matrix elements :math:`X` are the ones written out plainly in
+        `time_delay_matrix_X`; this method evaluates the same sum in real
+        arithmetic for speed. The two are checked against each other by
+        `test_apply_variable_time_shift_matches_X_reference`, so read
+        `time_delay_matrix_X` first if you want the expressions in their
+        textbook form.
+
         Parameters
         ----------
         wdm_coeff : jnp.array
@@ -1515,28 +1522,14 @@ class WDM_transform:
         r"""
         Implementation of `apply_variable_time_shift`.
 
-        The matrix elements are those of `time_delay_matrix_X`, rearranged so 
-        that no complex temporaries are formed. Writing 
-        :math:`a=(n+m)\bmod 2` and :math:`b=(n'+m')\bmod 2`, the parity factor 
-        :math:`\overline{i^a}\,i^b` depends only on :math:`(l+\sigma)\bmod 2`,
+        Evaluates the same matrix elements as `time_delay_matrix_X`, but
+        rearranged so that no complex temporaries are ever formed - see
+        `real_matrix_element` below for that rearrangement. The two are pinned
+        together by `test_apply_variable_time_shift_matches_X_reference`.
 
-        .. math::
-            \overline{i^{a}}\,i^{b} = \begin{cases}
-                1 & (l+\sigma) \text{ even} \\
-                i\,(-1)^{n+m} & (l+\sigma) \text{ odd}
-            \end{cases}
-
-        so with :math:`C=c_r+ic_i` the scalar :math:`(\pm i)^l` and 
-        :math:`E=\cos\phi-i\sin\phi` the carrier,
-
-        .. math::
-            \mathrm{Re}[C E] &= c_r\cos\phi + c_i\sin\phi \\
-            \mathrm{Re}[i C E] &= -c_i\cos\phi + c_r\sin\phi .
-
-        Everything is therefore real. The carrier phase 
-        :math:`\phi = 2\pi(m+\sigma/2)\Delta F\delta_n` does not depend on 
-        :math:`l`, so it is built once outside the lag loop and the 
-        :math:`\sigma=\pm1` cases follow by angle addition.
+        The carrier phase :math:`\phi=2\pi(m+\sigma/2)\Delta F\delta_n` does
+        not depend on :math:`l`, so it is built once outside the lag loop and
+        the :math:`\sigma=\pm1` cases follow from it by angle addition.
         """
         max_lag_L = (filter_tables.shape[1] - 1)//2
 
@@ -1561,7 +1554,7 @@ class WDM_transform:
         lags = jnp.arange(-max_lag_L, max_lag_L + 1)
         Tl = self._interp_filter(filter_tables[1], lags, -delta)
         Tprimel = self._interp_filter(filter_tables[0], lags, -delta)
-        filt = {-1: Tprimel, 0: Tl, +1: Tprimel}
+        delay_filter = {-1: Tprimel, 0: Tl, +1: Tprimel}
 
         # Cyclic extension by L rows and one column, so the wrapped read is a
         # contiguous slice rather than a gather. This is NOT zero padding: it
@@ -1574,35 +1567,71 @@ class WDM_transform:
                                       cyclic_ext,
                                       cyclic_ext[:, :1]], axis=1)
 
-        pow_i = jnp.array([[1., 0.], [0., 1.], [-1., 0.], [0., -1.]])
+        # (1j)**l for l modulo 4, as (real, imaginary) pairs
+        i_pow = jnp.array([[1., 0.], [0., 1.], [-1., 0.], [0., -1.]])
+
+        def real_matrix_element(l, i, sigma):
+            r"""
+            :math:`X_{n(n-l);m(m+\sigma)}(-\delta_n)` in real arithmetic, for
+            one lag and one frequency offset. Array, shape=(Nt, Nf).
+
+            Parameters
+            ----------
+            l : int
+                Time lag index, :math:`-L\leq l\leq L`.
+            i : int
+                Position of `l` in the tabulated range, :math:`i=l+L`. Used to
+                index the pre-evaluated delay filters, which are stored over
+                that range rather than over :math:`l` itself.
+            sigma : int
+                Frequency lag, :math:`0` or :math:`\pm1`.
+            """
+            # C = (+-i)**l, the scalar lag phase: sigma=-1 carries (1j)**l,
+            # sigma=+1 its conjugate, and sigma=0 has no such factor at all.
+            i_pow_re, i_pow_im = i_pow[l % 4]
+            if sigma == 0:
+                lag_phase_re, lag_phase_im = 1.0, 0.0
+            else:
+                lag_phase_re = i_pow_re
+                lag_phase_im = i_pow_im if sigma == -1 else -i_pow_im
+
+            # The parity factor conj(i**a) i**b, with a = (n+m) % 2 and
+            # b = (n'+m') % 2, collapses to a choice of just two cases:
+            #     (l+sigma) even ->  1
+            #     (l+sigma) odd  ->  i (-1)**(n+m)
+            # Taking the real part of C exp(-i phi) under each then gives
+            #     even ->  lag_phase_re cos(phi) + lag_phase_im sin(phi)
+            #     odd  -> -lag_phase_im cos(phi) + lag_phase_re sin(phi)
+            # which is why nothing here needs to be complex.
+            carrier_cos, carrier_sin = carrier[sigma]
+            element = jnp.where(
+                    ((l + sigma) % 2) != 0,
+                    sign_n*sign_m*(-lag_phase_im*carrier_cos
+                                   + lag_phase_re*carrier_sin),
+                    lag_phase_re*carrier_cos + lag_phase_im*carrier_sin)
+
+            # the two remaining factors: (-1)**(l m), and the delay filter
+            alternating = jnp.where((l % 2) != 0, sign_m, 1.0)
+
+            return element * alternating \
+                        * delay_filter[sigma][i][:, jnp.newaxis]
 
         def body(i, acc):
             l = i - max_lag_L
 
-            jl_re, jl_im = pow_i[l % 4]                      # (1j)**l
-            s_l = jnp.where((l % 2) != 0, sign_m, 1.0)       # (-1)**(l m)
-
+            # omega_{(n-l)(m+sigma)}: the row shift depends on l and is shared
+            # by all three sigma, so it is taken once here.
             rows = jax.lax.dynamic_slice_in_dim(cyclic_ext, max_lag_L - l,
                                                 self.Nt, axis=0)
 
             for sigma in (-1, 0, 1):
-                cos_p, sin_p = carrier[sigma]
+                # offset by 1 because cyclic_ext carries one extra column at
+                # each edge, so column m+sigma sits at index m+sigma+1
+                coeff = jax.lax.slice_in_dim(rows, sigma + 1,
+                                             sigma + 1 + self.Nf, axis=1)
 
-                if sigma == 0:
-                    c_re, c_im = 1.0, 0.0
-                elif sigma == -1:
-                    c_re, c_im = jl_re, jl_im
-                else:
-                    c_re, c_im = jl_re, -jl_im
+                acc = acc + coeff*real_matrix_element(l, i, sigma)
 
-                X = jnp.where(((l + sigma) % 2) != 0,
-                              sign_n*sign_m*(-c_im*cos_p + c_re*sin_p),
-                              c_re*cos_p + c_im*sin_p)
-                X = X * s_l * filt[sigma][i][:, jnp.newaxis]
-
-                acc = acc + jax.lax.slice_in_dim(rows, sigma + 1,
-                                                 sigma + 1 + self.Nf,
-                                                 axis=1) * X
             return acc
 
         acc = jnp.zeros((self.Nt, self.Nf), dtype=wdm_coeff.dtype)
