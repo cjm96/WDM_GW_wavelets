@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-from matplotlib.pylab import indices
 
 from jax.scipy.interpolate import RegularGridInterpolator
 
@@ -163,8 +162,8 @@ class WDM_transform:
         self.A = self.A_frac * self.dOmega
         self.B = self.B_frac * self.dOmega
         self.K = 2 * self.q * self.Nf
-        self.Cnm = jnp.array([[ C_nm(n, m) for m in range(self.Nf)] 
-                                            for n in range(self.Nt)])
+        self.Cnm = jnp.where((jnp.arange(self.Nt)[:, None]
+                      + jnp.arange(self.Nf)[None, :]) % 2 == 0, 1.0+0.0j, 1.0j)
 
         self.window_FD = self.build_frequency_domain_window()
         self.window_TD = self.build_time_domain_window()
