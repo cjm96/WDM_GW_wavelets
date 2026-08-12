@@ -3,8 +3,6 @@ import jax.numpy as jnp
 
 import WDM
 from WDM.code.discrete_wavelet_transform import WDM
-from WDM.code.time_delay_filters.filters import time_delay_filter_Tl
-from WDM.code.time_delay_filters.filters import time_delay_filter_Tprimel
 
 
 
