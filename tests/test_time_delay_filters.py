@@ -19,15 +19,15 @@ def test_filter_functions():
 
     L = 25  # the maximum lag index
     N = 10  # the number of interpolation points
-    wdm.build_time_delay_filter_interpolants(L, N)
+    tables = wdm.build_time_delay_filter_interpolants(L, N)
 
     ell = jnp.array(jnp.arange(-L, L+1), dtype=int)
     delta = jnp.linspace(-wdm.dT/2, wdm.dT/2, 100)
 
-    Tl = wdm.time_delay_filter_Tl(ell, delta)
+    Tl = wdm.time_delay_filter_Tl(tables, ell, delta)
     assert Tl.shape==(len(ell), len(delta)), "Tl array wrong shape"
 
-    Tprimel = wdm.time_delay_filter_Tprimel(ell, delta)
+    Tprimel = wdm.time_delay_filter_Tprimel(tables, ell, delta)
     assert Tprimel.shape==(len(ell), len(delta)), "Tprimel array wrong shape"
 
 
@@ -54,7 +54,7 @@ def test_time_delay():
 
     L = 25  # the maximum lag index
     N = 10  # the number of interpolation points
-    wdm.build_time_delay_filter_interpolants(L, N)
+    tables = wdm.build_time_delay_filter_interpolants(L, N)
 
     tn = jnp.arange(wdm.Nt)*wdm.dT
 
@@ -66,7 +66,7 @@ def test_time_delay():
                                            signal)
 
     # shift the signal in the time-frequency domain
-    w_shifted_constant = wdm.apply_variable_time_shift(w, delta_constant(tn))
+    w_shifted_constant = wdm.apply_variable_time_shift(tables, w, delta_constant(tn))
     shifted_signal_constant_tf = wdm.idwt(w_shifted_constant)
 
     # check the methods agree
@@ -113,7 +113,7 @@ def test_time_delay_matrix_X_orthogonality():
     """
     L = 4
     wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4, calc_m0=True)
-    wdm.build_time_delay_filter_interpolants(L, 65)
+    tables = wdm.build_time_delay_filter_interpolants(L, 65)
 
     n = jnp.arange(wdm.Nt)
     m = jnp.arange(wdm.Nf)
@@ -121,7 +121,7 @@ def test_time_delay_matrix_X_orthogonality():
 
     for l in range(0, L+1):
         for sigma in (-1, 0, 1):
-            X = wdm.time_delay_matrix_X(n, m, l, sigma, delta)
+            X = wdm.time_delay_matrix_X(tables, n, m, l, sigma, delta)
 
             expected = 1.0 if (l == 0 and sigma == 0) else 0.0
 
@@ -151,7 +151,7 @@ def test_time_delay_matrix_X_definitional_symmetry():
     """
     L = 4
     wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4, calc_m0=True)
-    wdm.build_time_delay_filter_interpolants(L, 65)
+    tables = wdm.build_time_delay_filter_interpolants(L, 65)
 
     n = jnp.arange(wdm.Nt)
     m = jnp.arange(wdm.Nf)
@@ -159,9 +159,9 @@ def test_time_delay_matrix_X_definitional_symmetry():
 
     for l in range(0, L+1):
         for sigma in (-1, 0, 1):
-            lhs = wdm.time_delay_matrix_X(n, m, l, sigma,
+            lhs = wdm.time_delay_matrix_X(tables, n, m, l, sigma,
                                           delta*jnp.ones(wdm.Nt))
-            rhs = wdm.time_delay_matrix_X(n, m, -l, -sigma,
+            rhs = wdm.time_delay_matrix_X(tables, n, m, -l, -sigma,
                                           -delta*jnp.ones(wdm.Nt))
 
             eps = jnp.max(jnp.abs(lhs[12:21, 2:6]
@@ -189,7 +189,7 @@ def test_time_delay_matrix_X_matches_direct_integral():
     """
     L = 4
     wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4, calc_m0=True)
-    wdm.build_time_delay_filter_interpolants(L, 129)
+    tables = wdm.build_time_delay_filter_interpolants(L, 129)
 
     n_idx = jnp.arange(wdm.Nt)
     m_idx = jnp.arange(wdm.Nf)
@@ -197,7 +197,7 @@ def test_time_delay_matrix_X_matches_direct_integral():
 
     for l in (0, 1, 2):
         for sigma in (-1, 0, 1):
-            X = wdm.time_delay_matrix_X(n_idx, m_idx, l, sigma,
+            X = wdm.time_delay_matrix_X(tables, n_idx, m_idx, l, sigma,
                                         delta_t*jnp.ones(wdm.Nt))
 
             for n in range(12, 21, 2):
@@ -233,7 +233,7 @@ def test_apply_variable_time_shift_matches_X_reference():
     """
     L = 4
     wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4, calc_m0=True)
-    wdm.build_time_delay_filter_interpolants(L, 65)
+    tables = wdm.build_time_delay_filter_interpolants(L, 65)
 
     key = jax.random.PRNGKey(0)
     wdm_coeff = jax.random.normal(key, (wdm.Nt, wdm.Nf))
@@ -245,7 +245,7 @@ def test_apply_variable_time_shift_matches_X_reference():
     reference = jnp.zeros((wdm.Nt, wdm.Nf))
     for l in range(-L, L+1):
         for sigma in (-1, 0, 1):
-            X = wdm.time_delay_matrix_X(n_idx, m_idx, l, sigma, delta)
+            X = wdm.time_delay_matrix_X(tables, n_idx, m_idx, l, sigma, delta)
 
             # omega_{(n-l)(m+sigma)}, wrapped periodically
             coeff = jnp.roll(jnp.roll(wdm_coeff, shift=l, axis=0),
@@ -253,7 +253,7 @@ def test_apply_variable_time_shift_matches_X_reference():
 
             reference = reference + coeff*X
 
-    shifted = wdm.apply_variable_time_shift(wdm_coeff, delta)
+    shifted = wdm.apply_variable_time_shift(tables, wdm_coeff, delta)
 
     eps = jnp.max(jnp.abs(shifted - reference))/jnp.max(jnp.abs(reference))
 
@@ -286,7 +286,7 @@ def test_variable_time_shift_linear_ramp():
     w = wdm(signal)
 
     L = 25  # the maximum lag index
-    wdm.build_time_delay_filter_interpolants(L, 10)
+    tables = wdm.build_time_delay_filter_interpolants(L, 10)
 
     tn = jnp.arange(wdm.Nt)*wdm.dT
 
@@ -299,7 +299,7 @@ def test_variable_time_shift_linear_ramp():
     shifted_t = jnp.interp(times + delta_variable(times), times, signal)
 
     # shift the signal in the time-frequency domain
-    shifted_tf = wdm.idwt(wdm.apply_variable_time_shift(w,
+    shifted_tf = wdm.idwt(wdm.apply_variable_time_shift(tables, w,
                                                         delta_variable(tn)))
 
     overlap = jnp.abs(jnp.dot(shifted_t, shifted_tf)) \
@@ -310,3 +310,27 @@ def test_variable_time_shift_linear_ramp():
     assert mismatch < 1.0e-5, \
         f"variable time shift is not accurate enough: {mismatch=}"
 
+
+
+def test_rebuilding_interpolants_takes_effect():
+    r"""
+    Rebuilding the interpolants with a finer grid must change the answer.
+
+    The filter tables are passed into the jitted methods as an argument rather
+    than read from `self`. Were they read from `self` instead, they would be
+    frozen into the compiled code on the first call and every later rebuild
+    would be silently ignored - this test fails if that regresses.
+    """
+    wdm = WDM.WDM_transform(dt=0.5, Nf=16, N=16*32, q=4, calc_m0=True)
+
+    lags = jnp.arange(-3, 4)
+    delta = jnp.array([0.1*wdm.dT, -0.2*wdm.dT])
+
+    coarse_tables = wdm.build_time_delay_filter_interpolants(3, 17)
+    coarse = wdm.time_delay_filter_Tl(coarse_tables, lags, delta)
+
+    fine_tables = wdm.build_time_delay_filter_interpolants(3, 513)
+    fine = wdm.time_delay_filter_Tl(fine_tables, lags, delta)
+
+    assert not jnp.all(coarse == fine), \
+        "rebuilding the interpolants had no effect - stale jit cache?"
