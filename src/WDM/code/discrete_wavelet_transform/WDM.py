@@ -1,13 +1,9 @@
 import jax
 import jax.numpy as jnp
-from matplotlib.pylab import indices
-
-from jax.scipy.interpolate import RegularGridInterpolator
 
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, overlapping_windows
-from WDM.code.time_delay_filters.filters import time_delay_filter_Tl
-from WDM.code.time_delay_filters.filters import time_delay_filter_Tprimel
+from WDM.code.time_delay_filters.filters import build_filter_tables
 
 from typing import Tuple
 from functools import partial
@@ -163,8 +159,9 @@ class WDM_transform:
         self.A = self.A_frac * self.dOmega
         self.B = self.B_frac * self.dOmega
         self.K = 2 * self.q * self.Nf
-        self.Cnm = jnp.array([[ C_nm(n, m) for m in range(self.Nf)] 
-                                            for n in range(self.Nt)])
+        self.Cnm = jnp.where((jnp.arange(self.Nt)[:, jnp.newaxis]
+                              + jnp.arange(self.Nf)[jnp.newaxis, :]) % 2 == 0,
+                             1.0+0.0j, 1.0j)
 
         self.window_FD = self.build_frequency_domain_window()
         self.window_TD = self.build_time_domain_window()
@@ -1254,22 +1251,28 @@ class WDM_transform:
                                              num_interp_points : int) -> None:
         r""" 
         If the user needs to do any time-shift operations involving the 
-        WDM wavelets, then this function should be called first. It builds 
-        interpolants for the time-delay filer functions :math:`T_l(\delta)` and
+        WDM wavelets, then this function should be called first. It tabulates 
+        the time-delay filter functions :math:`T_l(\delta)` and
         :math:`T'_l(\delta)` for :math:`l=-L,\ldots,L-1, L` (where L is the max 
-        lag) in the range :math:`-\Delta T/2\leq \delta\leq \Delta T/2`.
+        lag) on a uniform grid in the range 
+        :math:`-\Delta T/2\leq \delta\leq \Delta T/2`. Subsequent lookups
+        interpolate linearly between the tabulated points.
 
         Parameters
         ----------
         max_lag_L : int
             The maximum lag index, :math:`L`.
         num_interp_points : int
-            The number of interpolation points in the range 
+            The number of interpolation points in the range
             :math:`-\Delta T/2\leq \delta\leq \Delta T/2.`
 
         Returns
         -------
-        None
+        filter_tables : jnp.array
+            dtype=float, shape=(2, 2L+1, num_interp_points). Index 0 is
+            :math:`T'_l`, index 1 is :math:`T_l`. Also stored as
+            `self.filter_tables`, but the returned value is what should be
+            passed to the methods that use it - see the note below them.
         """
         assert max_lag_L > 0, \
                         "Max lag must be positive"
@@ -1284,60 +1287,49 @@ class WDM_transform:
                                               +0.5*self.dT,
                                               self.num_interp_points)
 
-        # build Tl and Tlprime interpolants, store these functions in dicts
-        Tl_interp = {}
-        Tprimel_interp = {}
+        # shape (2, 2L+1, num_interp_points); index 0 is T', index 1 is T
+        self.filter_tables = build_filter_tables(
+                                jnp.arange(-self.max_lag_L, self.max_lag_L+1),
+                                self.delta_interp_grid,
+                                self.freqs,
+                                self.window_FD,
+                                self.dT,
+                                self.dF,
+                                self.df)
 
-        for l in range(-max_lag_L, max_lag_L+1):
-            # Tl interpolants
-            data = jnp.zeros(self.num_interp_points)
-            for delta_idx in range(self.num_interp_points):
-                delta = self.delta_interp_grid[delta_idx]
-                Tl_delta = time_delay_filter_Tl(l,
-                                                delta,
-                                                self.freqs,
-                                                self.window_FD,
-                                                self.dT,
-                                                self.df)
-                data = data.at[delta_idx].set(Tl_delta)
-            Tl_interp[l] = RegularGridInterpolator(
-                                (self.delta_interp_grid,), data)
+        return self.filter_tables
 
-            # Tlprime interpolants
-            data = jnp.zeros(self.num_interp_points)  # Reset data array!
-            for delta_idx in range(self.num_interp_points):
-                delta = self.delta_interp_grid[delta_idx]
-                Tlprime_delta = time_delay_filter_Tprimel(l,
-                                                          delta,
-                                                          self.freqs,
-                                                          self.window_FD,
-                                                          self.dT,
-                                                          self.dF,
-                                                          self.N,
-                                                          self.df)
-                data = data.at[delta_idx].set(Tlprime_delta)
-            Tprimel_interp[l] = RegularGridInterpolator(
-                                    (self.delta_interp_grid,), data)
+    # Every method below takes `filter_tables` as an explicit argument rather
+    # than reading `self.filter_tables`. This is deliberate, and it is a JAX
+    # requirement, not a style choice.
+    #
+    # The body of a jitted function runs only ONCE, during tracing. Anything it
+    # reads off `self` at that moment is frozen into the compiled code as a
+    # literal. `self` is a static argument and a python object is compared by
+    # identity, so rebuilding an attribute does not invalidate the compilation
+    # cache. A jitted method that read `self.filter_tables` directly would
+    # therefore keep returning the first build's numbers after
+    # `build_time_delay_filter_interpolants` was called again - silently.
+    #
+    # Passing the tables in makes them an ordinary traced argument: JAX keys
+    # the cache on their shape, so new values flow straight through and only a
+    # change of `max_lag_L` or `num_interp_points` forces a recompile.
+    #
+    # `test_rebuilding_interpolants_takes_effect` guards this.
 
-        # store the functions in lists
-        self.list_of_Tl_functions = [Tl_interp[l] 
-                        for l in range(-self.max_lag_L, self.max_lag_L+1)]
-
-        self.list_of_Tprimel_functions = [Tprimel_interp[l] 
-                        for l in range(-self.max_lag_L, self.max_lag_L+1)]
-
-        return None
-
-    @partial(jax.jit, static_argnums=0)
     def time_delay_filter_Tl(self,
+                             filter_tables : jnp.array,
                              lag_index_l : jnp.array,
                              delta : jnp.array) -> jnp.array:
         r"""
         Fast, vectorised way of calling the time-delay filter function
-        :math:`T_l(\delta)` which calls the pre-built interpolants.
+        :math:`T_l(\delta)`, which interpolates the pre-built table.
 
         Parameters
         ----------
+        filter_tables : jnp.array
+            The tables returned by `build_time_delay_filter_interpolants`,
+            dtype=float, shape=(2, 2L+1, num_interp_points).
         lag_index_l : jnp.array
             Array of lag indices, dtype=int, shape=(A,)
         delta : jnp.array
@@ -1348,43 +1340,21 @@ class WDM_transform:
         Tl : jnp.array
              Array of time-delay filters, dtype=float, shape=(A, B)
         """
-        k, delta_wrapped = jnp.divmod(delta+0.5*self.dT, self.dT)
-        k = jnp.array(k, dtype=int)
-        delta_wrapped = delta_wrapped - 0.5*self.dT
+        return self._interp_filter(filter_tables[1], lag_index_l, delta)
 
-        def apply_func_single_lag(l_idx):
-            # For a single lag index, evaluate across all deltas
-            adjusted_indices = l_idx - k + self.max_lag_L
-
-            # Check if indices are in valid range [0, 2*max_lag_L]
-            in_range = (adjusted_indices >= 0) & (adjusted_indices <= 2*self.max_lag_L)
-
-            # Clamp indices for safe evaluation (actual values will be masked)
-            safe_indices = jnp.clip(adjusted_indices, 0, 2*self.max_lag_L)
-
-            def eval_single_delta(safe_idx, dw, mask):
-                result = jax.lax.switch(safe_idx,
-                                       self.list_of_Tl_functions,
-                                       jnp.array([dw]))[0]
-                # Return 0 if out of range, otherwise return result
-                return jnp.where(mask, result, 0.0)
-
-            return jax.vmap(eval_single_delta)(safe_indices, delta_wrapped, in_range)
-
-        Tl = jax.vmap(apply_func_single_lag)(lag_index_l)
-
-        return Tl
-
-    @partial(jax.jit, static_argnums=0)
     def time_delay_filter_Tprimel(self,
+                                  filter_tables : jnp.array,
                                   lag_index_l : jnp.array,
                                   delta : jnp.array) -> jnp.array:
         r"""
         Fast, vectorised way of calling the time-delay filter function
-        :math:`T'_l(\delta)` which calls the pre-built interpolants.
+        :math:`T'_l(\delta)`, which interpolates the pre-built table.
 
         Parameters
         ----------
+        filter_tables : jnp.array
+            The tables returned by `build_time_delay_filter_interpolants`,
+            dtype=float, shape=(2, 2L+1, num_interp_points).
         lag_index_l : jnp.array
             Array of lag indices, dtype=int, shape=(A,)
         delta : jnp.array
@@ -1395,105 +1365,137 @@ class WDM_transform:
         Tprimel : jnp.array
                 Array of time-delay filters, dtype=float, shape=(A, B)
         """
-        k, delta_wrapped = jnp.divmod(delta+0.5*self.dT, self.dT)
-        k = jnp.array(k, dtype=int)
-        delta_wrapped = delta_wrapped - 0.5*self.dT
+        return self._interp_filter(filter_tables[0], lag_index_l, delta)
 
-        def apply_func_single_lag(l_idx):
-            # For a single lag index, evaluate across all deltas
-            adjusted_indices = l_idx - k + self.max_lag_L
-
-            # Check if indices are in valid range [0, 2*max_lag_L]
-            in_range = (adjusted_indices >= 0) & (adjusted_indices <= 2*self.max_lag_L)
-
-            # Clamp indices for safe evaluation (actual values will be masked)
-            safe_indices = jnp.clip(adjusted_indices, 0, 2*self.max_lag_L)
-
-            def eval_single_delta(safe_idx, dw, mask):
-                result = jax.lax.switch(safe_idx,
-                                       self.list_of_Tprimel_functions,
-                                       jnp.array([dw]))[0]
-                # Return 0 if out of range, otherwise return result
-                return jnp.where(mask, result, 0.0)
-
-            return jax.vmap(eval_single_delta)(safe_indices, delta_wrapped, in_range)
-
-        Tprimel = jax.vmap(apply_func_single_lag)(lag_index_l)
-
-        return Tprimel
-
-    def time_delay_matrix_X(self, n, m, l, sigma, delta) -> jnp.array:
+    @partial(jax.jit, static_argnums=0)
+    def _interp_filter(self,
+                       table : jnp.array,
+                       lag_index_l : jnp.array,
+                       delta : jnp.array) -> jnp.array:
         r"""
-        Generate an array time delay matrix elements 
-        :math:`X_{n(n-l),m(m+\sigma)}(-\delta_n)` used in the variable time 
-        shifting method for fixed :math:'\sigma' and :math:'l' values.
+        Look up a pre-built time-delay filter table at arbitrary lags and 
+        delays.
+
+        The tabulation grid is uniform, so this is a gather followed by a 
+        linear blend - there is no search. Delays outside 
+        :math:`[-\Delta T/2, \Delta T/2]` are folded back in by shifting the 
+        lag index; lags that then fall outside :math:`\pm L` contribute zero.
+
+        The table is taken as an argument rather than read from `self` so that
+        rebuilding it invalidates the compilation cache correctly.
 
         Parameters
         ----------
+        table : jnp.ndarray
+            A filter table, dtype=float, shape=(2L+1, num_interp_points).
+        lag_index_l : jnp.ndarray
+            Array of lag indices, dtype=int, shape=(A,)
+        delta : jnp.ndarray
+            Array of time delays, dtype=float, shape=(B,)
+
+        Returns
+        -------
+        filt : jnp.ndarray
+            Array of time-delay filters, dtype=float, shape=(A, B)
+        """
+        num_lags, num_interp_points = table.shape
+        max_lag_L = (num_lags - 1)//2
+
+        k, delta_wrapped = jnp.divmod(delta + 0.5*self.dT, self.dT)
+        delta_wrapped = delta_wrapped - 0.5*self.dT
+
+        row = lag_index_l[:, jnp.newaxis] \
+                - k.astype(int)[jnp.newaxis, :] + max_lag_L
+        in_range = (row >= 0) & (row <= 2*max_lag_L)
+        row = jnp.clip(row, 0, 2*max_lag_L)
+
+        u = (delta_wrapped + 0.5*self.dT)/self.dT * (num_interp_points - 1)
+        i0 = jnp.clip(jnp.floor(u).astype(int), 0, num_interp_points - 2)
+        frac = (u - i0)[jnp.newaxis, :]
+
+        lo = table[row, i0[jnp.newaxis, :]]
+        hi = table[row, i0[jnp.newaxis, :] + 1]
+
+        return jnp.where(in_range, lo + frac*(hi - lo), 0.0)
+
+    @partial(jax.jit, static_argnums=(0, 4, 5))
+    def time_delay_matrix_X(self, filter_tables, n, m, l, sigma,
+                            delta) -> jnp.array:
+        r"""
+        Generate an array time delay matrix elements
+        :math:`X_{n(n-l),m(m+\sigma)}(-\delta_n)` used in the variable time
+        shifting method for fixed :math:'\sigma' and :math:'l' values.
+
+        This is a direct transcription of the defining expressions and is
+        deliberately left in that form: it is the reference against which
+        `apply_variable_time_shift` is tested. The shift itself does not call
+        this method.
+
+        `l` and `sigma` are static, so the three frequency-lag cases are
+        selected here in python rather than with `lax.switch` - which, being
+        traced, would evaluate all three.
+
+        Parameters
+        ----------
+        filter_tables : jnp.array
+            The tables returned by `build_time_delay_filter_interpolants`,
+            dtype=float, shape=(2, 2L+1, num_interp_points).
         n : jnp.array
             Time indices. Array, dtype=int, shape=(Nt,)
         m : jnp.array
             Freq indices. Array, dtype=int, shape=(Nf,)
         l : int
-            Time lag index. 
+            Time lag index.
         sigma : int
             Freq lag. This should be :math:`0` or :math:`\pm 1`
         delta : jnp.array
             Array, dtype=float, shape=(Nt,)
-        
+
         Returns
         -------
         X : jnp.array
-            The X coefficients. Array, dtype=floar, shape=(Nt, Nf)
+            The X coefficients. Array, dtype=float, shape=(Nt, Nf)
         """
-        sigma_idx = sigma + 1
+        n_ = n - l
+        m_ = m + sigma
 
-        def case_minus_1(n, m, l, delta):
-            # Code for sigma = -1
-            n_ = n - l
-            m_ = m - 1
-            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \
-                (1j)**l * \
-                jnp.exp(-2*jnp.pi*(1j)*(m[jnp.newaxis,:]-0.5)*self.dF*delta[:,jnp.newaxis]) * \
-                jnp.conjugate((1j)**((n[:,jnp.newaxis] + m[jnp.newaxis,:])%2)) * \
-                (1j)**((n_[:,jnp.newaxis] + m_[jnp.newaxis,:])%2) * \
-                self.time_delay_filter_Tprimel(jnp.array([l]), -delta)[0][:,jnp.newaxis]
-            return jnp.real(X)
+        # (-1)^{(n-n')m}, and i^{(n'+m')%2} / i^{(n+m)%2}
+        alternating = (-1)**((n - n_)[:, jnp.newaxis] * m[jnp.newaxis, :])
+        parity = jnp.conjugate((1j)**((n[:, jnp.newaxis]
+                                       + m[jnp.newaxis, :]) % 2)) * \
+                 (1j)**((n_[:, jnp.newaxis] + m_[jnp.newaxis, :]) % 2)
 
-        def case_0(n, m, l, delta):
-            # Code for sigma = 0
-            n_ = n - l
-            m_ = m
-            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \
-                jnp.exp(-2*jnp.pi*(1j)*m[jnp.newaxis,:]*self.dF*delta[:,jnp.newaxis]) * \
-                jnp.conjugate((1j)**((n[:,jnp.newaxis] + m[jnp.newaxis,:])%2)) * \
-                (1j)**((n_[:,jnp.newaxis] + m[jnp.newaxis,:])%2) * \
-                self.time_delay_filter_Tl(jnp.array([l]), -delta)[0][:,jnp.newaxis]
-            return jnp.real(X)
+        if sigma == 0:
+            scalar = 1.0
+            offset = 0.0
+            table = filter_tables[1]
+        elif sigma == -1:
+            scalar = (1j)**l
+            offset = -0.5
+            table = filter_tables[0]
+        else:
+            scalar = (-1j)**l
+            offset = +0.5
+            table = filter_tables[0]
 
-        def case_plus_1(n, m, l, delta):
-            # Code for sigma = +1
-            n_ = n - l
-            m_ = m + 1
-            X = (-1)**( (n-n_)[:,jnp.newaxis] * m[jnp.newaxis,:]) * \
-                (-1j)**l * \
-                jnp.exp(-2*jnp.pi*(1j)*(m[jnp.newaxis,:]+0.5)*self.dF*delta[:,jnp.newaxis]) * \
-                jnp.conjugate((1j)**((n[:,jnp.newaxis] + m[jnp.newaxis,:])%2)) * \
-                (1j)**((n_[:,jnp.newaxis] + m_[jnp.newaxis,:])%2) * \
-                self.time_delay_filter_Tprimel(jnp.array([l]), -delta)[0][:,jnp.newaxis]
-            return jnp.real(X)
+        carrier = jnp.exp(-2*jnp.pi*(1j)*(m[jnp.newaxis, :] + offset)
+                          * self.dF * delta[:, jnp.newaxis])
 
-        X = jax.lax.switch(sigma_idx, [case_minus_1, case_0, case_plus_1], n, m, l, delta)
+        filt = self._interp_filter(table, jnp.array([l]), -delta)
 
-        return X
+        X = alternating * scalar * carrier * parity \
+                * filt[0][:, jnp.newaxis]
 
-    @partial(jax.jit, static_argnums=0, static_argnames=('unroll',))
-    def apply_variable_time_shift(self, 
-                                  wdm_coeff, 
-                                  delta, 
-                                  unroll: int=1) -> jnp.array:
+        return jnp.real(X)
+
+    @partial(jax.jit, static_argnums=0, static_argnames=('lag_block',))
+    def apply_variable_time_shift(self,
+                                  filter_tables : jnp.array,
+                                  wdm_coeff : jnp.array,
+                                  delta : jnp.array,
+                                  lag_block : int = None) -> jnp.array:
         r"""
-        Perform the variable time shift operation on a grid of WDM coefficients 
+        Perform the variable time shift operation on a grid of WDM coefficients
         by evaluating the sum
 
         .. math::
@@ -1501,7 +1503,7 @@ class WDM_transform:
             \sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} 
              \omega_{(n-l) (m+\sigma)} \, X_{n(n-l);m(m+\sigma)}(-\delta_n) .
 
-        If the original grid represents the coefficinets of a function 
+        If the original grid represents the coefficients of a function 
         :math:'f(t) = \sum_{nm} \omega_{nm} g_{nm}(t)'
         and we sample a time-shift :math:'\delta(t_n) = \delta_n' then the 
         resulting shifted grid :math:'\tilde{\omega}_{nm}'
@@ -1511,53 +1513,153 @@ class WDM_transform:
         limits are wrapped around periodically. It is the users reponsibility
         to ensure that the input array `wdm_coeff` is suitably zero padded.
 
+        The matrix elements :math:`X` are the ones written out plainly in
+        `time_delay_matrix_X`; this method evaluates the same sum in real
+        arithmetic for speed. The two are checked against each other by
+        `test_apply_variable_time_shift_matches_X_reference`, so read
+        `time_delay_matrix_X` first if you want the expressions in their
+        textbook form.
+
+        The matrix elements are evaluated in real arithmetic - see
+        `real_matrix_element` below for that rearrangement. The carrier phase
+        :math:`\phi=2\pi(m+\sigma/2)\Delta F\delta_n` does not depend on
+        :math:`l`, so it is built once outside the lag loop and the
+        :math:`\sigma=\pm1` cases follow from it by angle addition.
+
         Parameters
         ----------
+        filter_tables : jnp.array
+            The tables returned by `build_time_delay_filter_interpolants`,
+            dtype=float, shape=(2, 2L+1, num_interp_points).
         wdm_coeff : jnp.array
             WDM coefficient grid. Array, dtype=float, shape=(Nt,Nf)
         delta : jnp.array
             Array, dtype=float, shape=(Nt,)
-        unroll : int or bool
-            Static unroll factor passed to ``lax.fori_loop`` over ``l``.
+        lag_block : int or None
+            Number of lags handled per loop iteration. `None` (the default)
+            unrolls the lag sum completely, which is fastest for small `L`
+            because the lag index becomes a compile-time constant. For
+            :math:`L \gtrsim 30` prefer a small block (8 is a reasonable
+            start): the unrolled graph becomes large enough that scheduling
+            cost, compile time and compile-time memory outweigh the benefit.
 
         Returns
         -------
         shifted_wdm_coeff : jnp.array
             Shifted wdm_coefficients. Array, dtype=float, shape=(Nt, Nf)
         """
-        n_vals = jnp.arange(self.Nt)
-        m_vals = jnp.arange(self.Nf)
-        sigma_vals = jnp.array([-1, 0, 1])
+        max_lag_L = (filter_tables.shape[1] - 1)//2
 
-        # X_{n(n-l), m(m+sigma)}(-delta_n) for all three sigma at once: vmap-ing
-        # over sigma turns time_delay_matrix_X's internal lax.switch into a
-        # single batched op (all three case_* branches evaluated together),
-        # rather than three separately-traced calls to time_delay_matrix_X.
-        X_all_sigma = jax.vmap(self.time_delay_matrix_X, in_axes=(None, None, None, 0, None))
+        n = jnp.arange(self.Nt)
+        m = jnp.arange(self.Nf)
 
-        def body_fun(l, acc):
-            X = X_all_sigma(n_vals, m_vals, l, sigma_vals, delta)  # (3, Nt, Nf)
+        # (-1)^n and (-1)^m, kept rank-1 so they never form a grid
+        sign_n = jnp.where(n % 2 == 0, 1.0, -1.0)[:, jnp.newaxis]
+        sign_m = jnp.where(m % 2 == 0, 1.0, -1.0)[jnp.newaxis, :]
 
-            # wdm_coeff[(n-l) % Nt, (m+sigma) % Nf], read via circular shifts
-            # rather than a padded gather. The row shift depends on l (traced,
-            # varies every fori_loop step) so it is done once and shared by
-            # all three sigma; the column shift only needs sigma, which is a
-            # static Python int in each of the three unrolled terms, so each
-            # of those rolls is cheap.
-            row_shifted = jnp.roll(wdm_coeff, shift=l, axis=0)
-            shifted = jnp.stack([
-                jnp.roll(row_shifted, shift=-sigma, axis=1)
-                for sigma in (-1, 0, 1)
-            ])  # (3, Nt, Nf)
+        # cos/sin of the sigma=0 carrier; sigma=+-1 by angle addition with
+        # the rank-1 half-bin phase
+        theta = 2*jnp.pi*self.dF*jnp.outer(delta, m)
+        cos_t, sin_t = jnp.cos(theta), jnp.sin(theta)
+        half = jnp.pi*self.dF*delta[:, jnp.newaxis]
+        cos_h, sin_h = jnp.cos(half), jnp.sin(half)
+        carrier = {-1: (cos_t*cos_h + sin_t*sin_h, sin_t*cos_h - cos_t*sin_h),
+                    0: (cos_t, sin_t),
+                   +1: (cos_t*cos_h - sin_t*sin_h, sin_t*cos_h + cos_t*sin_h)}
 
-            return acc + jnp.sum(shifted * X, axis=0)
+        # every lag at once: shape (2L+1, Nt), no Nf axis
+        lags = jnp.arange(-max_lag_L, max_lag_L + 1)
+        Tl = self._interp_filter(filter_tables[1], lags, -delta)
+        Tprimel = self._interp_filter(filter_tables[0], lags, -delta)
+        delay_filter = {-1: Tprimel, 0: Tl, +1: Tprimel}
 
-        init = jnp.zeros((self.Nt, self.Nf), dtype=wdm_coeff.dtype)
-        shifted_wdm_coeff = jax.lax.fori_loop(
-            -self.max_lag_L, self.max_lag_L + 1, body_fun, init, unroll=unroll
-        )
+        # Cyclic extension by L rows and one column, so the wrapped read is a
+        # contiguous slice rather than a gather. This is NOT zero padding: it
+        # repeats the caller's own coefficients, exactly as the periodic wrap
+        # would. Zero padding remains the caller's responsibility.
+        cyclic_ext = jnp.concatenate([wdm_coeff[-max_lag_L:],
+                                      wdm_coeff,
+                                      wdm_coeff[:max_lag_L]], axis=0)
+        cyclic_ext = jnp.concatenate([cyclic_ext[:, -1:],
+                                      cyclic_ext,
+                                      cyclic_ext[:, :1]], axis=1)
 
-        return shifted_wdm_coeff
+        # (1j)**l for l modulo 4, as (real, imaginary) pairs
+        i_pow = jnp.array([[1., 0.], [0., 1.], [-1., 0.], [0., -1.]])
+
+        def real_matrix_element(l, i, sigma):
+            r"""
+            :math:`X_{n(n-l);m(m+\sigma)}(-\delta_n)` in real arithmetic, for
+            one lag and one frequency offset. Array, shape=(Nt, Nf).
+
+            Parameters
+            ----------
+            l : int
+                Time lag index, :math:`-L\leq l\leq L`.
+            i : int
+                Position of `l` in the tabulated range, :math:`i=l+L`. Used to
+                index the pre-evaluated delay filters, which are stored over
+                that range rather than over :math:`l` itself.
+            sigma : int
+                Frequency lag, :math:`0` or :math:`\pm1`.
+            """
+            # C = (+-i)**l, the scalar lag phase: sigma=-1 carries (1j)**l,
+            # sigma=+1 its conjugate, and sigma=0 has no such factor at all.
+            i_pow_re, i_pow_im = i_pow[l % 4]
+            if sigma == 0:
+                lag_phase_re, lag_phase_im = 1.0, 0.0
+            else:
+                lag_phase_re = i_pow_re
+                lag_phase_im = i_pow_im if sigma == -1 else -i_pow_im
+
+            # The parity factor conj(i**a) i**b, with a = (n+m) % 2 and
+            # b = (n'+m') % 2, collapses to a choice of just two cases:
+            #     (l+sigma) even ->  1
+            #     (l+sigma) odd  ->  i (-1)**(n+m)
+            # Taking the real part of C exp(-i phi) under each then gives
+            #     even ->  lag_phase_re cos(phi) + lag_phase_im sin(phi)
+            #     odd  -> -lag_phase_im cos(phi) + lag_phase_re sin(phi)
+            # which is why nothing here needs to be complex.
+            carrier_cos, carrier_sin = carrier[sigma]
+            element = jnp.where(
+                    ((l + sigma) % 2) != 0,
+                    sign_n*sign_m*(-lag_phase_im*carrier_cos
+                                   + lag_phase_re*carrier_sin),
+                    lag_phase_re*carrier_cos + lag_phase_im*carrier_sin)
+
+            # the two remaining factors: (-1)**(l m), and the delay filter
+            alternating = jnp.where((l % 2) != 0, sign_m, 1.0)
+
+            return element * alternating \
+                        * delay_filter[sigma][i][:, jnp.newaxis]
+
+        def body(i, acc):
+            l = i - max_lag_L
+
+            # omega_{(n-l)(m+sigma)}: the row shift depends on l and is shared
+            # by all three sigma, so it is taken once here.
+            rows = jax.lax.dynamic_slice_in_dim(cyclic_ext, max_lag_L - l,
+                                                self.Nt, axis=0)
+
+            for sigma in (-1, 0, 1):
+                # offset by 1 because cyclic_ext carries one extra column at
+                # each edge, so column m+sigma sits at index m+sigma+1
+                coeff = jax.lax.slice_in_dim(rows, sigma + 1,
+                                             sigma + 1 + self.Nf, axis=1)
+
+                acc = acc + coeff*real_matrix_element(l, i, sigma)
+
+            return acc
+
+        acc = jnp.zeros((self.Nt, self.Nf), dtype=wdm_coeff.dtype)
+
+        if lag_block is None:
+            for i in range(2*max_lag_L + 1):
+                acc = body(i, acc)
+            return acc
+
+        return jax.lax.fori_loop(0, 2*max_lag_L + 1, body, acc,
+                                 unroll=lag_block)
 
     def __repr__(self) -> str:
         r"""
