@@ -3,7 +3,8 @@ import jax.numpy as jnp
 
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, overlapping_windows
-from WDM.code.time_delay_filters.filters import build_filter_tables
+from WDM.code.time_delay_filters.filters import (FILTER_TABLE_BLOCK_BYTES,
+                                                 build_filter_tables)
 
 from typing import Tuple
 from functools import partial
@@ -1248,7 +1249,8 @@ class WDM_transform:
 
     def build_time_delay_filter_interpolants(self,
                                              max_lag_L : int,
-                                             num_interp_points : int) -> None:
+                                             num_interp_points : int,
+                                             max_bytes : int = None) -> None:
         r""" 
         If the user needs to do any time-shift operations involving the 
         WDM wavelets, then this function should be called first. It tabulates 
@@ -1265,6 +1267,13 @@ class WDM_transform:
         num_interp_points : int
             The number of interpolation points in the range
             :math:`-\Delta T/2\leq \delta\leq \Delta T/2.`
+        max_bytes : int
+            Working-set budget, in bytes, for one frequency block of the
+            tabulation. `None` (the default) uses
+            `filters.FILTER_TABLE_BLOCK_BYTES`. The tabulation is blocked over
+            frequency so that its peak allocation is bounded by this rather
+            than by :math:`N`; lower it if the build still does not fit.
+            Optional.
 
         Returns
         -------
@@ -1273,10 +1282,18 @@ class WDM_transform:
             :math:`T'_l`, index 1 is :math:`T_l`. Also stored as
             `self.filter_tables`, but the returned value is what should be
             passed to the methods that use it - see the note below them.
+
+        Notes
+        -----
+        The returned table is small - :math:`2(2L+1)` by `num_interp_points` -
+        and independent of :math:`N`. Only the intermediates scale with the
+        time series, and `build_filter_tables` bounds those, so this is safe to
+        call on year-plus grids for any `num_interp_points` whose table itself
+        fits in memory.
         """
         assert max_lag_L > 0, \
                         "Max lag must be positive"
-        
+
         assert max_lag_L < self.Nt, \
                 "Max lag can't be larger than number of time points"
 
@@ -1287,6 +1304,9 @@ class WDM_transform:
                                               +0.5*self.dT,
                                               self.num_interp_points)
 
+        if max_bytes is None:
+            max_bytes = FILTER_TABLE_BLOCK_BYTES
+
         # shape (2, 2L+1, num_interp_points); index 0 is T', index 1 is T
         self.filter_tables = build_filter_tables(
                                 jnp.arange(-self.max_lag_L, self.max_lag_L+1),
@@ -1295,7 +1315,8 @@ class WDM_transform:
                                 self.window_FD,
                                 self.dT,
                                 self.dF,
-                                self.df)
+                                self.df,
+                                max_bytes=max_bytes)
 
         return self.filter_tables
 

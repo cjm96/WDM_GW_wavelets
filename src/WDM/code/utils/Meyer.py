@@ -92,6 +92,13 @@ def Meyer(omega: jnp.ndarray,
     term1 = (absw < A)
     term2 = (absw >= A) & (absw <= A + B)
 
+    # `nu_d` returns nan outside [0, 1], and the roll-off argument can land
+    # just outside it by one ulp for a sample sitting exactly on a band edge -
+    # `absw <= A + B` and `(absw - A)/B <= 1` are not the same test in floating
+    # point. `term2` would then select that nan. Clipping costs nothing, since
+    # the clipped values are only ever selected where they are already exact.
+    roll_off = jnp.clip((absw - A) / B, 0.0, 1.0)
+
     phi_w = jnp.where(
         term1,
         1.0 / jnp.sqrt(dOmega),
@@ -99,7 +106,7 @@ def Meyer(omega: jnp.ndarray,
             term2,
             (1.0 / jnp.sqrt(dOmega)) *
             jnp.cos(
-                (jnp.pi / 2.0) * nu_d((absw - A) / B, d)
+                (jnp.pi / 2.0) * nu_d(roll_off, d)
             ),
             0.0
         )

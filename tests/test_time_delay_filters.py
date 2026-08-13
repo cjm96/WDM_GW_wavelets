@@ -3,6 +3,8 @@ import jax.numpy as jnp
 
 import WDM
 from WDM.code.discrete_wavelet_transform import WDM
+from WDM.code.time_delay_filters.filters import (build_filter_tables,
+                                                 window_support)
 
 
 
@@ -334,3 +336,78 @@ def test_rebuilding_interpolants_takes_effect():
 
     assert not jnp.all(coarse == fine), \
         "rebuilding the interpolants had no effect - stale jit cache?"
+
+
+def test_filter_tables_independent_of_frequency_blocking():
+    r"""
+    The tabulation is blocked over frequency to bound its peak allocation.
+
+    Written as a single pair of matrix products it needs about
+    `16*(3*(2L+1)+num_interp_points)*N` bytes, which is tens to hundreds of
+    gigabytes at the durations LISA actually needs - and it is
+    `num_interp_points` that tips a working configuration over the edge.
+    Blocking must not be visible in the answer, so compare the default
+    against the smallest block the implementation permits, one frequency
+    sample.
+    """
+    wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*64, q=4)
+
+    lags = jnp.arange(-6, 7)
+    deltas = jnp.linspace(-0.5*wdm.dT, 0.5*wdm.dT, 33)
+    args = (lags, deltas, wdm.freqs, wdm.window_FD, wdm.dT, wdm.dF, wdm.df)
+
+    default = build_filter_tables(*args)
+    per_sample = build_filter_tables(*args, max_bytes=1)
+
+    assert jnp.allclose(default, per_sample, atol=1.0e-12, rtol=0.0), \
+        f"blocking changed the tables by {jnp.abs(default-per_sample).max()}"
+
+
+def test_window_support_bounds_both_window_products():
+    r"""
+    Restricting the filter integrals to the window support must be exact.
+
+    `window_support` is read off `window_FD` alone, but it is used to trim an
+    integrand built from `window_FD**2` *and* from the half-bin-shifted
+    product. Everything outside the returned range must be identically zero
+    in both, otherwise the trim would silently discard signal.
+    """
+    for Nf, N, A_frac in ((8, 8*64, 0.25), (2, 2*2048, 0.25),
+                          (64, 64*128, 0.4), (128, 128*32, 0.1)):
+        wdm = WDM.WDM_transform(dt=0.5, Nf=Nf, N=N, q=4, A_frac=A_frac)
+
+        shift = int(0.5*wdm.dF/wdm.df)
+        start, stop = window_support(wdm.window_FD, shift)
+
+        products = jnp.stack([jnp.roll(wdm.window_FD, shift)
+                                  * jnp.roll(wdm.window_FD, -shift),
+                              wdm.window_FD**2])
+
+        outside = jnp.concatenate([products[:, :start], products[:, stop:]],
+                                  axis=1)
+
+        assert jnp.all(outside == 0.0), \
+            f"window support [{start}, {stop}) drops non-zero samples " \
+            f"for {Nf=} {N=} {A_frac=}"
+
+
+def test_filter_tables_finite_when_sample_sits_on_band_edge():
+    r"""
+    A frequency sample landing exactly on the window band edge must not
+    produce nan.
+
+    `absw <= A+B` and `(absw-A)/B <= 1` are not the same test in floating
+    point, so the roll-off argument can exceed one by an ulp on a sample the
+    band-edge branch has already claimed. `nu_d` is nan there. This grid puts
+    a sample exactly on the edge - before the fix every entry of the table
+    came back nan.
+    """
+    wdm = WDM.WDM_transform(dt=15.0, Nf=1024, N=1024*64, q=16)
+
+    assert jnp.all(jnp.isfinite(wdm.window_FD)), \
+        "the frequency-domain window is not finite on the band edge"
+
+    tables = wdm.build_time_delay_filter_interpolants(4, 17)
+
+    assert jnp.all(jnp.isfinite(tables)), \
+        "the time-delay filter tables are not finite on the band edge"
