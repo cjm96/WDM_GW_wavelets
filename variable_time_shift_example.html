@@ -102,7 +102,7 @@
 <h1>Variable Time Shifts<a class="headerlink" href="#Variable-Time-Shifts" title="Link to this heading"></a></h1>
 <p>This notebook contains an example of performing a variable time shift.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[101]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
@@ -117,7 +117,7 @@ from WDM.code.discrete_wavelet_transform import WDM
 </div>
 <p>Small helper function to compare signals</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[102]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>def calc_mismatch(h1, h2):
@@ -137,7 +137,7 @@ from WDM.code.discrete_wavelet_transform import WDM
 </div>
 <p>Let’s start by creating an example signal. We will use a simple sine-Gaussian.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[103]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fs = 0.2    # sampling frequency [Hz]
@@ -168,7 +168,7 @@ plt.show()
 </div>
 <p>Now we set up the WDM transform object. We use 200 frequency slices.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[104]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>N, Nf= times.shape[0], 200
@@ -196,7 +196,7 @@ self.K = 12800 window length
 </div>
 <p>Now take the discrete wavelet transform of our signal.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[105]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w = wdm(signal)
@@ -205,7 +205,7 @@ self.K = 12800 window length
 </div>
 <p>Just to check that everything is working, let’s plot the time-frequency coefficients.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[106]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = time_frequency_plot(wdm, w, scale=&#39;log&#39;)
@@ -222,12 +222,12 @@ plt.show()
 </div>
 <p>In order to use the time-delay filters to peform time shifts using the <code class="docutils literal notranslate"><span class="pre">WDM</span></code> package it is first necessary to call the <code class="docutils literal notranslate"><span class="pre">build_time_delay_filter_interpolants</span></code> method. The arguments are the maximum lag index <code class="docutils literal notranslate"><span class="pre">L</span></code> and the number of interpolation points <code class="docutils literal notranslate"><span class="pre">N</span></code>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[107]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>L = 25  # the maximum lag index
 N = 10  # the number of interpolation points
-wdm.build_time_delay_filter_interpolants(L, N)
+tables = wdm.build_time_delay_filter_interpolants(L, N)
 
 tn = np.arange(wdm.Nt)*wdm.dT
 </pre></div>
@@ -235,7 +235,7 @@ tn = np.arange(wdm.Nt)*wdm.dT
 </div>
 <p>First, let’s consider the case of a constant time shift <span class="math notranslate nohighlight">\(\delta\)</span>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[108]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>delta_constant = lambda t: (T/10.)*np.ones_like(t)
@@ -244,14 +244,14 @@ tn = np.arange(wdm.Nt)*wdm.dT
 </div>
 <p>We will now apply this time shift to the signal using two methods. First, as a check, we do this simply in the time domain by interpoating the original signal. Second, using the <code class="docutils literal notranslate"><span class="pre">WDM</span></code> package, we apply the shift in the time-frequency domain using the time-delay filters.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[109]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>shifted_signal_constant_t = np.interp(times + delta_constant(times),
                                       times,
                                       signal)
 
-w_shifted_constant = wdm.apply_variable_time_shift(w, delta_constant(tn))
+w_shifted_constant = wdm.apply_variable_time_shift(tables, w, delta_constant(tn))
 shifted_signal_constant_tf = wdm.idwt(w_shifted_constant)
 
 fig, ax = plt.subplots(figsize=(5,3))
@@ -291,7 +291,7 @@ The mismatch between the methods is: 3.163538320194448e-10
 </div>
 <p>Second, let’s consider the case of a variable time shift <span class="math notranslate nohighlight">\(\delta(t)\)</span> of the form <span class="math notranslate nohighlight">\(a + bt\)</span>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[110]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>delta_variable = lambda t,a,b: a+b*t
@@ -300,7 +300,7 @@ The mismatch between the methods is: 3.163538320194448e-10
 </div>
 <p>We now apply this variable time shift using the same two methods as before.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[111]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>starting_shift = T/10.
@@ -310,7 +310,7 @@ shifted_signal_variable_t = np.interp(times + delta_variable(times, starting_shi
                                       times,
                                       signal)
 
-w_shifted_variable = wdm.apply_variable_time_shift(w, delta_variable(tn, starting_shift, gradient))
+w_shifted_variable = wdm.apply_variable_time_shift(tables, w, delta_variable(tn, starting_shift, gradient))
 shifted_signal_variable_tf = wdm.idwt(w_shifted_variable)
 
 fig, ax = plt.subplots(figsize=(5,3))
@@ -345,12 +345,12 @@ print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_si
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 6.748666203648668e-08
+The mismatch between the methods is: 6.748666159239747e-08
 </pre></div></div>
 </div>
 <p>The accuracy of the variable time-shift depends on the evolution of the time shift arguments</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[112]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>grad_list = [0.1, 0.01, 0.001, 0.0001, 0.00001]
@@ -365,7 +365,7 @@ for i in range(len(grad_list)):
                                       times,
                                       signal)
 
-    w_shifted_variable = wdm.apply_variable_time_shift(w, delta_variable(tn, starting_shift, grad))
+    w_shifted_variable = wdm.apply_variable_time_shift(tables, w, delta_variable(tn, starting_shift, grad))
     shifted_signal_variable_tf = wdm.idwt(w_shifted_variable)
 
     mismatch_list[i] = calc_mismatch(shifted_signal_variable_t, shifted_signal_variable_tf)
@@ -392,7 +392,7 @@ plt.show()
 <p>Case 1: Signal in m = 0 bin</p>
 <p>Consider a wavelet with a frequency that puts the signal in the m = 0 bin.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[113]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fs = 0.2    # sampling frequency [Hz]
@@ -423,7 +423,7 @@ plt.show()
 </div>
 <p>As can be seen, this signal has support in the lowest bin</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[114]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w_m0 = wdm(signal_m0_bin)
@@ -449,7 +449,7 @@ plt.show()
 </div>
 <p>Now if we apply the two variable time shifts to this system, we will observe a significant mismatch</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[115]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>starting_shift = T/10.
@@ -459,7 +459,7 @@ shifted_signal_m0_variable_t = np.interp(times + delta_variable(times, starting_
                                       times,
                                       signal_m0_bin)
 
-w_m0_shifted_variable = wdm.apply_variable_time_shift(w_m0, delta_variable(tn, starting_shift, gradient))
+w_m0_shifted_variable = wdm.apply_variable_time_shift(tables, w_m0, delta_variable(tn, starting_shift, gradient))
 shifted_m0_signal_variable_tf = wdm.idwt(w_m0_shifted_variable)
 
 fig, (ax1, ax2) = plt.subplots(
@@ -518,7 +518,7 @@ The mismatch between the methods is: 0.37937199095390706
 <p>Case 2: Signal too close to boundary</p>
 <p>The time shift operator performs a cyclic shift on indices by different lag values, hence the signal needs to be appropriately zero-padded to avoid issues with overlapping regions.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[116]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fs = 0.2    # sampling frequency [Hz]
@@ -569,7 +569,7 @@ plt.show()
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[117]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w_wide = wdm(signal_wide)
@@ -581,7 +581,7 @@ shifted_signal_wide_variable_t = np.interp(times + delta_variable(times, startin
                                       times,
                                       signal_wide)
 
-w_wide_shifted_variable = wdm.apply_variable_time_shift(w_wide, delta_variable(tn, starting_shift, gradient))
+w_wide_shifted_variable = wdm.apply_variable_time_shift(tables, w_wide, delta_variable(tn, starting_shift, gradient))
 shifted_wide_signal_variable_tf = wdm.idwt(w_wide_shifted_variable)
 
 fig, (ax1, ax2) = plt.subplots(
@@ -634,7 +634,7 @@ print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_si
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 1.456277081857138e-05
+The mismatch between the methods is: 1.4562770818682402e-05
 </pre></div></div>
 </div>
 </section>

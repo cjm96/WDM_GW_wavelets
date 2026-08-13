@@ -111,7 +111,7 @@ import matplotlib.pylab as plt
 
 import WDM
 from WDM.code.discrete_wavelet_transform import WDM
-from WDM.code.time_delay_filters.filters import time_delay_filter_Tl, time_delay_filter_Tprimel
+from WDM.code.time_delay_filters.filters import time_delay_filter_Tl_reference, time_delay_filter_Tprimel_reference
 </pre></div>
 </div>
 </div>
@@ -149,13 +149,13 @@ Tprimel_vals = {}
 ell_max = 2
 
 for ell in range(-ell_max, ell_max+1):
-    Tl_vals[ell] = jnp.array([time_delay_filter_Tl(ell,
+    Tl_vals[ell] = jnp.array([time_delay_filter_Tl_reference(ell,
                                                    delta_t,
                                                    wdm.freqs,
                                                    wdm.window_FD,
                                                    wdm.dT,
                                                    wdm.df) for delta_t in delta_t_vals])
-    Tprimel_vals[ell] = jnp.array([time_delay_filter_Tprimel(ell,
+    Tprimel_vals[ell] = jnp.array([time_delay_filter_Tprimel_reference(ell,
                                                              delta_t,
                                                              wdm.freqs,
                                                              wdm.window_FD,
@@ -194,14 +194,6 @@ plt.show()
 </div>
 <div class="output_area docutils container">
 <img alt="_images/time_delay_filters_demo_4_0.png" src="_images/time_delay_filters_demo_4_0.png" />
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
-</pre></div>
 </div>
 </div>
 </section>

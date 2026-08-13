@@ -516,13 +516,13 @@ and the third is the wavelet frequency index.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift">
-<span class="sig-name descname"><span class="pre">apply_variable_time_shift</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wdm_coeff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unroll</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.apply_variable_time_shift"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">apply_variable_time_shift</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter_tables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wdm_coeff</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lag_block</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.apply_variable_time_shift"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift" title="Link to this definition"></a></dt>
 <dd><p>Perform the variable time shift operation on a grid of WDM coefficients
 by evaluating the sum</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-2">
 <span class="eqno">(54)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-2" title="Link to this equation"></a></span>\[\begin{split}\sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }}
  \omega_{(n-l) (m+\sigma)} \, X_{n(n-l);m(m+\sigma)}(-\delta_n) .\end{split}\]</div>
-<p>If the original grid represents the coefficinets of a function
+<p>If the original grid represents the coefficients of a function
 :math:’f(t) = sum_{nm} omega_{nm} g_{nm}(t)’
 and we sample a time-shift :math:’delta(t_n) = delta_n’ then the
 resulting shifted grid :math:’tilde{omega}_{nm}’
@@ -530,12 +530,30 @@ is the equivalent to the WDM transform of :math:’f(t-delta(t))’.</p>
 <p>Terms where <span class="math notranslate nohighlight">\(n-l\)</span> or <span class="math notranslate nohighlight">\(m+\sigma\)</span> fall outside the array
 limits are wrapped around periodically. It is the users reponsibility
 to ensure that the input array <cite>wdm_coeff</cite> is suitably zero padded.</p>
+<p>The matrix elements <span class="math notranslate nohighlight">\(X\)</span> are the ones written out plainly in
+<cite>time_delay_matrix_X</cite>; this method evaluates the same sum in real
+arithmetic for speed. The two are checked against each other by
+<cite>test_apply_variable_time_shift_matches_X_reference</cite>, so read
+<cite>time_delay_matrix_X</cite> first if you want the expressions in their
+textbook form.</p>
+<p>The matrix elements are evaluated in real arithmetic - see
+<cite>real_matrix_element</cite> below for that rearrangement. The carrier phase
+<span class="math notranslate nohighlight">\(\phi=2\pi(m+\sigma/2)\Delta F\delta_n\)</span> does not depend on
+<span class="math notranslate nohighlight">\(l\)</span>, so it is built once outside the lag loop and the
+<span class="math notranslate nohighlight">\(\sigma=\pm1\)</span> cases follow from it by angle addition.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
+<li><p><strong>filter_tables</strong> (<em>jnp.array</em>) – The tables returned by <cite>build_time_delay_filter_interpolants</cite>,
+dtype=float, shape=(2, 2L+1, num_interp_points).</p></li>
 <li><p><strong>wdm_coeff</strong> (<em>jnp.array</em>) – WDM coefficient grid. Array, dtype=float, shape=(Nt,Nf)</p></li>
 <li><p><strong>delta</strong> (<em>jnp.array</em>) – Array, dtype=float, shape=(Nt,)</p></li>
-<li><p><strong>unroll</strong> (<em>int</em><em> or </em><em>bool</em>) – Static unroll factor passed to <code class="docutils literal notranslate"><span class="pre">lax.fori_loop</span></code> over <code class="docutils literal notranslate"><span class="pre">l</span></code>.</p></li>
+<li><p><strong>lag_block</strong> (<em>int</em><em> or </em><em>None</em>) – Number of lags handled per loop iteration. <cite>None</cite> (the default)
+unrolls the lag sum completely, which is fastest for small <cite>L</cite>
+because the lag index becomes a compile-time constant. For
+<span class="math notranslate nohighlight">\(L \gtrsim 30\)</span> prefer a small block (8 is a reasonable
+start): the unrolled graph becomes large enough that scheduling
+cost, compile time and compile-time memory outweigh the benefit.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -566,10 +584,12 @@ to ensure that the input array <cite>wdm_coeff</cite> is suitably zero padded.</
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants">
 <span class="sig-name descname"><span class="pre">build_time_delay_filter_interpolants</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_lag_L</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_interp_points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.build_time_delay_filter_interpolants"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants" title="Link to this definition"></a></dt>
 <dd><p>If the user needs to do any time-shift operations involving the
-WDM wavelets, then this function should be called first. It builds
-interpolants for the time-delay filer functions <span class="math notranslate nohighlight">\(T_l(\delta)\)</span> and
+WDM wavelets, then this function should be called first. It tabulates
+the time-delay filter functions <span class="math notranslate nohighlight">\(T_l(\delta)\)</span> and
 <span class="math notranslate nohighlight">\(T'_l(\delta)\)</span> for <span class="math notranslate nohighlight">\(l=-L,\ldots,L-1, L\)</span> (where L is the max
-lag) in the range <span class="math notranslate nohighlight">\(-\Delta T/2\leq \delta\leq \Delta T/2\)</span>.</p>
+lag) on a uniform grid in the range
+<span class="math notranslate nohighlight">\(-\Delta T/2\leq \delta\leq \Delta T/2\)</span>. Subsequent lookups
+interpolate linearly between the tabulated points.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -578,8 +598,14 @@ lag) in the range <span class="math notranslate nohighlight">\(-\Delta T/2\leq \
 <span class="math notranslate nohighlight">\(-\Delta T/2\leq \delta\leq \Delta T/2.\)</span></p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>None</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filter_tables</strong> – dtype=float, shape=(2, 2L+1, num_interp_points). Index 0 is
+<span class="math notranslate nohighlight">\(T'_l\)</span>, index 1 is <span class="math notranslate nohighlight">\(T_l\)</span>. Also stored as
+<cite>self.filter_tables</cite>, but the returned value is what should be
+passed to the methods that use it - see the note below them.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.array</p>
 </dd>
 </dl>
 </dd></dl>
@@ -981,12 +1007,14 @@ their centres. Each of these segments is then windowed and FFT’d.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tl">
-<span class="sig-name descname"><span class="pre">time_delay_filter_Tl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lag_index_l</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.time_delay_filter_Tl"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tl" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">time_delay_filter_Tl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter_tables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lag_index_l</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.time_delay_filter_Tl"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tl" title="Link to this definition"></a></dt>
 <dd><p>Fast, vectorised way of calling the time-delay filter function
-<span class="math notranslate nohighlight">\(T_l(\delta)\)</span> which calls the pre-built interpolants.</p>
+<span class="math notranslate nohighlight">\(T_l(\delta)\)</span>, which interpolates the pre-built table.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
+<li><p><strong>filter_tables</strong> (<em>jnp.array</em>) – The tables returned by <cite>build_time_delay_filter_interpolants</cite>,
+dtype=float, shape=(2, 2L+1, num_interp_points).</p></li>
 <li><p><strong>lag_index_l</strong> (<em>jnp.array</em>) – Array of lag indices, dtype=int, shape=(A,)</p></li>
 <li><p><strong>delta</strong> (<em>jnp.array</em>) – Array of time delays, dtype=float, shape=(B,)</p></li>
 </ul>
@@ -1002,12 +1030,14 @@ their centres. Each of these segments is then windowed and FFT’d.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tprimel">
-<span class="sig-name descname"><span class="pre">time_delay_filter_Tprimel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lag_index_l</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.time_delay_filter_Tprimel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tprimel" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">time_delay_filter_Tprimel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter_tables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lag_index_l</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.time_delay_filter_Tprimel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tprimel" title="Link to this definition"></a></dt>
 <dd><p>Fast, vectorised way of calling the time-delay filter function
-<span class="math notranslate nohighlight">\(T'_l(\delta)\)</span> which calls the pre-built interpolants.</p>
+<span class="math notranslate nohighlight">\(T'_l(\delta)\)</span>, which interpolates the pre-built table.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
+<li><p><strong>filter_tables</strong> (<em>jnp.array</em>) – The tables returned by <cite>build_time_delay_filter_interpolants</cite>,
+dtype=float, shape=(2, 2L+1, num_interp_points).</p></li>
 <li><p><strong>lag_index_l</strong> (<em>jnp.array</em>) – Array of lag indices, dtype=int, shape=(A,)</p></li>
 <li><p><strong>delta</strong> (<em>jnp.array</em>) – Array of time delays, dtype=float, shape=(B,)</p></li>
 </ul>
@@ -1023,13 +1053,22 @@ their centres. Each of these segments is then windowed and FFT’d.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_matrix_X">
-<span class="sig-name descname"><span class="pre">time_delay_matrix_X</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">l</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.time_delay_matrix_X"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_matrix_X" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">time_delay_matrix_X</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter_tables</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">l</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.time_delay_matrix_X"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_matrix_X" title="Link to this definition"></a></dt>
 <dd><p>Generate an array time delay matrix elements
 <span class="math notranslate nohighlight">\(X_{n(n-l),m(m+\sigma)}(-\delta_n)\)</span> used in the variable time
 shifting method for fixed :math:’sigma’ and :math:’l’ values.</p>
+<p>This is a direct transcription of the defining expressions and is
+deliberately left in that form: it is the reference against which
+<cite>apply_variable_time_shift</cite> is tested. The shift itself does not call
+this method.</p>
+<p><cite>l</cite> and <cite>sigma</cite> are static, so the three frequency-lag cases are
+selected here in python rather than with <cite>lax.switch</cite> - which, being
+traced, would evaluate all three.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
+<li><p><strong>filter_tables</strong> (<em>jnp.array</em>) – The tables returned by <cite>build_time_delay_filter_interpolants</cite>,
+dtype=float, shape=(2, 2L+1, num_interp_points).</p></li>
 <li><p><strong>n</strong> (<em>jnp.array</em>) – Time indices. Array, dtype=int, shape=(Nt,)</p></li>
 <li><p><strong>m</strong> (<em>jnp.array</em>) – Freq indices. Array, dtype=int, shape=(Nf,)</p></li>
 <li><p><strong>l</strong> (<em>int</em>) – Time lag index.</p></li>
@@ -1038,7 +1077,7 @@ shifting method for fixed :math:’sigma’ and :math:’l’ values.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>X</strong> – The X coefficients. Array, dtype=floar, shape=(Nt, Nf)</p>
+<dd class="field-even"><p><strong>X</strong> – The X coefficients. Array, dtype=float, shape=(Nt, Nf)</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>jnp.array</p>

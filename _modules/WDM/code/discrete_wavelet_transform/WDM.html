@@ -83,14 +83,10 @@
   <h1>Source code for WDM.code.discrete_wavelet_transform.WDM</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.pylab</span><span class="w"> </span><span class="kn">import</span> <span class="n">indices</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">jax.scipy.interpolate</span><span class="w"> </span><span class="kn">import</span> <span class="n">RegularGridInterpolator</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.utils.Meyer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Meyer</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.utils.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">C_nm</span><span class="p">,</span> <span class="n">overlapping_windows</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.time_delay_filters.filters</span><span class="w"> </span><span class="kn">import</span> <span class="n">time_delay_filter_Tl</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.time_delay_filters.filters</span><span class="w"> </span><span class="kn">import</span> <span class="n">time_delay_filter_Tprimel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.time_delay_filters.filters</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_filter_tables</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tuple</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
@@ -248,8 +244,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">A_frac</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dOmega</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">B</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">B_frac</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dOmega</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">K</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">Cnm</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span> <span class="n">C_nm</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)]</span> 
-                                            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Cnm</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+                              <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
+                             <span class="mf">1.0</span><span class="o">+</span><span class="mf">0.0</span><span class="n">j</span><span class="p">,</span> <span class="mf">1.0</span><span class="n">j</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_frequency_domain_window</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_time_domain_window</span><span class="p">()</span>
@@ -1407,22 +1404,28 @@
                                              <span class="n">num_interp_points</span> <span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot; </span>
 <span class="sd">        If the user needs to do any time-shift operations involving the </span>
-<span class="sd">        WDM wavelets, then this function should be called first. It builds </span>
-<span class="sd">        interpolants for the time-delay filer functions :math:`T_l(\delta)` and</span>
+<span class="sd">        WDM wavelets, then this function should be called first. It tabulates </span>
+<span class="sd">        the time-delay filter functions :math:`T_l(\delta)` and</span>
 <span class="sd">        :math:`T&#39;_l(\delta)` for :math:`l=-L,\ldots,L-1, L` (where L is the max </span>
-<span class="sd">        lag) in the range :math:`-\Delta T/2\leq \delta\leq \Delta T/2`.</span>
+<span class="sd">        lag) on a uniform grid in the range </span>
+<span class="sd">        :math:`-\Delta T/2\leq \delta\leq \Delta T/2`. Subsequent lookups</span>
+<span class="sd">        interpolate linearly between the tabulated points.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        max_lag_L : int</span>
 <span class="sd">            The maximum lag index, :math:`L`.</span>
 <span class="sd">        num_interp_points : int</span>
-<span class="sd">            The number of interpolation points in the range </span>
+<span class="sd">            The number of interpolation points in the range</span>
 <span class="sd">            :math:`-\Delta T/2\leq \delta\leq \Delta T/2.`</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        None</span>
+<span class="sd">        filter_tables : jnp.array</span>
+<span class="sd">            dtype=float, shape=(2, 2L+1, num_interp_points). Index 0 is</span>
+<span class="sd">            :math:`T&#39;_l`, index 1 is :math:`T_l`. Also stored as</span>
+<span class="sd">            `self.filter_tables`, but the returned value is what should be</span>
+<span class="sd">            passed to the methods that use it - see the note below them.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="n">max_lag_L</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> \
                         <span class="s2">&quot;Max lag must be positive&quot;</span>
@@ -1437,63 +1440,52 @@
                                               <span class="o">+</span><span class="mf">0.5</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span>
                                               <span class="bp">self</span><span class="o">.</span><span class="n">num_interp_points</span><span class="p">)</span>
 
-        <span class="c1"># build Tl and Tlprime interpolants, store these functions in dicts</span>
-        <span class="n">Tl_interp</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">Tprimel_interp</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># shape (2, 2L+1, num_interp_points); index 0 is T&#39;, index 1 is T</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter_tables</span> <span class="o">=</span> <span class="n">build_filter_tables</span><span class="p">(</span>
+                                <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">delta_interp_grid</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">freqs</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">dF</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="p">)</span>
 
-        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">max_lag_L</span><span class="p">,</span> <span class="n">max_lag_L</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
-            <span class="c1"># Tl interpolants</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_interp_points</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">delta_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_interp_points</span><span class="p">):</span>
-                <span class="n">delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">delta_interp_grid</span><span class="p">[</span><span class="n">delta_idx</span><span class="p">]</span>
-                <span class="n">Tl_delta</span> <span class="o">=</span> <span class="n">time_delay_filter_Tl</span><span class="p">(</span><span class="n">l</span><span class="p">,</span>
-                                                <span class="n">delta</span><span class="p">,</span>
-                                                <span class="bp">self</span><span class="o">.</span><span class="n">freqs</span><span class="p">,</span>
-                                                <span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">,</span>
-                                                <span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span>
-                                                <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="p">)</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">delta_idx</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">Tl_delta</span><span class="p">)</span>
-            <span class="n">Tl_interp</span><span class="p">[</span><span class="n">l</span><span class="p">]</span> <span class="o">=</span> <span class="n">RegularGridInterpolator</span><span class="p">(</span>
-                                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delta_interp_grid</span><span class="p">,),</span> <span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_tables</span></div>
 
-            <span class="c1"># Tlprime interpolants</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_interp_points</span><span class="p">)</span>  <span class="c1"># Reset data array!</span>
-            <span class="k">for</span> <span class="n">delta_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_interp_points</span><span class="p">):</span>
-                <span class="n">delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">delta_interp_grid</span><span class="p">[</span><span class="n">delta_idx</span><span class="p">]</span>
-                <span class="n">Tlprime_delta</span> <span class="o">=</span> <span class="n">time_delay_filter_Tprimel</span><span class="p">(</span><span class="n">l</span><span class="p">,</span>
-                                                          <span class="n">delta</span><span class="p">,</span>
-                                                          <span class="bp">self</span><span class="o">.</span><span class="n">freqs</span><span class="p">,</span>
-                                                          <span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">,</span>
-                                                          <span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span>
-                                                          <span class="bp">self</span><span class="o">.</span><span class="n">dF</span><span class="p">,</span>
-                                                          <span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span>
-                                                          <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="p">)</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">delta_idx</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">Tlprime_delta</span><span class="p">)</span>
-            <span class="n">Tprimel_interp</span><span class="p">[</span><span class="n">l</span><span class="p">]</span> <span class="o">=</span> <span class="n">RegularGridInterpolator</span><span class="p">(</span>
-                                    <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delta_interp_grid</span><span class="p">,),</span> <span class="n">data</span><span class="p">)</span>
 
-        <span class="c1"># store the functions in lists</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">list_of_Tl_functions</span> <span class="o">=</span> <span class="p">[</span><span class="n">Tl_interp</span><span class="p">[</span><span class="n">l</span><span class="p">]</span> 
-                        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">list_of_Tprimel_functions</span> <span class="o">=</span> <span class="p">[</span><span class="n">Tprimel_interp</span><span class="p">[</span><span class="n">l</span><span class="p">]</span> 
-                        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span>
-
-        <span class="k">return</span> <span class="kc">None</span></div>
-
+    <span class="c1"># Every method below takes `filter_tables` as an explicit argument rather</span>
+    <span class="c1"># than reading `self.filter_tables`. This is deliberate, and it is a JAX</span>
+    <span class="c1"># requirement, not a style choice.</span>
+    <span class="c1">#</span>
+    <span class="c1"># The body of a jitted function runs only ONCE, during tracing. Anything it</span>
+    <span class="c1"># reads off `self` at that moment is frozen into the compiled code as a</span>
+    <span class="c1"># literal. `self` is a static argument and a python object is compared by</span>
+    <span class="c1"># identity, so rebuilding an attribute does not invalidate the compilation</span>
+    <span class="c1"># cache. A jitted method that read `self.filter_tables` directly would</span>
+    <span class="c1"># therefore keep returning the first build&#39;s numbers after</span>
+    <span class="c1"># `build_time_delay_filter_interpolants` was called again - silently.</span>
+    <span class="c1">#</span>
+    <span class="c1"># Passing the tables in makes them an ordinary traced argument: JAX keys</span>
+    <span class="c1"># the cache on their shape, so new values flow straight through and only a</span>
+    <span class="c1"># change of `max_lag_L` or `num_interp_points` forces a recompile.</span>
+    <span class="c1">#</span>
+    <span class="c1"># `test_rebuilding_interpolants_takes_effect` guards this.</span>
 
 <div class="viewcode-block" id="WDM_transform.time_delay_filter_Tl">
 <a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tl">[docs]</a>
-    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">time_delay_filter_Tl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                             <span class="n">filter_tables</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
                              <span class="n">lag_index_l</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
                              <span class="n">delta</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Fast, vectorised way of calling the time-delay filter function</span>
-<span class="sd">        :math:`T_l(\delta)` which calls the pre-built interpolants.</span>
+<span class="sd">        :math:`T_l(\delta)`, which interpolates the pre-built table.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
+<span class="sd">        filter_tables : jnp.array</span>
+<span class="sd">            The tables returned by `build_time_delay_filter_interpolants`,</span>
+<span class="sd">            dtype=float, shape=(2, 2L+1, num_interp_points).</span>
 <span class="sd">        lag_index_l : jnp.array</span>
 <span class="sd">            Array of lag indices, dtype=int, shape=(A,)</span>
 <span class="sd">        delta : jnp.array</span>
@@ -1504,46 +1496,24 @@
 <span class="sd">        Tl : jnp.array</span>
 <span class="sd">             Array of time-delay filters, dtype=float, shape=(A, B)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">k</span><span class="p">,</span> <span class="n">delta_wrapped</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">divmod</span><span class="p">(</span><span class="n">delta</span><span class="o">+</span><span class="mf">0.5</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">)</span>
-        <span class="n">k</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
-        <span class="n">delta_wrapped</span> <span class="o">=</span> <span class="n">delta_wrapped</span> <span class="o">-</span> <span class="mf">0.5</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span>
-
-        <span class="k">def</span><span class="w"> </span><span class="nf">apply_func_single_lag</span><span class="p">(</span><span class="n">l_idx</span><span class="p">):</span>
-            <span class="c1"># For a single lag index, evaluate across all deltas</span>
-            <span class="n">adjusted_indices</span> <span class="o">=</span> <span class="n">l_idx</span> <span class="o">-</span> <span class="n">k</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span>
-
-            <span class="c1"># Check if indices are in valid range [0, 2*max_lag_L]</span>
-            <span class="n">in_range</span> <span class="o">=</span> <span class="p">(</span><span class="n">adjusted_indices</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">adjusted_indices</span> <span class="o">&lt;=</span> <span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="p">)</span>
-
-            <span class="c1"># Clamp indices for safe evaluation (actual values will be masked)</span>
-            <span class="n">safe_indices</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">adjusted_indices</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="p">)</span>
-
-            <span class="k">def</span><span class="w"> </span><span class="nf">eval_single_delta</span><span class="p">(</span><span class="n">safe_idx</span><span class="p">,</span> <span class="n">dw</span><span class="p">,</span> <span class="n">mask</span><span class="p">):</span>
-                <span class="n">result</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">switch</span><span class="p">(</span><span class="n">safe_idx</span><span class="p">,</span>
-                                       <span class="bp">self</span><span class="o">.</span><span class="n">list_of_Tl_functions</span><span class="p">,</span>
-                                       <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">dw</span><span class="p">]))[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="c1"># Return 0 if out of range, otherwise return result</span>
-                <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
-
-            <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">eval_single_delta</span><span class="p">)(</span><span class="n">safe_indices</span><span class="p">,</span> <span class="n">delta_wrapped</span><span class="p">,</span> <span class="n">in_range</span><span class="p">)</span>
-
-        <span class="n">Tl</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">apply_func_single_lag</span><span class="p">)(</span><span class="n">lag_index_l</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">Tl</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interp_filter</span><span class="p">(</span><span class="n">filter_tables</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">lag_index_l</span><span class="p">,</span> <span class="n">delta</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="WDM_transform.time_delay_filter_Tprimel">
 <a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_filter_Tprimel">[docs]</a>
-    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">time_delay_filter_Tprimel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                  <span class="n">filter_tables</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
                                   <span class="n">lag_index_l</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
                                   <span class="n">delta</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Fast, vectorised way of calling the time-delay filter function</span>
-<span class="sd">        :math:`T&#39;_l(\delta)` which calls the pre-built interpolants.</span>
+<span class="sd">        :math:`T&#39;_l(\delta)`, which interpolates the pre-built table.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
+<span class="sd">        filter_tables : jnp.array</span>
+<span class="sd">            The tables returned by `build_time_delay_filter_interpolants`,</span>
+<span class="sd">            dtype=float, shape=(2, 2L+1, num_interp_points).</span>
 <span class="sd">        lag_index_l : jnp.array</span>
 <span class="sd">            Array of lag indices, dtype=int, shape=(A,)</span>
 <span class="sd">        delta : jnp.array</span>
@@ -1554,111 +1524,143 @@
 <span class="sd">        Tprimel : jnp.array</span>
 <span class="sd">                Array of time-delay filters, dtype=float, shape=(A, B)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">k</span><span class="p">,</span> <span class="n">delta_wrapped</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">divmod</span><span class="p">(</span><span class="n">delta</span><span class="o">+</span><span class="mf">0.5</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">)</span>
-        <span class="n">k</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
-        <span class="n">delta_wrapped</span> <span class="o">=</span> <span class="n">delta_wrapped</span> <span class="o">-</span> <span class="mf">0.5</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span>
-
-        <span class="k">def</span><span class="w"> </span><span class="nf">apply_func_single_lag</span><span class="p">(</span><span class="n">l_idx</span><span class="p">):</span>
-            <span class="c1"># For a single lag index, evaluate across all deltas</span>
-            <span class="n">adjusted_indices</span> <span class="o">=</span> <span class="n">l_idx</span> <span class="o">-</span> <span class="n">k</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span>
-
-            <span class="c1"># Check if indices are in valid range [0, 2*max_lag_L]</span>
-            <span class="n">in_range</span> <span class="o">=</span> <span class="p">(</span><span class="n">adjusted_indices</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">adjusted_indices</span> <span class="o">&lt;=</span> <span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="p">)</span>
-
-            <span class="c1"># Clamp indices for safe evaluation (actual values will be masked)</span>
-            <span class="n">safe_indices</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">adjusted_indices</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="p">)</span>
-
-            <span class="k">def</span><span class="w"> </span><span class="nf">eval_single_delta</span><span class="p">(</span><span class="n">safe_idx</span><span class="p">,</span> <span class="n">dw</span><span class="p">,</span> <span class="n">mask</span><span class="p">):</span>
-                <span class="n">result</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">switch</span><span class="p">(</span><span class="n">safe_idx</span><span class="p">,</span>
-                                       <span class="bp">self</span><span class="o">.</span><span class="n">list_of_Tprimel_functions</span><span class="p">,</span>
-                                       <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">dw</span><span class="p">]))[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="c1"># Return 0 if out of range, otherwise return result</span>
-                <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
-
-            <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">eval_single_delta</span><span class="p">)(</span><span class="n">safe_indices</span><span class="p">,</span> <span class="n">delta_wrapped</span><span class="p">,</span> <span class="n">in_range</span><span class="p">)</span>
-
-        <span class="n">Tprimel</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">apply_func_single_lag</span><span class="p">)(</span><span class="n">lag_index_l</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">Tprimel</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interp_filter</span><span class="p">(</span><span class="n">filter_tables</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">lag_index_l</span><span class="p">,</span> <span class="n">delta</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="WDM_transform.time_delay_matrix_X">
-<a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_matrix_X">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">time_delay_matrix_X</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">delta</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_interp_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                       <span class="n">table</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                       <span class="n">lag_index_l</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                       <span class="n">delta</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Generate an array time delay matrix elements </span>
-<span class="sd">        :math:`X_{n(n-l),m(m+\sigma)}(-\delta_n)` used in the variable time </span>
-<span class="sd">        shifting method for fixed :math:&#39;\sigma&#39; and :math:&#39;l&#39; values.</span>
+<span class="sd">        Look up a pre-built time-delay filter table at arbitrary lags and </span>
+<span class="sd">        delays.</span>
+
+<span class="sd">        The tabulation grid is uniform, so this is a gather followed by a </span>
+<span class="sd">        linear blend - there is no search. Delays outside </span>
+<span class="sd">        :math:`[-\Delta T/2, \Delta T/2]` are folded back in by shifting the </span>
+<span class="sd">        lag index; lags that then fall outside :math:`\pm L` contribute zero.</span>
+
+<span class="sd">        The table is taken as an argument rather than read from `self` so that</span>
+<span class="sd">        rebuilding it invalidates the compilation cache correctly.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
+<span class="sd">        table : jnp.ndarray</span>
+<span class="sd">            A filter table, dtype=float, shape=(2L+1, num_interp_points).</span>
+<span class="sd">        lag_index_l : jnp.ndarray</span>
+<span class="sd">            Array of lag indices, dtype=int, shape=(A,)</span>
+<span class="sd">        delta : jnp.ndarray</span>
+<span class="sd">            Array of time delays, dtype=float, shape=(B,)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        filt : jnp.ndarray</span>
+<span class="sd">            Array of time-delay filters, dtype=float, shape=(A, B)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">num_lags</span><span class="p">,</span> <span class="n">num_interp_points</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">max_lag_L</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_lags</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">//</span><span class="mi">2</span>
+
+        <span class="n">k</span><span class="p">,</span> <span class="n">delta_wrapped</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">divmod</span><span class="p">(</span><span class="n">delta</span> <span class="o">+</span> <span class="mf">0.5</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">)</span>
+        <span class="n">delta_wrapped</span> <span class="o">=</span> <span class="n">delta_wrapped</span> <span class="o">-</span> <span class="mf">0.5</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span>
+
+        <span class="n">row</span> <span class="o">=</span> <span class="n">lag_index_l</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> \
+                <span class="o">-</span> <span class="n">k</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">max_lag_L</span>
+        <span class="n">in_range</span> <span class="o">=</span> <span class="p">(</span><span class="n">row</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">row</span> <span class="o">&lt;=</span> <span class="mi">2</span><span class="o">*</span><span class="n">max_lag_L</span><span class="p">)</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">max_lag_L</span><span class="p">)</span>
+
+        <span class="n">u</span> <span class="o">=</span> <span class="p">(</span><span class="n">delta_wrapped</span> <span class="o">+</span> <span class="mf">0.5</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span> <span class="o">*</span> <span class="p">(</span><span class="n">num_interp_points</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">i0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">u</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">num_interp_points</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">frac</span> <span class="o">=</span> <span class="p">(</span><span class="n">u</span> <span class="o">-</span> <span class="n">i0</span><span class="p">)[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="n">lo</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">i0</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]]</span>
+        <span class="n">hi</span> <span class="o">=</span> <span class="n">table</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">i0</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">in_range</span><span class="p">,</span> <span class="n">lo</span> <span class="o">+</span> <span class="n">frac</span><span class="o">*</span><span class="p">(</span><span class="n">hi</span> <span class="o">-</span> <span class="n">lo</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WDM_transform.time_delay_matrix_X">
+<a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.time_delay_matrix_X">[docs]</a>
+    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">time_delay_matrix_X</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filter_tables</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span>
+                            <span class="n">delta</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate an array time delay matrix elements</span>
+<span class="sd">        :math:`X_{n(n-l),m(m+\sigma)}(-\delta_n)` used in the variable time</span>
+<span class="sd">        shifting method for fixed :math:&#39;\sigma&#39; and :math:&#39;l&#39; values.</span>
+
+<span class="sd">        This is a direct transcription of the defining expressions and is</span>
+<span class="sd">        deliberately left in that form: it is the reference against which</span>
+<span class="sd">        `apply_variable_time_shift` is tested. The shift itself does not call</span>
+<span class="sd">        this method.</span>
+
+<span class="sd">        `l` and `sigma` are static, so the three frequency-lag cases are</span>
+<span class="sd">        selected here in python rather than with `lax.switch` - which, being</span>
+<span class="sd">        traced, would evaluate all three.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filter_tables : jnp.array</span>
+<span class="sd">            The tables returned by `build_time_delay_filter_interpolants`,</span>
+<span class="sd">            dtype=float, shape=(2, 2L+1, num_interp_points).</span>
 <span class="sd">        n : jnp.array</span>
 <span class="sd">            Time indices. Array, dtype=int, shape=(Nt,)</span>
 <span class="sd">        m : jnp.array</span>
 <span class="sd">            Freq indices. Array, dtype=int, shape=(Nf,)</span>
 <span class="sd">        l : int</span>
-<span class="sd">            Time lag index. </span>
+<span class="sd">            Time lag index.</span>
 <span class="sd">        sigma : int</span>
 <span class="sd">            Freq lag. This should be :math:`0` or :math:`\pm 1`</span>
 <span class="sd">        delta : jnp.array</span>
 <span class="sd">            Array, dtype=float, shape=(Nt,)</span>
-<span class="sd">        </span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        X : jnp.array</span>
-<span class="sd">            The X coefficients. Array, dtype=floar, shape=(Nt, Nf)</span>
+<span class="sd">            The X coefficients. Array, dtype=float, shape=(Nt, Nf)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">sigma_idx</span> <span class="o">=</span> <span class="n">sigma</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">n_</span> <span class="o">=</span> <span class="n">n</span> <span class="o">-</span> <span class="n">l</span>
+        <span class="n">m_</span> <span class="o">=</span> <span class="n">m</span> <span class="o">+</span> <span class="n">sigma</span>
 
-        <span class="k">def</span><span class="w"> </span><span class="nf">case_minus_1</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">delta</span><span class="p">):</span>
-            <span class="c1"># Code for sigma = -1</span>
-            <span class="n">n_</span> <span class="o">=</span> <span class="n">n</span> <span class="o">-</span> <span class="n">l</span>
-            <span class="n">m_</span> <span class="o">=</span> <span class="n">m</span> <span class="o">-</span> <span class="mi">1</span>
-            <span class="n">X</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span> <span class="p">(</span><span class="n">n</span><span class="o">-</span><span class="n">n_</span><span class="p">)[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span> <span class="o">*</span> \
-                <span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="n">l</span> <span class="o">*</span> \
-                <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">-</span><span class="mf">0.5</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dF</span><span class="o">*</span><span class="n">delta</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span> <span class="o">*</span> \
-                <span class="n">jnp</span><span class="o">.</span><span class="n">conjugate</span><span class="p">((</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="p">((</span><span class="n">n</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span><span class="o">%</span><span class="mi">2</span><span class="p">))</span> <span class="o">*</span> \
-                <span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="p">((</span><span class="n">n_</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">m_</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span><span class="o">%</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> \
-                <span class="bp">self</span><span class="o">.</span><span class="n">time_delay_filter_Tprimel</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">l</span><span class="p">]),</span> <span class="o">-</span><span class="n">delta</span><span class="p">)[</span><span class="mi">0</span><span class="p">][:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="c1"># (-1)^{(n-n&#39;)m}, and i^{(n&#39;+m&#39;)%2} / i^{(n+m)%2}</span>
+        <span class="n">alternating</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">((</span><span class="n">n</span> <span class="o">-</span> <span class="n">n_</span><span class="p">)[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="n">parity</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">conjugate</span><span class="p">((</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="p">((</span><span class="n">n</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+                                       <span class="o">+</span> <span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span> <span class="o">%</span> <span class="mi">2</span><span class="p">))</span> <span class="o">*</span> \
+                 <span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="p">((</span><span class="n">n_</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">m_</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span> <span class="o">%</span> <span class="mi">2</span><span class="p">)</span>
 
-        <span class="k">def</span><span class="w"> </span><span class="nf">case_0</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">delta</span><span class="p">):</span>
-            <span class="c1"># Code for sigma = 0</span>
-            <span class="n">n_</span> <span class="o">=</span> <span class="n">n</span> <span class="o">-</span> <span class="n">l</span>
-            <span class="n">m_</span> <span class="o">=</span> <span class="n">m</span>
-            <span class="n">X</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span> <span class="p">(</span><span class="n">n</span><span class="o">-</span><span class="n">n_</span><span class="p">)[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span> <span class="o">*</span> \
-                <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dF</span><span class="o">*</span><span class="n">delta</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span> <span class="o">*</span> \
-                <span class="n">jnp</span><span class="o">.</span><span class="n">conjugate</span><span class="p">((</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="p">((</span><span class="n">n</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span><span class="o">%</span><span class="mi">2</span><span class="p">))</span> <span class="o">*</span> \
-                <span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="p">((</span><span class="n">n_</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span><span class="o">%</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> \
-                <span class="bp">self</span><span class="o">.</span><span class="n">time_delay_filter_Tl</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">l</span><span class="p">]),</span> <span class="o">-</span><span class="n">delta</span><span class="p">)[</span><span class="mi">0</span><span class="p">][:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sigma</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">scalar</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">table</span> <span class="o">=</span> <span class="n">filter_tables</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">sigma</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">scalar</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="n">l</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span>
+            <span class="n">table</span> <span class="o">=</span> <span class="n">filter_tables</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">scalar</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="n">l</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="o">+</span><span class="mf">0.5</span>
+            <span class="n">table</span> <span class="o">=</span> <span class="n">filter_tables</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-        <span class="k">def</span><span class="w"> </span><span class="nf">case_plus_1</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">delta</span><span class="p">):</span>
-            <span class="c1"># Code for sigma = +1</span>
-            <span class="n">n_</span> <span class="o">=</span> <span class="n">n</span> <span class="o">-</span> <span class="n">l</span>
-            <span class="n">m_</span> <span class="o">=</span> <span class="n">m</span> <span class="o">+</span> <span class="mi">1</span>
-            <span class="n">X</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span> <span class="p">(</span><span class="n">n</span><span class="o">-</span><span class="n">n_</span><span class="p">)[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span> <span class="o">*</span> \
-                <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="n">l</span> <span class="o">*</span> \
-                <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">+</span><span class="mf">0.5</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dF</span><span class="o">*</span><span class="n">delta</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span> <span class="o">*</span> \
-                <span class="n">jnp</span><span class="o">.</span><span class="n">conjugate</span><span class="p">((</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="p">((</span><span class="n">n</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span><span class="o">%</span><span class="mi">2</span><span class="p">))</span> <span class="o">*</span> \
-                <span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">**</span><span class="p">((</span><span class="n">n_</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">m_</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span><span class="o">%</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> \
-                <span class="bp">self</span><span class="o">.</span><span class="n">time_delay_filter_Tprimel</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">l</span><span class="p">]),</span> <span class="o">-</span><span class="n">delta</span><span class="p">)[</span><span class="mi">0</span><span class="p">][:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
-            <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">carrier</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">offset</span><span class="p">)</span>
+                          <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dF</span> <span class="o">*</span> <span class="n">delta</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span>
 
-        <span class="n">X</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">switch</span><span class="p">(</span><span class="n">sigma_idx</span><span class="p">,</span> <span class="p">[</span><span class="n">case_minus_1</span><span class="p">,</span> <span class="n">case_0</span><span class="p">,</span> <span class="n">case_plus_1</span><span class="p">],</span> <span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">delta</span><span class="p">)</span>
+        <span class="n">filt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interp_filter</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">l</span><span class="p">]),</span> <span class="o">-</span><span class="n">delta</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">X</span></div>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">alternating</span> <span class="o">*</span> <span class="n">scalar</span> <span class="o">*</span> <span class="n">carrier</span> <span class="o">*</span> <span class="n">parity</span> \
+                <span class="o">*</span> <span class="n">filt</span><span class="p">[</span><span class="mi">0</span><span class="p">][:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">X</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="WDM_transform.apply_variable_time_shift">
 <a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift">[docs]</a>
-    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">static_argnames</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;unroll&#39;</span><span class="p">,))</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">apply_variable_time_shift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
-                                  <span class="n">wdm_coeff</span><span class="p">,</span> 
-                                  <span class="n">delta</span><span class="p">,</span> 
-                                  <span class="n">unroll</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">static_argnames</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;lag_block&#39;</span><span class="p">,))</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">apply_variable_time_shift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                  <span class="n">filter_tables</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                                  <span class="n">wdm_coeff</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                                  <span class="n">delta</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                                  <span class="n">lag_block</span> <span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Perform the variable time shift operation on a grid of WDM coefficients </span>
+<span class="sd">        Perform the variable time shift operation on a grid of WDM coefficients</span>
 <span class="sd">        by evaluating the sum</span>
 
 <span class="sd">        .. math::</span>
@@ -1666,7 +1668,7 @@
 <span class="sd">            \sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} </span>
 <span class="sd">             \omega_{(n-l) (m+\sigma)} \, X_{n(n-l);m(m+\sigma)}(-\delta_n) .</span>
 
-<span class="sd">        If the original grid represents the coefficinets of a function </span>
+<span class="sd">        If the original grid represents the coefficients of a function </span>
 <span class="sd">        :math:&#39;f(t) = \sum_{nm} \omega_{nm} g_{nm}(t)&#39;</span>
 <span class="sd">        and we sample a time-shift :math:&#39;\delta(t_n) = \delta_n&#39; then the </span>
 <span class="sd">        resulting shifted grid :math:&#39;\tilde{\omega}_{nm}&#39;</span>
@@ -1676,53 +1678,153 @@
 <span class="sd">        limits are wrapped around periodically. It is the users reponsibility</span>
 <span class="sd">        to ensure that the input array `wdm_coeff` is suitably zero padded.</span>
 
+<span class="sd">        The matrix elements :math:`X` are the ones written out plainly in</span>
+<span class="sd">        `time_delay_matrix_X`; this method evaluates the same sum in real</span>
+<span class="sd">        arithmetic for speed. The two are checked against each other by</span>
+<span class="sd">        `test_apply_variable_time_shift_matches_X_reference`, so read</span>
+<span class="sd">        `time_delay_matrix_X` first if you want the expressions in their</span>
+<span class="sd">        textbook form.</span>
+
+<span class="sd">        The matrix elements are evaluated in real arithmetic - see</span>
+<span class="sd">        `real_matrix_element` below for that rearrangement. The carrier phase</span>
+<span class="sd">        :math:`\phi=2\pi(m+\sigma/2)\Delta F\delta_n` does not depend on</span>
+<span class="sd">        :math:`l`, so it is built once outside the lag loop and the</span>
+<span class="sd">        :math:`\sigma=\pm1` cases follow from it by angle addition.</span>
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
+<span class="sd">        filter_tables : jnp.array</span>
+<span class="sd">            The tables returned by `build_time_delay_filter_interpolants`,</span>
+<span class="sd">            dtype=float, shape=(2, 2L+1, num_interp_points).</span>
 <span class="sd">        wdm_coeff : jnp.array</span>
 <span class="sd">            WDM coefficient grid. Array, dtype=float, shape=(Nt,Nf)</span>
 <span class="sd">        delta : jnp.array</span>
 <span class="sd">            Array, dtype=float, shape=(Nt,)</span>
-<span class="sd">        unroll : int or bool</span>
-<span class="sd">            Static unroll factor passed to ``lax.fori_loop`` over ``l``.</span>
+<span class="sd">        lag_block : int or None</span>
+<span class="sd">            Number of lags handled per loop iteration. `None` (the default)</span>
+<span class="sd">            unrolls the lag sum completely, which is fastest for small `L`</span>
+<span class="sd">            because the lag index becomes a compile-time constant. For</span>
+<span class="sd">            :math:`L \gtrsim 30` prefer a small block (8 is a reasonable</span>
+<span class="sd">            start): the unrolled graph becomes large enough that scheduling</span>
+<span class="sd">            cost, compile time and compile-time memory outweigh the benefit.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        shifted_wdm_coeff : jnp.array</span>
 <span class="sd">            Shifted wdm_coefficients. Array, dtype=float, shape=(Nt, Nf)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
-        <span class="n">m_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
-        <span class="n">sigma_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">max_lag_L</span> <span class="o">=</span> <span class="p">(</span><span class="n">filter_tables</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">//</span><span class="mi">2</span>
 
-        <span class="c1"># X_{n(n-l), m(m+sigma)}(-delta_n) for all three sigma at once: vmap-ing</span>
-        <span class="c1"># over sigma turns time_delay_matrix_X&#39;s internal lax.switch into a</span>
-        <span class="c1"># single batched op (all three case_* branches evaluated together),</span>
-        <span class="c1"># rather than three separately-traced calls to time_delay_matrix_X.</span>
-        <span class="n">X_all_sigma</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_delay_matrix_X</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
 
-        <span class="k">def</span><span class="w"> </span><span class="nf">body_fun</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">acc</span><span class="p">):</span>
-            <span class="n">X</span> <span class="o">=</span> <span class="n">X_all_sigma</span><span class="p">(</span><span class="n">n_vals</span><span class="p">,</span> <span class="n">m_vals</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">sigma_vals</span><span class="p">,</span> <span class="n">delta</span><span class="p">)</span>  <span class="c1"># (3, Nt, Nf)</span>
+        <span class="c1"># (-1)^n and (-1)^m, kept rank-1 so they never form a grid</span>
+        <span class="n">sign_n</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">n</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">)[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+        <span class="n">sign_m</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">m</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">)[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
 
-            <span class="c1"># wdm_coeff[(n-l) % Nt, (m+sigma) % Nf], read via circular shifts</span>
-            <span class="c1"># rather than a padded gather. The row shift depends on l (traced,</span>
-            <span class="c1"># varies every fori_loop step) so it is done once and shared by</span>
-            <span class="c1"># all three sigma; the column shift only needs sigma, which is a</span>
-            <span class="c1"># static Python int in each of the three unrolled terms, so each</span>
-            <span class="c1"># of those rolls is cheap.</span>
-            <span class="n">row_shifted</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">wdm_coeff</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="n">l</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">shifted</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span>
-                <span class="n">jnp</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">row_shifted</span><span class="p">,</span> <span class="n">shift</span><span class="o">=-</span><span class="n">sigma</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">sigma</span> <span class="ow">in</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-            <span class="p">])</span>  <span class="c1"># (3, Nt, Nf)</span>
+        <span class="c1"># cos/sin of the sigma=0 carrier; sigma=+-1 by angle addition with</span>
+        <span class="c1"># the rank-1 half-bin phase</span>
+        <span class="n">theta</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dF</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">delta</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+        <span class="n">cos_t</span><span class="p">,</span> <span class="n">sin_t</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
+        <span class="n">half</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dF</span><span class="o">*</span><span class="n">delta</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+        <span class="n">cos_h</span><span class="p">,</span> <span class="n">sin_h</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">half</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">half</span><span class="p">)</span>
+        <span class="n">carrier</span> <span class="o">=</span> <span class="p">{</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span> <span class="p">(</span><span class="n">cos_t</span><span class="o">*</span><span class="n">cos_h</span> <span class="o">+</span> <span class="n">sin_t</span><span class="o">*</span><span class="n">sin_h</span><span class="p">,</span> <span class="n">sin_t</span><span class="o">*</span><span class="n">cos_h</span> <span class="o">-</span> <span class="n">cos_t</span><span class="o">*</span><span class="n">sin_h</span><span class="p">),</span>
+                    <span class="mi">0</span><span class="p">:</span> <span class="p">(</span><span class="n">cos_t</span><span class="p">,</span> <span class="n">sin_t</span><span class="p">),</span>
+                   <span class="o">+</span><span class="mi">1</span><span class="p">:</span> <span class="p">(</span><span class="n">cos_t</span><span class="o">*</span><span class="n">cos_h</span> <span class="o">-</span> <span class="n">sin_t</span><span class="o">*</span><span class="n">sin_h</span><span class="p">,</span> <span class="n">sin_t</span><span class="o">*</span><span class="n">cos_h</span> <span class="o">+</span> <span class="n">cos_t</span><span class="o">*</span><span class="n">sin_h</span><span class="p">)}</span>
 
-            <span class="k">return</span> <span class="n">acc</span> <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">shifted</span> <span class="o">*</span> <span class="n">X</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># every lag at once: shape (2L+1, Nt), no Nf axis</span>
+        <span class="n">lags</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">max_lag_L</span><span class="p">,</span> <span class="n">max_lag_L</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">Tl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interp_filter</span><span class="p">(</span><span class="n">filter_tables</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">lags</span><span class="p">,</span> <span class="o">-</span><span class="n">delta</span><span class="p">)</span>
+        <span class="n">Tprimel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interp_filter</span><span class="p">(</span><span class="n">filter_tables</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">lags</span><span class="p">,</span> <span class="o">-</span><span class="n">delta</span><span class="p">)</span>
+        <span class="n">delay_filter</span> <span class="o">=</span> <span class="p">{</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span> <span class="n">Tprimel</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span> <span class="n">Tl</span><span class="p">,</span> <span class="o">+</span><span class="mi">1</span><span class="p">:</span> <span class="n">Tprimel</span><span class="p">}</span>
 
-        <span class="n">init</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">wdm_coeff</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
-        <span class="n">shifted_wdm_coeff</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">fori_loop</span><span class="p">(</span>
-            <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">body_fun</span><span class="p">,</span> <span class="n">init</span><span class="p">,</span> <span class="n">unroll</span><span class="o">=</span><span class="n">unroll</span>
-        <span class="p">)</span>
+        <span class="c1"># Cyclic extension by L rows and one column, so the wrapped read is a</span>
+        <span class="c1"># contiguous slice rather than a gather. This is NOT zero padding: it</span>
+        <span class="c1"># repeats the caller&#39;s own coefficients, exactly as the periodic wrap</span>
+        <span class="c1"># would. Zero padding remains the caller&#39;s responsibility.</span>
+        <span class="n">cyclic_ext</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">wdm_coeff</span><span class="p">[</span><span class="o">-</span><span class="n">max_lag_L</span><span class="p">:],</span>
+                                      <span class="n">wdm_coeff</span><span class="p">,</span>
+                                      <span class="n">wdm_coeff</span><span class="p">[:</span><span class="n">max_lag_L</span><span class="p">]],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">cyclic_ext</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">cyclic_ext</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">:],</span>
+                                      <span class="n">cyclic_ext</span><span class="p">,</span>
+                                      <span class="n">cyclic_ext</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">]],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">shifted_wdm_coeff</span></div>
+        <span class="c1"># (1j)**l for l modulo 4, as (real, imaginary) pairs</span>
+        <span class="n">i_pow</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.</span><span class="p">]])</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">real_matrix_element</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
+<span class="w">            </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            :math:`X_{n(n-l);m(m+\sigma)}(-\delta_n)` in real arithmetic, for</span>
+<span class="sd">            one lag and one frequency offset. Array, shape=(Nt, Nf).</span>
+
+<span class="sd">            Parameters</span>
+<span class="sd">            ----------</span>
+<span class="sd">            l : int</span>
+<span class="sd">                Time lag index, :math:`-L\leq l\leq L`.</span>
+<span class="sd">            i : int</span>
+<span class="sd">                Position of `l` in the tabulated range, :math:`i=l+L`. Used to</span>
+<span class="sd">                index the pre-evaluated delay filters, which are stored over</span>
+<span class="sd">                that range rather than over :math:`l` itself.</span>
+<span class="sd">            sigma : int</span>
+<span class="sd">                Frequency lag, :math:`0` or :math:`\pm1`.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="c1"># C = (+-i)**l, the scalar lag phase: sigma=-1 carries (1j)**l,</span>
+            <span class="c1"># sigma=+1 its conjugate, and sigma=0 has no such factor at all.</span>
+            <span class="n">i_pow_re</span><span class="p">,</span> <span class="n">i_pow_im</span> <span class="o">=</span> <span class="n">i_pow</span><span class="p">[</span><span class="n">l</span> <span class="o">%</span> <span class="mi">4</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">sigma</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">lag_phase_re</span><span class="p">,</span> <span class="n">lag_phase_im</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">lag_phase_re</span> <span class="o">=</span> <span class="n">i_pow_re</span>
+                <span class="n">lag_phase_im</span> <span class="o">=</span> <span class="n">i_pow_im</span> <span class="k">if</span> <span class="n">sigma</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="k">else</span> <span class="o">-</span><span class="n">i_pow_im</span>
+
+            <span class="c1"># The parity factor conj(i**a) i**b, with a = (n+m) % 2 and</span>
+            <span class="c1"># b = (n&#39;+m&#39;) % 2, collapses to a choice of just two cases:</span>
+            <span class="c1">#     (l+sigma) even -&gt;  1</span>
+            <span class="c1">#     (l+sigma) odd  -&gt;  i (-1)**(n+m)</span>
+            <span class="c1"># Taking the real part of C exp(-i phi) under each then gives</span>
+            <span class="c1">#     even -&gt;  lag_phase_re cos(phi) + lag_phase_im sin(phi)</span>
+            <span class="c1">#     odd  -&gt; -lag_phase_im cos(phi) + lag_phase_re sin(phi)</span>
+            <span class="c1"># which is why nothing here needs to be complex.</span>
+            <span class="n">carrier_cos</span><span class="p">,</span> <span class="n">carrier_sin</span> <span class="o">=</span> <span class="n">carrier</span><span class="p">[</span><span class="n">sigma</span><span class="p">]</span>
+            <span class="n">element</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                    <span class="p">((</span><span class="n">l</span> <span class="o">+</span> <span class="n">sigma</span><span class="p">)</span> <span class="o">%</span> <span class="mi">2</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="n">sign_n</span><span class="o">*</span><span class="n">sign_m</span><span class="o">*</span><span class="p">(</span><span class="o">-</span><span class="n">lag_phase_im</span><span class="o">*</span><span class="n">carrier_cos</span>
+                                   <span class="o">+</span> <span class="n">lag_phase_re</span><span class="o">*</span><span class="n">carrier_sin</span><span class="p">),</span>
+                    <span class="n">lag_phase_re</span><span class="o">*</span><span class="n">carrier_cos</span> <span class="o">+</span> <span class="n">lag_phase_im</span><span class="o">*</span><span class="n">carrier_sin</span><span class="p">)</span>
+
+            <span class="c1"># the two remaining factors: (-1)**(l m), and the delay filter</span>
+            <span class="n">alternating</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">l</span> <span class="o">%</span> <span class="mi">2</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">sign_m</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">element</span> <span class="o">*</span> <span class="n">alternating</span> \
+                        <span class="o">*</span> <span class="n">delay_filter</span><span class="p">[</span><span class="n">sigma</span><span class="p">][</span><span class="n">i</span><span class="p">][:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">body</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">acc</span><span class="p">):</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="n">i</span> <span class="o">-</span> <span class="n">max_lag_L</span>
+
+            <span class="c1"># omega_{(n-l)(m+sigma)}: the row shift depends on l and is shared</span>
+            <span class="c1"># by all three sigma, so it is taken once here.</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">dynamic_slice_in_dim</span><span class="p">(</span><span class="n">cyclic_ext</span><span class="p">,</span> <span class="n">max_lag_L</span> <span class="o">-</span> <span class="n">l</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">sigma</span> <span class="ow">in</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="c1"># offset by 1 because cyclic_ext carries one extra column at</span>
+                <span class="c1"># each edge, so column m+sigma sits at index m+sigma+1</span>
+                <span class="n">coeff</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">slice_in_dim</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">sigma</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                                             <span class="n">sigma</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+                <span class="n">acc</span> <span class="o">=</span> <span class="n">acc</span> <span class="o">+</span> <span class="n">coeff</span><span class="o">*</span><span class="n">real_matrix_element</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">sigma</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">acc</span>
+
+        <span class="n">acc</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">wdm_coeff</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">lag_block</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">max_lag_L</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">acc</span> <span class="o">=</span> <span class="n">body</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">acc</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">acc</span>
+
+        <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">fori_loop</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">max_lag_L</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span>
+                                 <span class="n">unroll</span><span class="o">=</span><span class="n">lag_block</span><span class="p">)</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>

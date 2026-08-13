@@ -85,9 +85,9 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
 
 
-<div class="viewcode-block" id="time_delay_filter_Tl">
-<a class="viewcode-back" href="../../../../WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.time_delay_filter_Tl">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">time_delay_filter_Tl</span><span class="p">(</span><span class="n">ell</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<div class="viewcode-block" id="time_delay_filter_Tl_reference">
+<a class="viewcode-back" href="../../../../WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.time_delay_filter_Tl_reference">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">time_delay_filter_Tl_reference</span><span class="p">(</span><span class="n">ell</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
                          <span class="n">delta</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
                          <span class="n">freqs</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
                          <span class="n">window_FD</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
@@ -100,9 +100,10 @@
 <span class="sd">        T_{\ell}(\delta)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta)) </span>
 <span class="sd">                            |\tilde{\Phi}(f)|^2 .</span>
 
-<span class="sd">    This function is SLOW. It is intended to be called when the main </span>
-<span class="sd">    `WDM_transform` class is initialised to build a fast interpolant for </span>
-<span class="sd">    subsequent use.</span>
+<span class="sd">    This function is SLOW and is NOT used in production; `build_filter_tables`</span>
+<span class="sd">    builds the same quantity for a whole grid of lags and delays at once.</span>
+<span class="sd">    It is kept as the reference implementation of the defining integral,</span>
+<span class="sd">    against which the tabulated version is tested.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -133,9 +134,9 @@
 
 
 
-<div class="viewcode-block" id="time_delay_filter_Tprimel">
-<a class="viewcode-back" href="../../../../WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.time_delay_filter_Tprimel">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">time_delay_filter_Tprimel</span><span class="p">(</span><span class="n">ell</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<div class="viewcode-block" id="time_delay_filter_Tprimel_reference">
+<a class="viewcode-back" href="../../../../WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.time_delay_filter_Tprimel_reference">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">time_delay_filter_Tprimel_reference</span><span class="p">(</span><span class="n">ell</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
                          <span class="n">delta</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
                          <span class="n">freqs</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
                          <span class="n">window_FD</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
@@ -151,9 +152,10 @@
 <span class="sd">                            \tilde{\Phi}\left(f-\frac{1}{2}\Delta F\right)</span>
 <span class="sd">                            \tilde{\Phi}\left(f+\frac{1}{2}\Delta F\right) .</span>
 
-<span class="sd">    This function is SLOW. It is intended to be called when the main </span>
-<span class="sd">    `WDM_transform` class is initialised to build a fast interpolant for </span>
-<span class="sd">    subsequent use.</span>
+<span class="sd">    This function is SLOW and is NOT used in production; `build_filter_tables`</span>
+<span class="sd">    builds the same quantity for a whole grid of lags and delays at once.</span>
+<span class="sd">    It is kept as the reference implementation of the defining integral,</span>
+<span class="sd">    against which the tabulated version is tested.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -191,6 +193,58 @@
     <span class="n">Tprime_l</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">integrand</span><span class="p">)</span> <span class="o">*</span> <span class="n">df</span>
 
     <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">Tprime_l</span><span class="o">.</span><span class="n">real</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="build_filter_tables">
+<a class="viewcode-back" href="../../../../WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.build_filter_tables">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_filter_tables</span><span class="p">(</span><span class="n">lags</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                        <span class="n">deltas</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                        <span class="n">freqs</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                        <span class="n">window_FD</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                        <span class="n">dT</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                        <span class="n">dF</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                        <span class="n">df</span> <span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Evaluate both time-delay filters on a grid of lags and delays.</span>
+
+<span class="sd">    :math:`T_{\ell}` and :math:`T&#39;_{\ell}` are the same integral over a</span>
+<span class="sd">    different window product, so they are built together. The lag phase and</span>
+<span class="sd">    the delay phase separate, which turns the whole grid into two matrix</span>
+<span class="sd">    products rather than a loop over :math:`(\ell,\delta)` pairs.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    lags : jnp.ndarray</span>
+<span class="sd">        The time index differences :math:`\ell`, dtype=int, shape=(A,).</span>
+<span class="sd">    deltas : jnp.ndarray</span>
+<span class="sd">        The time delays :math:`\delta`, shape=(B,).</span>
+<span class="sd">    freqs : jnp.ndarray</span>
+<span class="sd">        The sample frequencies of the wdm object time series.</span>
+<span class="sd">    window_FD : jnp.ndarray</span>
+<span class="sd">        The frequency-domain Meyer window, :math:`\tilde{\Phi}(f)`.</span>
+<span class="sd">    dT : float</span>
+<span class="sd">        Time resolution of the wdm object.</span>
+<span class="sd">    dF : float</span>
+<span class="sd">        Frequency resolution of the wdm object.</span>
+<span class="sd">    df : float</span>
+<span class="sd">        The frequency resolution of the wdm object time series.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tables : jnp.ndarray</span>
+<span class="sd">        shape=(2, A, B). Index 0 is :math:`T&#39;_{\ell}`, index 1 is</span>
+<span class="sd">        :math:`T_{\ell}`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lag_phase</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">lags</span><span class="o">*</span><span class="n">dT</span><span class="p">,</span> <span class="n">freqs</span><span class="p">))</span>
+    <span class="n">delta_phase</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">freqs</span><span class="p">,</span> <span class="n">deltas</span><span class="p">))</span>
+
+    <span class="n">shift</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.5</span><span class="o">*</span><span class="n">dF</span><span class="o">/</span><span class="n">df</span><span class="p">)</span>
+
+    <span class="n">windows</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">jnp</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">window_FD</span><span class="p">,</span> <span class="n">shift</span><span class="p">)</span>
+                            <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">window_FD</span><span class="p">,</span> <span class="o">-</span><span class="n">shift</span><span class="p">),</span>
+                         <span class="n">window_FD</span><span class="o">**</span><span class="mi">2</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">((</span><span class="n">lag_phase</span><span class="o">*</span><span class="n">windows</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span> <span class="o">@</span> <span class="n">delta_phase</span><span class="p">)</span> <span class="o">*</span> <span class="n">df</span></div>
 
 </pre></div>
 
