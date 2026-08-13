@@ -1192,6 +1192,220 @@ class WDM_transform:
 
         return x
 
+    @partial(jax.jit, static_argnums=0)
+    def inverse_transform_fft(self, w : jnp.ndarray) -> jnp.ndarray:
+        r"""
+        Perform the inverse discrete wavelet transform using the rapid
+        frequency-domain FFT algorithm.
+
+        For the :math:`m>0` terms, the WDM coefficients are first transformed
+        along the wavelet time index :math:`n`. The positive- and
+        negative-frequency branches are then multiplied by the frequency-domain
+        Meyer window and overlap-added into the full Fourier spectrum.
+
+        The special :math:`m=0` column is treated separately. The first
+        :math:`N_t/2` coefficients correspond to the zero-frequency edge
+        wavelets and the remaining :math:`N_t/2` coefficients correspond to
+        the Nyquist-frequency edge wavelets. These are transformed together
+        using a batched FFT of length :math:`N_t/2`, expanded over the compact
+        support of the Meyer window, and added to the corresponding edges of
+        the full Fourier spectrum.
+
+        Finally, an inverse FFT of length :math:`N` returns the time-domain
+        signal.
+
+        This calculation uses the frequency-domain Meyer window directly and
+        therefore does not depend on the time-domain truncation parameter
+        :math:`q`.
+
+        This is vectorised to allow for batch jobs computing the inverse dwt
+        for multiple sets of wavelet coefficients at once.
+
+        Parameters
+        ----------
+        w : jnp.ndarray
+            Wavelet coefficients. Array shape (..., Nt, Nf).
+
+        Returns
+        -------
+        x : jnp.ndarray
+            Reconstructed time-domain signal. Array shape (..., N).
+        """
+        w = jnp.asarray(w, dtype=self.jax_dtype)
+
+        assert w.shape[-2:] == (self.Nt, self.Nf), \
+                f"Input coefficients must have shape ({self.Nt}, {self.Nf}), " \
+                f"got {w.shape[-2:]=}."
+
+        leading = w.shape[:-2]
+
+        # ============================================================
+        # m > 0 terms
+        # ============================================================
+
+        n_vals = jnp.arange(self.Nt)
+        m_vals = jnp.arange(1, self.Nf)
+        l_vals = jnp.arange(-self.Nt//2, self.Nt//2)
+
+        phase = (-1)**(
+            n_vals[:, jnp.newaxis] * m_vals[jnp.newaxis, :]
+        ) * jnp.conj(self.Cnm[:, 1:])
+
+        # FFT over the WDM time index n.
+        # Shape (..., Nt, Nf-1)
+        A = jnp.fft.fft(
+            w[..., :, 1:] * phase,
+            axis=-2,
+        )
+
+        # Put the FFT into the local-frequency ordering
+        # l = -Nt/2, ..., Nt/2-1.
+        A_positive = jnp.take(
+            A,
+            l_vals,
+            axis=-2,
+            mode='wrap',
+        )
+
+        # The negative-frequency branch follows from
+        #
+        #     FFT(a*)[l] = conj(FFT(a)[-l]).
+        #
+        A_negative = jnp.take(
+            jnp.conj(A),
+            -l_vals,
+            axis=-2,
+            mode='wrap',
+        )
+
+        Phi = jnp.fft.ifftshift(self.window_FD)[l_vals]
+
+        Phi = Phi[
+            *(jnp.newaxis,)*len(leading),
+            :,
+            jnp.newaxis
+        ]
+
+        X_positive = A_positive * Phi / jnp.sqrt(2.)
+        X_negative = A_negative * Phi / jnp.sqrt(2.)
+
+        # Global Fourier indices of the two Wilson branches.
+        positive_indices = (
+            l_vals[:, jnp.newaxis]
+            + m_vals[jnp.newaxis, :] * self.Nt//2
+        ) % self.N
+
+        negative_indices = (
+            l_vals[:, jnp.newaxis]
+            - m_vals[jnp.newaxis, :] * self.Nt//2
+        ) % self.N
+
+        indices = jnp.concatenate(
+            (
+                positive_indices.reshape(-1),
+                negative_indices.reshape(-1),
+            )
+        )
+
+        X_values = jnp.concatenate(
+            (
+                X_positive.reshape(leading + (-1,)),
+                X_negative.reshape(leading + (-1,)),
+            ),
+            axis=-1,
+        )
+
+        X_full = jnp.zeros(
+            leading + (self.N,),
+            dtype=X_values.dtype,
+        )
+
+        # Adjacent Meyer bands overlap in frequency.
+        X_full = X_full.at[..., indices].add(X_values)
+
+        # ============================================================
+        # m = 0 terms: DC and Nyquist together
+        # ============================================================
+
+        M = self.Nt // 2
+        l_vals_m0 = jnp.arange(-M, M)
+
+        # Pack the two physical edge bands:
+        #
+        #   [..., 0, :] -> zero-frequency coefficients
+        #   [..., 1, :] -> Nyquist-frequency coefficients
+        #
+        # Shape (..., 2, M)
+        w_m0 = jnp.stack(
+            (
+                w[..., :M, 0],
+                w[..., M:, 0],
+            ),
+            axis=-2,
+        )
+
+        # Because the edge wavelets are spaced by 2*dT, their Fourier
+        # phase has period M. One batched M-point FFT therefore gives
+        # both edge spectra.
+        #
+        # Shape (..., 2, M)
+        A_m0 = jnp.fft.fft(
+            w_m0,
+            axis=-1,
+        )
+
+        # The Meyer support contains Nt = 2M frequency samples, while
+        # A_m0 has period M. Repeat each edge spectrum over both halves
+        # of the compact support.
+        #
+        # Shape (..., 2, Nt)
+        A_m0 = jnp.concatenate(
+            (
+                A_m0,
+                A_m0,
+            ),
+            axis=-1,
+        )
+
+        Phi_m0 = jnp.fft.ifftshift(
+            self.window_FD
+        )[l_vals_m0]
+
+        # Same Meyer window for the DC and Nyquist edge branches.
+        X_m0 = A_m0 * Phi_m0
+
+        # First edge is centred on DC, second on Nyquist.
+        #
+        # Shape (2, Nt)
+        m0_indices = jnp.stack(
+            (
+                l_vals_m0,
+                l_vals_m0 + self.N//2,
+            ),
+            axis=0,
+        ) % self.N
+
+        # Flatten the two edge bands so they can be scatter-added in
+        # one operation.
+        m0_indices = m0_indices.reshape(-1)
+
+        X_m0 = X_m0.reshape(
+            leading + (-1,)
+        )
+
+        X_full = X_full.at[..., m0_indices].add(X_m0)
+
+        # ============================================================
+        # Return to the time domain
+        # ============================================================
+
+        x = jnp.fft.ifft(
+            X_full,
+            axis=-1,
+        ).real / self.dt
+
+        return x
+
     def inverse_transform_exact(self, w : jnp.ndarray) -> jnp.ndarray:
         r"""
         Perform the inverse discrete wavelet transform. Transforms the wavelet 
@@ -1277,7 +1491,7 @@ class WDM_transform:
 
         assert jnp.all(jnp.isreal(w)), "wavelet coefficients must be real."
 
-        return self.inverse_transform(w)
+        return self.inverse_transform_fft(w)
 
     def build_time_delay_filter_interpolants(self,
                                              max_lag_L : int,
