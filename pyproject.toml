@@ -1,6 +1,6 @@
 [project]
 name = "WDM_GW_wavelets"
-version = "0.0.4"
+version = "0.0.5"
 authors = [
   { name="Christopher J. Moore", email="cjm96@cam.ac.uk"},
   { name="Tomasz Kinowski", email="tk593@cam.ac.uk"}
