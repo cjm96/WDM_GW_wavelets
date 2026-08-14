@@ -13,17 +13,17 @@ transform for the time-frequency analysis of gravitational wave data.
 
 # Installation
 
-## PyPI
+#### PyPI
 
-WDM_GW_wavelets is available on [PyPI](https://pypi.org/project/WDM-GW-wavelets/)
+This package is available on [PyPI](https://pypi.org/project/WDM-GW-wavelets/):
 
-```
+```bash
 pip install WDM-GW-wavelets
 ```
 
-## From Source
+#### From Source
 
-To install the package from source, clone the repository and run the following in the directory cotaining pyproject.toml.
+To install the package from source, clone the repository and run the following command in the directory containing the pyproject.toml file:
 
 ```bash
 pip install -e .
@@ -31,16 +31,18 @@ pip install -e .
 
 # Getting Started
 
-In Python you should then be able to `import WDM`. 
+In Python you should be able to `import WDM`. 
 Try running the example notebook `getting_started.ipynb`.
 
 
 # Documentation
 
+The documentation for this package, including mathematical details of the WDM wavelets, is hosted on GitHub Pages:
+
 👉 https://cjm96.github.io/WDM_GW_wavelets/
 
-Documentation is built using `sphinx`. 
-You will need to ensure you have this installed; this can be done by installing with the docs extras.
+The documentation is built using `sphinx`. 
+If you want to (re)build the documentation yourself you will need to ensure you have this installed; this can be done by installing with the docs extras.
 
 ```bash
 pip install .[docs]
