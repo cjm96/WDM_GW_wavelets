@@ -1523,11 +1523,22 @@ class WDM_transform:
             \sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} 
              \omega_{(n-l) (m+\sigma)} \, X_{n(n-l);m(m+\sigma)}(-\delta_n) .
 
-        If the original grid represents the coefficients of a function 
+        If the original grid represents the coefficients of a function
         :math:'f(t) = \sum_{nm} \omega_{nm} g_{nm}(t)'
-        and we sample a time-shift :math:'\delta(t_n) = \delta_n' then the 
+        and we sample a time-shift :math:'\delta(t_n) = \delta_n' then the
         resulting shifted grid :math:'\tilde{\omega}_{nm}'
-        is the equivalent to the WDM transform of :math:'f(t-\delta(t))'.
+        is the equivalent to the WDM transform of :math:'f(t+\delta(t))'.
+
+        Mind the sign. Shifting the *coefficients* is the active
+        transformation and carries the opposite sign to shifting the *basis
+        functions*, since
+        :math:`\langle f(t-\delta), g_{nm}(t)\rangle
+        = \langle f(t), g_{nm}(t+\delta)\rangle`. That is why the matrix
+        elements above are evaluated at :math:`-\delta_n` while the output is
+        the transform of :math:`f(t+\delta(t))`: pass the delay with the sign
+        of the shift you want applied to the samples. Checked directly - an
+        asymmetric pulse fed through with a constant :math:`\delta>0` comes
+        back centred :math:`\delta` seconds *earlier*.
 
         Terms where :math:`n-l` or :math:`m+\sigma` fall outside the array
         limits are wrapped around periodically. It is the users reponsibility
