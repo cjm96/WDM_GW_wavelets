@@ -1,10 +1,17 @@
+import inspect
+
 import jax
 import jax.numpy as jnp
 
 import WDM
 from WDM.code.discrete_wavelet_transform import WDM
-from WDM.code.time_delay_filters.filters import (build_filter_tables,
-                                                 window_support)
+from WDM.code.time_delay_filters.filters import (
+                                        FILTER_TABLE_BLOCK_BYTES,
+                                        _choose_freq_block,
+                                        build_filter_tables,
+                                        time_delay_filter_Tl_reference,
+                                        time_delay_filter_Tprimel_reference,
+                                        window_support)
 
 
 
@@ -338,39 +345,18 @@ def test_rebuilding_interpolants_takes_effect():
         "rebuilding the interpolants had no effect - stale jit cache?"
 
 
-def test_filter_tables_independent_of_frequency_blocking():
-    r"""
-    The tabulation is blocked over frequency to bound its peak allocation.
-
-    Written as a single pair of matrix products it needs about
-    `16*(3*(2L+1)+num_interp_points)*N` bytes, which is tens to hundreds of
-    gigabytes at the durations LISA actually needs - and it is
-    `num_interp_points` that tips a working configuration over the edge.
-    Blocking must not be visible in the answer, so compare the default
-    against the smallest block the implementation permits, one frequency
-    sample.
-    """
-    wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*64, q=4)
-
-    lags = jnp.arange(-6, 7)
-    deltas = jnp.linspace(-0.5*wdm.dT, 0.5*wdm.dT, 33)
-    args = (lags, deltas, wdm.freqs, wdm.window_FD, wdm.dT, wdm.dF, wdm.df)
-
-    default = build_filter_tables(*args)
-    per_sample = build_filter_tables(*args, max_bytes=1)
-
-    assert jnp.allclose(default, per_sample, atol=1.0e-12, rtol=0.0), \
-        f"blocking changed the tables by {jnp.abs(default-per_sample).max()}"
-
-
 def test_window_support_bounds_both_window_products():
     r"""
     Restricting the filter integrals to the window support must be exact.
 
-    `window_support` is read off `window_FD` alone, but it is used to trim an
-    integrand built from `window_FD**2` *and* from the half-bin-shifted
-    product. Everything outside the returned range must be identically zero
-    in both, otherwise the trim would silently discard signal.
+    `window_support` measures the range from the two window products, but it
+    is `build_filter_tables` that has to be able to use the answer, so check
+    it against the products as that function forms them: `window_FD**2` and
+    the half-bin-shifted product. Everything outside the returned range must
+    be identically zero in both, otherwise the trim would silently discard
+    signal. The synthetic windows elsewhere in this file cover the awkward
+    cases; this one covers the grids the code is actually run on, over a
+    spread of `A_frac` since that sets how much of the array the window fills.
     """
     for Nf, N, A_frac in ((8, 8*64, 0.25), (2, 2*2048, 0.25),
                           (64, 64*128, 0.4), (128, 128*32, 0.1)):
@@ -411,3 +397,213 @@ def test_filter_tables_finite_when_sample_sits_on_band_edge():
 
     assert jnp.all(jnp.isfinite(tables)), \
         "the time-delay filter tables are not finite on the band edge"
+
+
+def test_filter_tables_match_the_defining_integrals():
+    r"""
+    The tabulation must still evaluate the integrals it claims to evaluate.
+
+    Restricting to the window support and accumulating over frequency blocks
+    are both changes to *how* the integrals are summed, so neither may move
+    the answer. Comparing the tabulation against itself at two block sizes
+    cannot see that: both paths are trimmed identically, so a trim that
+    dropped signal would agree with itself and pass. The anchor has to be
+    outside the blocked code path entirely, which is what the two
+    `..._reference` functions are for - they sum the defining integrand over
+    the full frequency axis, one :math:`(\ell,\delta)` pair at a time.
+
+    Three block regimes are checked, which is what makes this the only test
+    the blocked path needs: one block covering the whole support, one block
+    per frequency sample, and a size that divides the support unevenly. The
+    last is the interesting one - the short final block is a different static
+    shape, so it is separately compiled, and it is the only regime in which
+    an off-by-one in the `min(lo+block, stop)` bound can show up.
+    """
+    wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*64, q=4)
+
+    lags = jnp.arange(-3, 4)
+    deltas = jnp.linspace(-0.5*wdm.dT, 0.5*wdm.dT, 5)
+
+    shift = int(0.5*wdm.dF/wdm.df)
+    start, stop = window_support(wdm.window_FD, shift)
+
+    assert stop-start < wdm.window_FD.shape[0], \
+        "this grid does not exercise the support trim - the comparison " \
+        "against the reference integrals would be vacuous"
+
+    args = (lags, deltas, wdm.freqs, wdm.window_FD, wdm.dT, wdm.dF, wdm.df)
+
+    # one block holds three lag-phase copies and the delay phase per frequency
+    uneven = 20*16*(3*len(lags) + len(deltas))
+
+    assert (stop-start) % 20, \
+        f"a support of {stop-start} samples divides evenly into blocks of " \
+        f"20 - this budget no longer leaves a short final block"
+
+    # shape (2, 2L+1, num_interp_points); index 0 is T', index 1 is T
+    for kwargs, name in (({}, "one block"),
+                         ({"max_bytes": 1}, "one sample per block"),
+                         ({"max_bytes": uneven}, "short final block")):
+        tables = build_filter_tables(*args, **kwargs)
+
+        for i, ell in enumerate(lags):
+            for j, delta in enumerate(deltas):
+                T_l = time_delay_filter_Tl_reference(int(ell),
+                                                     float(delta),
+                                                     wdm.freqs,
+                                                     wdm.window_FD,
+                                                     wdm.dT,
+                                                     wdm.df)
+
+                Tprime_l = time_delay_filter_Tprimel_reference(int(ell),
+                                                               float(delta),
+                                                               wdm.freqs,
+                                                               wdm.window_FD,
+                                                               wdm.dT,
+                                                               wdm.dF,
+                                                               wdm.N,
+                                                               wdm.df)
+
+                assert jnp.allclose(tables[1, i, j], T_l,
+                                    atol=1.0e-12, rtol=0.0), \
+                    f"tabulated T_l disagrees with the defining integral " \
+                    f"by {abs(float(tables[1, i, j])-T_l)} at {ell=} " \
+                    f"{delta=} ({name} block)"
+
+                assert jnp.allclose(tables[0, i, j], Tprime_l,
+                                    atol=1.0e-12, rtol=0.0), \
+                    f"tabulated T'_l disagrees with the defining integral " \
+                    f"by {abs(float(tables[0, i, j])-Tprime_l)} at {ell=} " \
+                    f"{delta=} ({name} block)"
+
+
+def test_frequency_block_size_stops_growing_with_the_grid():
+    r"""
+    The claim the blocking exists to support is that the peak allocation no
+    longer depends on :math:`N`, and that is a property of the block size
+    alone - nothing downstream of `_choose_freq_block` can restore the bound
+    if it hands back a block that grows with the grid.
+
+    The budget is restated here rather than imported: one block holds the lag
+    phase (`num_lags` complex values per frequency), its two windowed copies
+    and the delay phase (`num_deltas`), so `16*(3*num_lags+num_deltas)` bytes
+    per frequency sample. A test that reused the implementation's own
+    arithmetic could not detect that arithmetic being wrong.
+
+    The degenerate budget matters too: a block of zero would make
+    `build_filter_tables` loop forever rather than merely run out of memory.
+    """
+    num_lags, num_deltas = 51, 100        # L_trunc=25, a typical delay grid
+
+    bytes_per_freq = 16*(3*num_lags + num_deltas)
+    budget = 256*1024**2
+
+    hundred_k = _choose_freq_block(num_lags, num_deltas, 10**5, budget)
+    ten_m = _choose_freq_block(num_lags, num_deltas, 10**7, budget)
+
+    assert hundred_k == ten_m, \
+        f"block size grew with the frequency axis, {hundred_k} -> {ten_m}; " \
+        f"the peak allocation still depends on N"
+
+    assert ten_m*bytes_per_freq <= budget, \
+        f"a block of {ten_m} frequency samples needs " \
+        f"{ten_m*bytes_per_freq} bytes, over the {budget} budget"
+
+    small = _choose_freq_block(num_lags, num_deltas, 32, budget)
+
+    assert small == 32, \
+        f"a grid smaller than the budget was split into blocks of {small}"
+
+    for max_bytes in (0, 1):
+        block = _choose_freq_block(num_lags, num_deltas, 1000, max_bytes)
+
+        assert block == 1, \
+            f"a budget of {max_bytes} bytes gave a block of {block}; " \
+            f"anything below one frequency sample does not terminate"
+
+
+def test_block_budget_has_a_single_definition():
+    r"""
+    Every `max_bytes` default must be the one module constant.
+
+    `WDM_transform.build_time_delay_filter_interpolants` always forwards its
+    own default, so `build_filter_tables`'s default never applies to calls
+    made through the class. If the two were written out separately, lowering
+    the budget in one place would leave every call through the class on the
+    old value, and the change would look like it had done nothing.
+    """
+    signatures = (inspect.signature(build_filter_tables),
+                  inspect.signature(
+                      WDM.WDM_transform.build_time_delay_filter_interpolants))
+
+    for signature in signatures:
+        default = signature.parameters["max_bytes"].default
+
+        assert default is FILTER_TABLE_BLOCK_BYTES, \
+            f"max_bytes defaults to {default}, not the module constant " \
+            f"{FILTER_TABLE_BLOCK_BYTES}; the budget has more than one " \
+            f"definition and the two can drift"
+
+
+def test_window_support_covers_a_wrapped_shifted_product():
+    r"""
+    The trim must hold when the shifted window wraps around the array edge.
+
+    This is the case that cannot be reasoned about from the window's own
+    support. `jnp.roll` is circular, so with the support near an edge and a
+    large enough `shift` the two translated copies meet at the far end of the
+    array - the product is non-zero in a region the window itself never
+    touches. A `window_support` that read the window alone would trim to the
+    window's support, integrate where the product is identically zero, and
+    return zero for :math:`T'_{\ell}` with no error raised.
+
+    A Meyer window on a sane grid comes nowhere near this - the support is
+    narrow and centred, thousands of samples clear of both edges - so the
+    window here is built by hand. The point is that the answer no longer
+    depends on that comfortable margin holding.
+    """
+    N, shift = 64, 30
+
+    window_FD = jnp.zeros(N).at[0:11].set(1.0)
+
+    indices = jnp.arange(N)
+    product = window_FD[(indices-shift) % N] * window_FD[(indices+shift) % N]
+
+    start, stop = window_support(window_FD, shift)
+
+    outside = jnp.concatenate([product[:start], product[stop:]])
+
+    assert jnp.all(outside == 0.0), \
+        f"support [{start}, {stop}) drops non-zero samples of the wrapped " \
+        f"product, which is non-zero on " \
+        f"{jnp.nonzero(product)[0].min()}..{jnp.nonzero(product)[0].max()}"
+
+    assert jnp.sum(product[start:stop]) == jnp.sum(product), \
+        "the trimmed integral of the wrapped product lost weight"
+
+
+def test_window_support_handles_a_window_that_is_never_non_zero():
+    r"""
+    A window with no support at all has no range to measure, and the
+    conservative answer - integrate over everything - is the only safe one.
+    """
+    N = 64
+
+    assert window_support(jnp.zeros(N), 3) == (0, N), \
+        "a window that is nowhere non-zero must not be trimmed"
+
+
+def test_window_support_still_trims_interior_support():
+    r"""
+    Measuring the products rather than the window must not cost the trim.
+
+    Every other test here would pass a `window_support` that had given up and
+    returned the whole array, so one case has to pin that it still returns a
+    tight range when the products really are confined.
+    """
+    N, shift = 64, 3
+
+    interior = jnp.zeros(N).at[20].set(1.0).at[30].set(1.0)
+
+    assert window_support(interior, shift) == (20, 31), \
+        "interior support clear of both edges must still be trimmed"

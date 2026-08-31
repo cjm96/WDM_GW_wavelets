@@ -3,7 +3,8 @@ import jax.numpy as jnp
 
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, overlapping_windows
-from WDM.code.time_delay_filters.filters import build_filter_tables
+from WDM.code.time_delay_filters.filters import (FILTER_TABLE_BLOCK_BYTES,
+                                                 build_filter_tables)
 
 from typing import Tuple
 from functools import partial
@@ -1249,7 +1250,8 @@ class WDM_transform:
     def build_time_delay_filter_interpolants(self,
                                              max_lag_L : int,
                                              num_interp_points : int,
-                                             max_bytes : int = 256*1024**2
+                                             max_bytes : int
+                                                = FILTER_TABLE_BLOCK_BYTES
                                              ) -> None:
         r""" 
         If the user needs to do any time-shift operations involving the 
@@ -1272,7 +1274,8 @@ class WDM_transform:
             tabulation, passed straight to `build_filter_tables`. The
             tabulation is blocked over frequency so that its peak allocation
             is bounded by this rather than by :math:`N`; lower it if the build
-            still does not fit. Defaults to 256 MiB. Optional.
+            still does not fit. Defaults to
+            `filters.FILTER_TABLE_BLOCK_BYTES`, 256 MiB. Optional.
 
         Returns
         -------

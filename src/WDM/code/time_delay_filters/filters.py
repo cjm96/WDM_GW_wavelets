@@ -5,6 +5,15 @@ import jax.numpy as jnp
 import numpy as np
 
 
+#: Default working-set budget, in bytes, for one frequency block of
+#: `build_filter_tables`. The whole point of the blocking is that the peak
+#: allocation stops depending on :math:`N`, so this only has to be small
+#: enough to fit and large enough that the matrix products stay efficient.
+#: It is the default of every `max_bytes` argument in the package, so that
+#: the budget has one definition rather than one per call site.
+FILTER_TABLE_BLOCK_BYTES = 1 << 28  # 256 MiB
+
+
 def time_delay_filter_Tl_reference(ell : int,
                          delta : float,
                          freqs : jnp.array,
@@ -119,12 +128,22 @@ def window_support(window_FD : jnp.array,
     :math:`f=0`, which on production grids is a factor :math:`\sim N_f`
     shorter than the array itself.
 
-    Both window products used by `build_filter_tables` vanish wherever
-    `window_FD` does. That is immediate for :math:`\tilde{\Phi}^2`. For the
-    rolled product each factor is the same support translated by
-    :math:`\mp` `shift`, so the product is supported on the overlap of the
-    two translates, which is contained in the untranslated support - provided
-    neither translate wraps around the array edge.
+    The range is measured from the two window products themselves rather
+    than inferred from the support of `window_FD`. Inferring it needs the
+    argument that each factor of the rolled product is the same support
+    translated by :math:`\mp` `shift`, so the product lives on the overlap of
+    the two translates, which sits inside the untranslated support. That
+    argument holds only while neither translate wraps: `jnp.roll` is
+    circular, so a copy pushed off one end reappears at the other, and the
+    overlap can then land somewhere the untranslated support does not cover
+    at all. Trimming to the window's own support would silently integrate
+    over the wrong samples. Measuring cannot make that mistake, and costs one
+    boolean array of length :math:`N`.
+
+    The masks are exact: a product of two floats is non-zero wherever both
+    factors are, so the only discrepancy possible is a product underflowing
+    to zero where the mask says otherwise, which widens the range rather than
+    narrowing it.
 
     Parameters
     ----------
@@ -138,22 +157,25 @@ def window_support(window_FD : jnp.array,
     Returns
     -------
     start, stop : int
-        Half-open index range. `(0, N)` is returned if the window is nowhere
-        non-zero or if the translates would wrap, so the caller always
-        integrates over a superset of the true support.
+        Half-open index range covering every sample at which either window
+        product is non-zero. `(0, N)` is returned if neither is ever
+        non-zero, and also whenever the non-zero samples straddle the array
+        edge, so the caller always integrates over a superset of the true
+        support.
     """
     N = int(jnp.shape(window_FD)[0])
 
-    nonzero = np.flatnonzero(np.asarray(window_FD) != 0.0)
+    mask = np.asarray(window_FD) != 0.0
+
+    # the supports of window_FD**2 and of the half-bin-shifted product; the
+    # roll directions match the gathers in `_filter_tables_block`
+    support = mask | (np.roll(mask, shift) & np.roll(mask, -shift))
+
+    nonzero = np.flatnonzero(support)
     if nonzero.size == 0:
         return 0, N
 
-    start, stop = int(nonzero[0]), int(nonzero[-1]) + 1
-
-    if start - shift < 0 or stop + shift > N:
-        return 0, N
-
-    return start, stop
+    return int(nonzero[0]), int(nonzero[-1]) + 1
 
 
 def _choose_freq_block(num_lags : int,
@@ -217,7 +239,8 @@ def build_filter_tables(lags : jnp.array,
                         dT : float,
                         dF : float,
                         df : float,
-                        max_bytes : int = 256*1024**2) -> jnp.array:
+                        max_bytes : int = FILTER_TABLE_BLOCK_BYTES
+                        ) -> jnp.array:
     r"""
     Evaluate both time-delay filters on a grid of lags and delays.
 
@@ -260,7 +283,8 @@ def build_filter_tables(lags : jnp.array,
         Working-set budget, in bytes, for one frequency block. The point of
         the blocking is that the peak allocation stops depending on :math:`N`,
         so this only has to be small enough to fit and large enough that the
-        matrix products stay efficient. Defaults to 256 MiB. Optional.
+        matrix products stay efficient. Defaults to
+        `FILTER_TABLE_BLOCK_BYTES`, 256 MiB. Optional.
 
     Returns
     -------
