@@ -5,13 +5,6 @@ import jax.numpy as jnp
 import numpy as np
 
 
-#: Working-set budget, in bytes, for one frequency block of
-#: `build_filter_tables`. The whole point of the blocking is that the peak
-#: allocation stops depending on :math:`N`, so this only has to be small
-#: enough to fit and large enough that the matrix products stay efficient.
-FILTER_TABLE_BLOCK_BYTES = 1 << 28  # 256 MiB
-
-
 def time_delay_filter_Tl_reference(ell : int,
                          delta : float,
                          freqs : jnp.array,
@@ -224,8 +217,7 @@ def build_filter_tables(lags : jnp.array,
                         dT : float,
                         dF : float,
                         df : float,
-                        max_bytes : int = FILTER_TABLE_BLOCK_BYTES
-                        ) -> jnp.array:
+                        max_bytes : int = 256*1024**2) -> jnp.array:
     r"""
     Evaluate both time-delay filters on a grid of lags and delays.
 
@@ -265,7 +257,10 @@ def build_filter_tables(lags : jnp.array,
     df : float
         The frequency resolution of the wdm object time series.
     max_bytes : int
-        Working-set budget for one frequency block. Optional.
+        Working-set budget, in bytes, for one frequency block. The point of
+        the blocking is that the peak allocation stops depending on :math:`N`,
+        so this only has to be small enough to fit and large enough that the
+        matrix products stay efficient. Defaults to 256 MiB. Optional.
 
     Returns
     -------
