@@ -3,7 +3,8 @@ import jax.numpy as jnp
 
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, overlapping_windows
-from WDM.code.time_delay_filters.filters import build_filter_tables
+from WDM.code.time_delay_filters.filters import (FILTER_TABLE_BLOCK_BYTES,
+                                                 build_filter_tables)
 
 from typing import Tuple
 from functools import partial
@@ -1248,7 +1249,10 @@ class WDM_transform:
 
     def build_time_delay_filter_interpolants(self,
                                              max_lag_L : int,
-                                             num_interp_points : int) -> None:
+                                             num_interp_points : int,
+                                             max_bytes : int
+                                                = FILTER_TABLE_BLOCK_BYTES
+                                             ) -> None:
         r""" 
         If the user needs to do any time-shift operations involving the 
         WDM wavelets, then this function should be called first. It tabulates 
@@ -1265,6 +1269,13 @@ class WDM_transform:
         num_interp_points : int
             The number of interpolation points in the range
             :math:`-\Delta T/2\leq \delta\leq \Delta T/2.`
+        max_bytes : int
+            Working-set budget, in bytes, for one frequency block of the
+            tabulation, passed straight to `build_filter_tables`. The
+            tabulation is blocked over frequency so that its peak allocation
+            is bounded by this rather than by :math:`N`; lower it if the build
+            still does not fit. Defaults to
+            `filters.FILTER_TABLE_BLOCK_BYTES`, 256 MiB. Optional.
 
         Returns
         -------
@@ -1273,10 +1284,18 @@ class WDM_transform:
             :math:`T'_l`, index 1 is :math:`T_l`. Also stored as
             `self.filter_tables`, but the returned value is what should be
             passed to the methods that use it - see the note below them.
+
+        Notes
+        -----
+        The returned table is small - :math:`2(2L+1)` by `num_interp_points` -
+        and independent of :math:`N`. Only the intermediates scale with the
+        time series, and `build_filter_tables` bounds those, so this is safe to
+        call on year-plus grids for any `num_interp_points` whose table itself
+        fits in memory.
         """
         assert max_lag_L > 0, \
                         "Max lag must be positive"
-        
+
         assert max_lag_L < self.Nt, \
                 "Max lag can't be larger than number of time points"
 
@@ -1295,7 +1314,8 @@ class WDM_transform:
                                 self.window_FD,
                                 self.dT,
                                 self.dF,
-                                self.df)
+                                self.df,
+                                max_bytes=max_bytes)
 
         return self.filter_tables
 
@@ -1503,11 +1523,22 @@ class WDM_transform:
             \sum_{\substack{l \le |L| \\ \sigma = \{-1,0,1\} }} 
              \omega_{(n-l) (m+\sigma)} \, X_{n(n-l);m(m+\sigma)}(-\delta_n) .
 
-        If the original grid represents the coefficients of a function 
+        If the original grid represents the coefficients of a function
         :math:'f(t) = \sum_{nm} \omega_{nm} g_{nm}(t)'
-        and we sample a time-shift :math:'\delta(t_n) = \delta_n' then the 
+        and we sample a time-shift :math:'\delta(t_n) = \delta_n' then the
         resulting shifted grid :math:'\tilde{\omega}_{nm}'
-        is the equivalent to the WDM transform of :math:'f(t-\delta(t))'.
+        is the equivalent to the WDM transform of :math:'f(t+\delta(t))'.
+
+        Mind the sign. Shifting the *coefficients* is the active
+        transformation and carries the opposite sign to shifting the *basis
+        functions*, since
+        :math:`\langle f(t-\delta), g_{nm}(t)\rangle
+        = \langle f(t), g_{nm}(t+\delta)\rangle`. That is why the matrix
+        elements above are evaluated at :math:`-\delta_n` while the output is
+        the transform of :math:`f(t+\delta(t))`: pass the delay with the sign
+        of the shift you want applied to the samples. Checked directly - an
+        asymmetric pulse fed through with a constant :math:`\delta>0` comes
+        back centred :math:`\delta` seconds *earlier*.
 
         Terms where :math:`n-l` or :math:`m+\sigma` fall outside the array
         limits are wrapped around periodically. It is the users reponsibility
