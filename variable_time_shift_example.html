@@ -121,9 +121,9 @@ from WDM.code.discrete_wavelet_transform import WDM
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>def calc_mismatch(h1, h2):
-    &quot;&quot;&quot;
+    """
     Computes the mismatch between signals h1 and h2.
-    &quot;&quot;&quot;
+    """
     inner_product = np.abs(np.dot(h1, h2))
     norm_h1 = np.sqrt(np.dot(h1,h1))
     norm_h2 = np.sqrt(np.dot(h2,h2))
@@ -153,8 +153,8 @@ signal = sine_gauss(times)
 fig, ax = plt.subplots(figsize=(5,3))
 ax.plot(times, signal)
 ax.set_xlim(0, T)
-ax.set_xlabel(r&#39;time [s]&#39;)
-ax.set_ylabel(&#39;signal&#39;)
+ax.set_xlabel(r'time [s]')
+ax.set_ylabel('signal')
 plt.show()
 </pre></div>
 </div>
@@ -208,7 +208,7 @@ self.K = 12800 window length
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = time_frequency_plot(wdm, w, scale=&#39;log&#39;)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = time_frequency_plot(wdm, w, scale='log')
 plt.show()
 </pre></div>
 </div>
@@ -256,21 +256,21 @@ shifted_signal_constant_tf = wdm.idwt(w_shifted_constant)
 
 fig, ax = plt.subplots(figsize=(5,3))
 ax.plot(times, signal,
-        c=&#39;k&#39;, lw=1, label=&#39;Original signal&#39;)
+        c='k', lw=1, label='Original signal')
 ax.plot(times, 2+shifted_signal_constant_t,
-        c=&#39;C0&#39;, lw=1, label=&#39;Shifted signal\n(time domain)&#39;)
+        c='C0', lw=1, label='Shifted signal\n(time domain)')
 ax.plot(times, 4+shifted_signal_constant_tf,
-        c=&#39;C1&#39;, lw=1, label=&#39;Shifted signal\n(time-freq domain)&#39;)
+        c='C1', lw=1, label='Shifted signal\n(time-freq domain)')
 ax.plot(times, 6+1000*(shifted_signal_constant_t-shifted_signal_constant_tf),
-        c=&#39;C3&#39;, lw=2, label=r&#39;Residuals ($\times 10^3$)&#39;)
+        c='C3', lw=2, label=r'Residuals ($\times 10^3$)')
 ax.set_xlim(0, T)
-ax.set_xlabel(r&#39;time [s]&#39;)
-ax.set_ylabel(&#39;signal&#39;)
-ax.legend(fontsize=8, loc=&#39;upper right&#39;)
-ax.set_title(&#39;Vertical offset added to separate signals&#39;)
+ax.set_xlabel(r'time [s]')
+ax.set_ylabel('signal')
+ax.legend(fontsize=8, loc='upper right')
+ax.set_title('Vertical offset added to separate signals')
 plt.show()
 
-print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_signal_constant_t, shifted_signal_constant_tf))
+print("The mismatch between the methods is:", calc_mismatch(shifted_signal_constant_t, shifted_signal_constant_tf))
 </pre></div>
 </div>
 </div>
@@ -315,21 +315,21 @@ shifted_signal_variable_tf = wdm.idwt(w_shifted_variable)
 
 fig, ax = plt.subplots(figsize=(5,3))
 ax.plot(times, signal,
-        c=&#39;k&#39;, lw=1, label=&#39;Original signal&#39;)
+        c='k', lw=1, label='Original signal')
 ax.plot(times, 2+shifted_signal_variable_t,
-        c=&#39;C0&#39;, lw=1, label=&#39;Shifted signal\n(time domain)&#39;)
+        c='C0', lw=1, label='Shifted signal\n(time domain)')
 ax.plot(times, 4+shifted_signal_variable_tf,
-        c=&#39;C1&#39;, lw=1, label=&#39;Shifted signal\n(time-freq domain)&#39;)
+        c='C1', lw=1, label='Shifted signal\n(time-freq domain)')
 ax.plot(times, 6+1000*(shifted_signal_variable_t-shifted_signal_variable_tf),
-        c=&#39;C3&#39;, lw=2, label=r&#39;Residuals ($\times 10^3$)&#39;)
+        c='C3', lw=2, label=r'Residuals ($\times 10^3$)')
 ax.set_xlim(0, T)
-ax.set_xlabel(r&#39;time [s]&#39;)
-ax.set_ylabel(&#39;signal&#39;)
-ax.legend(fontsize=8, loc=&#39;upper right&#39;)
-ax.set_title(&#39;Vertical offset added to separate signals&#39;)
+ax.set_xlabel(r'time [s]')
+ax.set_ylabel('signal')
+ax.legend(fontsize=8, loc='upper right')
+ax.set_title('Vertical offset added to separate signals')
 plt.show()
 
-print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_signal_variable_t, shifted_signal_variable_tf))
+print("The mismatch between the methods is:", calc_mismatch(shifted_signal_variable_t, shifted_signal_variable_tf))
 </pre></div>
 </div>
 </div>
@@ -345,7 +345,7 @@ print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_si
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 6.748666159239747e-08
+The mismatch between the methods is: 6.748666181444207e-08
 </pre></div></div>
 </div>
 <p>The accuracy of the variable time-shift depends on the evolution of the time shift arguments</p>
@@ -372,11 +372,11 @@ for i in range(len(grad_list)):
 
 fig, ax = plt.subplots(figsize=(5,3))
 ax.loglog(grad_list, mismatch_list,
-        c=&#39;k&#39;, lw=1,)
+        c='k', lw=1,)
 
-ax.set_xlabel(r&#39;Variable Shift Gradient [s]&#39;)
-ax.set_ylabel(r&#39;Mismatch&#39;)
-ax.set_title(&#39;Accuracy of variable time shift as a function of gradient&#39;)
+ax.set_xlabel(r'Variable Shift Gradient [s]')
+ax.set_ylabel(r'Mismatch')
+ax.set_title('Accuracy of variable time shift as a function of gradient')
 plt.show()
 </pre></div>
 </div>
@@ -408,8 +408,8 @@ signal_m0_bin = sine_gauss(times)
 fig, ax = plt.subplots(figsize=(5,3))
 ax.plot(times, signal_m0_bin)
 ax.set_xlim(0, T)
-ax.set_xlabel(r&#39;time [s]&#39;)
-ax.set_ylabel(&#39;signal&#39;)
+ax.set_xlabel(r'time [s]')
+ax.set_ylabel('signal')
 plt.show()
 </pre></div>
 </div>
@@ -430,11 +430,11 @@ plt.show()
 
 fig, ax = plt.subplots(figsize=(5,3))
 im = ax.imshow(np.log(np.abs(w_m0.T)),
-          aspect=&#39;auto&#39;, origin=&#39;lower&#39;, cmap=&#39;jet&#39;,
+          aspect='auto', origin='lower', cmap='jet',
           extent=[0., wdm.T, 0., wdm.f_Ny])
-fig.colorbar(im, label=&#39;log10 Magnitude&#39;, ax=ax)
-ax.set_xlabel(r&#39;Time [s]&#39;)
-ax.set_ylabel(r&#39;Frequency [Hz]&#39;)
+fig.colorbar(im, label='log10 Magnitude', ax=ax)
+ax.set_xlabel(r'Time [s]')
+ax.set_ylabel(r'Frequency [Hz]')
 ax.set_ylim(0,0.01)
 plt.show()
 </pre></div>
@@ -464,39 +464,39 @@ shifted_m0_signal_variable_tf = wdm.idwt(w_m0_shifted_variable)
 
 fig, (ax1, ax2) = plt.subplots(
     1, 2, figsize=(10, 3),
-    gridspec_kw={&#39;width_ratios&#39;: [2, 1]}
+    gridspec_kw={'width_ratios': [2, 1]}
 )
 
 # Signals
 ax1.plot(times, signal_m0_bin,
-         c=&#39;k&#39;, lw=1, label=&#39;Original signal\n(time domain)&#39;)
+         c='k', lw=1, label='Original signal\n(time domain)')
 ax1.plot(times, shifted_signal_m0_variable_t,
-         c=&#39;C0&#39;, lw=1, label=&#39;Shifted signal\n(time domain)&#39;)
+         c='C0', lw=1, label='Shifted signal\n(time domain)')
 ax1.plot(times, shifted_m0_signal_variable_tf,
-         c=&#39;C1&#39;, lw=1, label=&#39;Shifted signal\n(time-freq domain)&#39;)
+         c='C1', lw=1, label='Shifted signal\n(time-freq domain)')
 
 ax1.set_xlim(0, T)
-ax1.set_xlabel(r&#39;time [s]&#39;)
-ax1.set_ylabel(&#39;signal&#39;)
-ax1.legend(fontsize=8, loc=&#39;upper right&#39;)
-ax1.set_title(&#39;m0 bin effect&#39;)
+ax1.set_xlabel(r'time [s]')
+ax1.set_ylabel('signal')
+ax1.legend(fontsize=8, loc='upper right')
+ax1.set_title('m0 bin effect')
 
 # Residuals
 ax2.plot(
     times,
     shifted_signal_m0_variable_t - shifted_m0_signal_variable_tf,
-    c=&#39;C3&#39;, lw=1
+    c='C3', lw=1
 )
 
 ax2.set_xlim(0, T)
-ax2.set_xlabel(r&#39;time [s]&#39;)
-ax2.set_ylabel(&#39;residual&#39;)
-ax2.set_title(&#39;Residuals&#39;)
+ax2.set_xlabel(r'time [s]')
+ax2.set_ylabel('residual')
+ax2.set_title('Residuals')
 
 plt.tight_layout()
 plt.show()
 
-print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_signal_m0_variable_t, shifted_m0_signal_variable_tf))
+print("The mismatch between the methods is:", calc_mismatch(shifted_signal_m0_variable_t, shifted_m0_signal_variable_tf))
 </pre></div>
 </div>
 </div>
@@ -512,7 +512,7 @@ print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_si
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 0.37937199095390706
+The mismatch between the methods is: 0.3793719909539073
 </pre></div></div>
 </div>
 <p>Case 2: Signal too close to boundary</p>
@@ -539,22 +539,22 @@ padding_edge = 0.5 * L * wdm.dT
 
 ax.axvline(
     padding_edge,
-    ls=&#39;--&#39;,
+    ls='--',
     lw=1,
-    c=&#39;C3&#39;,
-    label=&#39;Zero padding region&#39;
+    c='C3',
+    label='Zero padding region'
 )
 
 ax.axvline(
     T - padding_edge,
-    ls=&#39;--&#39;,
+    ls='--',
     lw=1,
-    c=&#39;C3&#39;
+    c='C3'
 )
 
 ax.set_xlim(0, T)
-ax.set_xlabel(r&#39;time [s]&#39;)
-ax.set_ylabel(&#39;signal&#39;)
+ax.set_xlabel(r'time [s]')
+ax.set_ylabel('signal')
 ax.legend(fontsize=8)
 
 plt.show()
@@ -586,39 +586,39 @@ shifted_wide_signal_variable_tf = wdm.idwt(w_wide_shifted_variable)
 
 fig, (ax1, ax2) = plt.subplots(
     1, 2, figsize=(10, 3),
-    gridspec_kw={&#39;width_ratios&#39;: [2, 1]}
+    gridspec_kw={'width_ratios': [2, 1]}
 )
 
 # Signals
 ax1.plot(times, signal_wide,
-         c=&#39;k&#39;, lw=1, label=&#39;Original signal\n(time domain)&#39;)
+         c='k', lw=1, label='Original signal\n(time domain)')
 ax1.plot(times, 2+shifted_signal_wide_variable_t,
-         c=&#39;C0&#39;, lw=1, label=&#39;Shifted signal\n(time domain)&#39;)
+         c='C0', lw=1, label='Shifted signal\n(time domain)')
 ax1.plot(times, 4+shifted_wide_signal_variable_tf,
-         c=&#39;C1&#39;, lw=1, label=&#39;Shifted signal\n(time-freq domain)&#39;)
+         c='C1', lw=1, label='Shifted signal\n(time-freq domain)')
 
 ax1.set_xlim(0, T)
-ax1.set_xlabel(r&#39;time [s]&#39;)
-ax1.set_ylabel(&#39;signal&#39;)
-ax1.legend(fontsize=8, loc=&#39;lower right&#39;)
-ax1.set_title(&#39;Wide signal effect&#39;)
+ax1.set_xlabel(r'time [s]')
+ax1.set_ylabel('signal')
+ax1.legend(fontsize=8, loc='lower right')
+ax1.set_title('Wide signal effect')
 
 # Residuals
 ax2.plot(
     times,
     shifted_signal_wide_variable_t - shifted_wide_signal_variable_tf,
-    c=&#39;C3&#39;, lw=1
+    c='C3', lw=1
 )
 
 ax2.set_xlim(0, T)
-ax2.set_xlabel(r&#39;time [s]&#39;)
-ax2.set_ylabel(&#39;residual&#39;)
-ax2.set_title(&#39;Residuals&#39;)
+ax2.set_xlabel(r'time [s]')
+ax2.set_ylabel('residual')
+ax2.set_title('Residuals')
 
 plt.tight_layout()
 plt.show()
 
-print(&quot;The mismatch between the methods is:&quot;, calc_mismatch(shifted_signal_wide_variable_t, shifted_wide_signal_variable_tf))
+print("The mismatch between the methods is:", calc_mismatch(shifted_signal_wide_variable_t, shifted_wide_signal_variable_tf))
 <br/></pre></div>
 </div>
 </div>

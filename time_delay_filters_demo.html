@@ -167,23 +167,23 @@ for ell in range(-ell_max, ell_max+1):
 fig, axes = plt.subplots(ncols=2, figsize=(10, 4))
 
 for ell in range(-ell_max, ell_max+1):
-    axes[0].plot(delta_t_vals/wdm.dT, Tl_vals[ell], label=r&#39;$\ell={}$&#39;.format(ell))
-    axes[1].plot(delta_t_vals/wdm.dT, Tprimel_vals[ell], label=r&#39;$\ell={}$&#39;.format(ell))
+    axes[0].plot(delta_t_vals/wdm.dT, Tl_vals[ell], label=r'$\ell={}$'.format(ell))
+    axes[1].plot(delta_t_vals/wdm.dT, Tprimel_vals[ell], label=r'$\ell={}$'.format(ell))
 
 axes[0].set_xlim(delta_t_vals[0]/wdm.dT, delta_t_vals[-1]/wdm.dT)
-axes[0].set_xlabel(r&#39;Time-delay $\delta t/\Delta T$&#39;)
+axes[0].set_xlabel(r'Time-delay $\delta t/\Delta T$')
 
 axes[1].set_xlim(delta_t_vals[0]/wdm.dT, delta_t_vals[-1]/wdm.dT)
-axes[1].set_xlabel(r&#39;Time-delay $\delta t/\Delta T$&#39;)
+axes[1].set_xlabel(r'Time-delay $\delta t/\Delta T$')
 
 axes[0].set_ylim(-0.3, 1.3)
-axes[0].set_ylabel(r&#39;Time-delay filter $T_\ell(\delta t)$&#39;)
+axes[0].set_ylabel(r'Time-delay filter $T_\ell(\delta t)$')
 
 axes[1].set_ylim(0, 0.11)
-axes[1].set_ylabel(r&#39;Time-delay filter $T^\prime_\ell(\delta t)$&#39;)
+axes[1].set_ylabel(r'Time-delay filter $T^\prime_\ell(\delta t)$')
 
-axes[0].legend(ncols=5, loc=&#39;upper center&#39;, handlelength=1, columnspacing=1)
-axes[1].legend(ncols=5, loc=&#39;upper center&#39;, handlelength=1, columnspacing=1)
+axes[0].legend(ncols=5, loc='upper center', handlelength=1, columnspacing=1)
+axes[1].legend(ncols=5, loc='upper center', handlelength=1, columnspacing=1)
 plt.tight_layout()
 plt.show()
 </pre></div>

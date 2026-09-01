@@ -96,7 +96,7 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">time_domain_plot</span><span class="p">(</span><span class="n">wdm</span> <span class="p">:</span> <span class="n">WDM_transform</span><span class="p">,</span> 
                      <span class="n">x</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
                      <span class="n">figax</span><span class="p">:</span> <span class="n">Tuple</span> <span class="o">=</span> <span class="p">())</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">Figure</span><span class="p">,</span> <span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="p">]:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""</span>
 <span class="sd">    Plot the time-domain signal.</span>
 
 <span class="sd">    Parameters</span>
@@ -120,9 +120,9 @@
 <span class="sd">    -----</span>
 <span class="sd">    This function does not call `plt.show()`. The user is responsible</span>
 <span class="sd">    for displaying or saving the plot.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">N</span><span class="p">,),</span> \
-                <span class="sa">f</span><span class="s2">&quot;Input signal must have shape (</span><span class="si">{</span><span class="n">wdm</span><span class="o">.</span><span class="n">N</span><span class="si">}</span><span class="s2">,), got </span><span class="si">{</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="si">=}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">"Input signal must have shape (</span><span class="si">{</span><span class="n">wdm</span><span class="o">.</span><span class="n">N</span><span class="si">}</span><span class="s2">,), got </span><span class="si">{</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="si">=}</span><span class="s2">"</span>
     
     <span class="k">if</span> <span class="n">figax</span> <span class="o">==</span> <span class="p">():</span>
         <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
@@ -130,8 +130,8 @@
         <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">figax</span>
 
     <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Time $t$&#39;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Signal $x(t)$&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'Time $t$'</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'Signal $x(t)$'</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
 
 
@@ -141,7 +141,7 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">frequency_domain_plot</span><span class="p">(</span><span class="n">wdm</span> <span class="p">:</span> <span class="n">WDM_transform</span><span class="p">,</span> 
                           <span class="n">x</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
                           <span class="n">figax</span><span class="p">:</span> <span class="n">Tuple</span> <span class="o">=</span> <span class="p">())</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">Figure</span><span class="p">,</span> <span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="p">]:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""</span>
 <span class="sd">    Plot the frequency-domain signal.</span>
 
 <span class="sd">    Parameters</span>
@@ -165,9 +165,9 @@
 <span class="sd">    -----</span>
 <span class="sd">    This function does not call `plt.show()`. The user is responsible</span>
 <span class="sd">    for displaying or saving the plot.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">N</span><span class="p">,),</span> \
-                <span class="sa">f</span><span class="s2">&quot;Input signal must have shape (</span><span class="si">{</span><span class="n">wdm</span><span class="o">.</span><span class="n">N</span><span class="si">}</span><span class="s2">,), got </span><span class="si">{</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="si">=}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">"Input signal must have shape (</span><span class="si">{</span><span class="n">wdm</span><span class="o">.</span><span class="n">N</span><span class="si">}</span><span class="s2">,), got </span><span class="si">{</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="si">=}</span><span class="s2">"</span>
     
     <span class="n">data</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftshift</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
     <span class="n">mask</span> <span class="o">=</span> <span class="n">wdm</span><span class="o">.</span><span class="n">freqs</span> <span class="o">&gt;</span> <span class="mf">0.</span>
@@ -178,8 +178,8 @@
         <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">figax</span>
 
     <span class="n">ax</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">freqs</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Frequency $f$&#39;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Signal $|\tilde</span><span class="si">{X}</span><span class="s1">(f)|$&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'Frequency $f$'</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'Signal $|\tilde</span><span class="si">{X}</span><span class="s1">(f)|$'</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
 
 
@@ -189,9 +189,9 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">time_frequency_plot</span><span class="p">(</span><span class="n">wdm</span> <span class="p">:</span> <span class="n">WDM_transform</span><span class="p">,</span> 
                         <span class="n">w</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> 
                         <span class="n">figax</span><span class="p">:</span> <span class="n">Tuple</span> <span class="o">=</span> <span class="p">(),</span>
-                        <span class="n">part</span><span class="o">=</span><span class="s1">&#39;abs&#39;</span><span class="p">,</span>
-                        <span class="n">scale</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">Figure</span><span class="p">,</span> <span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="p">]:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+                        <span class="n">part</span><span class="o">=</span><span class="s1">'abs'</span><span class="p">,</span>
+                        <span class="n">scale</span><span class="o">=</span><span class="s1">'linear'</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">Figure</span><span class="p">,</span> <span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="p">]:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""</span>
 <span class="sd">    Plot the time-frequency coefficients of the WDM transform.</span>
 
 <span class="sd">    Parameters</span>
@@ -204,12 +204,12 @@
 <span class="sd">        A tuple (fig, ax) containing the figure and axes to plot on.</span>
 <span class="sd">        If not provided, a new figure and axes will be created.</span>
 <span class="sd">    part : str</span>
-<span class="sd">        Part of the coefficients to plot. Options are &#39;abs&#39; for magnitude, </span>
-<span class="sd">        &#39;real&#39;, or &#39;imag&#39;. Default is &#39;abs&#39;. Optional.</span>
+<span class="sd">        Part of the coefficients to plot. Options are 'abs' for magnitude, </span>
+<span class="sd">        'real', or 'imag'. Default is 'abs'. Optional.</span>
 <span class="sd">    scale : str</span>
 <span class="sd">        Scale of the colour axis of the plot. Passed to matplotlib. </span>
-<span class="sd">        Options are &#39;linear&#39; or &#39;log&#39;. Default is &#39;linear&#39;. Logarithmic </span>
-<span class="sd">        scale should only be used with part=&#39;abs&#39; otherwise problems with </span>
+<span class="sd">        Options are 'linear' or 'log'. Default is 'linear'. Logarithmic </span>
+<span class="sd">        scale should only be used with part='abs' otherwise problems with </span>
 <span class="sd">        negative values will occur. Optional.</span>
 
 <span class="sd">    Returns</span>
@@ -223,39 +223,39 @@
 <span class="sd">    -----</span>
 <span class="sd">    This function does not call `plt.show()`. The user is responsible</span>
 <span class="sd">    for displaying or saving the plot.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">assert</span> <span class="n">w</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">Nf</span><span class="p">),</span> \
-                <span class="sa">f</span><span class="s2">&quot;Input signal must have shape (</span><span class="si">{</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nt</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nf</span><span class="si">}</span><span class="s2">), &quot;</span> \
-                <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="n">w</span><span class="o">.</span><span class="n">shape</span><span class="si">=}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">"Input signal must have shape (</span><span class="si">{</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nt</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">wdm</span><span class="o">.</span><span class="n">Nf</span><span class="si">}</span><span class="s2">), "</span> \
+                <span class="sa">f</span><span class="s2">"got </span><span class="si">{</span><span class="n">w</span><span class="o">.</span><span class="n">shape</span><span class="si">=}</span><span class="s2">"</span>
 
-    <span class="k">if</span> <span class="n">part</span> <span class="o">==</span> <span class="s1">&#39;abs&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">part</span> <span class="o">==</span> <span class="s1">'abs'</span><span class="p">:</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">part</span> <span class="o">==</span> <span class="s1">&#39;real&#39;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">part</span> <span class="o">==</span> <span class="s1">'real'</span><span class="p">:</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">part</span> <span class="o">==</span> <span class="s1">&#39;imag&#39;</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">part</span> <span class="o">==</span> <span class="s1">'imag'</span><span class="p">:</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">imag</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid </span><span class="si">{</span><span class="n">part</span><span class="si">=}</span><span class="s2">. &quot;</span> <span class="o">+</span> 
-                            <span class="s2">&quot;Choose &#39;abs&#39;, &#39;real&#39;, or &#39;imag&#39;.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid </span><span class="si">{</span><span class="n">part</span><span class="si">=}</span><span class="s2">. "</span> <span class="o">+</span> 
+                            <span class="s2">"Choose 'abs', 'real', or 'imag'."</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">figax</span> <span class="o">==</span> <span class="p">():</span>
         <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">figax</span>
 
-    <span class="k">if</span> <span class="n">scale</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
-        <span class="n">im</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;lower&#39;</span><span class="p">,</span> 
-                    <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">f_Ny</span><span class="p">],</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;jet&#39;</span><span class="p">)</span>
-        <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Magnitude&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">scale</span> <span class="o">==</span> <span class="s1">&#39;log&#39;</span><span class="p">:</span>
-        <span class="n">im</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;lower&#39;</span><span class="p">,</span> 
-                    <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">f_Ny</span><span class="p">],</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;jet&#39;</span><span class="p">)</span>
-        <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;log10 Magnitude&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">scale</span> <span class="o">==</span> <span class="s1">'linear'</span><span class="p">:</span>
+        <span class="n">im</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="s1">'auto'</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">'lower'</span><span class="p">,</span> 
+                    <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">f_Ny</span><span class="p">],</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">'jet'</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">'Magnitude'</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">scale</span> <span class="o">==</span> <span class="s1">'log'</span><span class="p">:</span>
+        <span class="n">im</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="s1">'auto'</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">'lower'</span><span class="p">,</span> 
+                    <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="n">wdm</span><span class="o">.</span><span class="n">f_Ny</span><span class="p">],</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">'jet'</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">'log10 Magnitude'</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid </span><span class="si">{</span><span class="n">scale</span><span class="si">=}</span><span class="s2">. Choose &#39;linear&#39; or &#39;log&#39;.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid </span><span class="si">{</span><span class="n">scale</span><span class="si">=}</span><span class="s2">. Choose 'linear' or 'log'."</span><span class="p">)</span>
     
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Time $t$&#39;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Frequency $f$&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'Time $t$'</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">'Frequency $f$'</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
 
 </pre></div>

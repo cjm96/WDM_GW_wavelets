@@ -91,7 +91,7 @@
 <a class="viewcode-back" href="../../../../WDM.code.utils.html#WDM.code.utils.Meyer.nu_d">[docs]</a>
 <span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">nu_d</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">d</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""</span>
 <span class="sd">    This function evaluates the normalised incomplete beta function.</span>
 
 <span class="sd">    .. math::</span>
@@ -118,7 +118,7 @@
 <span class="sd">    This function calls `jax.scipy.special.betainc` under the hood.</span>
 
 <span class="sd">    This function returns nan if :math:`x` is outside the range [0, 1].</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">d</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
     <span class="n">x</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
     <span class="n">nu_d</span> <span class="o">=</span> <span class="n">betainc</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> 
@@ -133,7 +133,7 @@
           <span class="n">d</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
           <span class="n">A</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> 
           <span class="n">B</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""</span>
 <span class="sd">    This function evaluates the Meyer-type frequency-domain window function:</span>
 
 <span class="sd">    .. math::</span>
@@ -172,13 +172,20 @@
 <span class="sd">    The window is flat in the region :math:`|\omega| &lt; A`, rolls off smoothly </span>
 <span class="sd">    for :math:`A \leq |\omega| \leq A + B`, and is zero outside that range.</span>
 <span class="sd">    The function is symmetric and real-valued.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">dOmega</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">A</span> <span class="o">+</span> <span class="n">B</span>
 
     <span class="n">absw</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">omega</span><span class="p">))</span>
 
     <span class="n">term1</span> <span class="o">=</span> <span class="p">(</span><span class="n">absw</span> <span class="o">&lt;</span> <span class="n">A</span><span class="p">)</span>
     <span class="n">term2</span> <span class="o">=</span> <span class="p">(</span><span class="n">absw</span> <span class="o">&gt;=</span> <span class="n">A</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">absw</span> <span class="o">&lt;=</span> <span class="n">A</span> <span class="o">+</span> <span class="n">B</span><span class="p">)</span>
+
+    <span class="c1"># `nu_d` returns nan outside [0, 1], and the roll-off argument can land</span>
+    <span class="c1"># just outside it by one ulp for a sample sitting exactly on a band edge -</span>
+    <span class="c1"># `absw &lt;= A + B` and `(absw - A)/B &lt;= 1` are not the same test in floating</span>
+    <span class="c1"># point. `term2` would then select that nan. Clipping costs nothing, since</span>
+    <span class="c1"># the clipped values are only ever selected where they are already exact.</span>
+    <span class="n">roll_off</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">clip</span><span class="p">((</span><span class="n">absw</span> <span class="o">-</span> <span class="n">A</span><span class="p">)</span> <span class="o">/</span> <span class="n">B</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
 
     <span class="n">phi_w</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
         <span class="n">term1</span><span class="p">,</span>
@@ -187,7 +194,7 @@
             <span class="n">term2</span><span class="p">,</span>
             <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">dOmega</span><span class="p">))</span> <span class="o">*</span>
             <span class="n">jnp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span>
-                <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">nu_d</span><span class="p">((</span><span class="n">absw</span> <span class="o">-</span> <span class="n">A</span><span class="p">)</span> <span class="o">/</span> <span class="n">B</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+                <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">nu_d</span><span class="p">(</span><span class="n">roll_off</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
             <span class="p">),</span>
             <span class="mf">0.0</span>
         <span class="p">)</span>

@@ -144,15 +144,15 @@ wdm_m_geq0 = WDM.WDM.WDM_transform(dt=1., Nf=Nf, N=N) # default calc_m0=False
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>test_signal_lowf = f((wdm_m_all.times-wdm_m_all.T/2)/(wdm_m_all.T/16), 1)
 
-plt.plot(wdm_m_all.times, test_signal_lowf, label=&#39;Test signal&#39;)
+plt.plot(wdm_m_all.times, test_signal_lowf, label='Test signal')
 
 reconstructed_m_all = wdm_m_all.idwt(wdm_m_all.forward_transform_short_fft(test_signal_lowf))
-plt.plot(wdm_m_all.times, reconstructed_m_all, label=r&#39;Reconstructed (all $m$)&#39;, ls=&#39;--&#39;, lw=3)
+plt.plot(wdm_m_all.times, reconstructed_m_all, label=r'Reconstructed (all $m$)', ls='--', lw=3)
 
 reconstructed_m_geq0 = wdm_m_geq0.idwt(wdm_m_geq0.forward_transform_short_fft(test_signal_lowf))
-plt.plot(wdm_m_geq0.times, reconstructed_m_geq0, label=r&#39;Reconstructed ($m&gt;0$)&#39;, ls=&#39;--&#39;, lw=3)
+plt.plot(wdm_m_geq0.times, reconstructed_m_geq0, label=r'Reconstructed ($m&gt;0$)', ls='--', lw=3)
 
-plt.xlabel(&#39;Time&#39;); plt.ylabel(&#39;Signal&#39;); plt.legend(loc=&#39;upper right&#39;)
+plt.xlabel('Time'); plt.ylabel('Signal'); plt.legend(loc='upper right')
 plt.show()
 </pre></div>
 </div>
@@ -171,15 +171,15 @@ plt.show()
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>test_signal_highf = f((wdm_m_all.times-wdm_m_all.T/2)/(wdm_m_all.T/16), 4)
 
-plt.plot(wdm_m_all.times, test_signal_highf, label=&#39;Test signal&#39;)
+plt.plot(wdm_m_all.times, test_signal_highf, label='Test signal')
 
 reconstructed_m_all = wdm_m_all.idwt(wdm_m_all.forward_transform_short_fft(test_signal_highf))
-plt.plot(wdm_m_all.times, reconstructed_m_all, label=r&#39;Reconstructed (all $m$)&#39;, ls=&#39;--&#39;, lw=2)
+plt.plot(wdm_m_all.times, reconstructed_m_all, label=r'Reconstructed (all $m$)', ls='--', lw=2)
 
 reconstructed_m_geq0 = wdm_m_geq0.idwt(wdm_m_geq0.forward_transform_short_fft(test_signal_highf))
-plt.plot(wdm_m_geq0.times, reconstructed_m_geq0, label=r&#39;Reconstructed ($m&gt;0$)&#39;, ls=&#39;--&#39;, lw=2)
+plt.plot(wdm_m_geq0.times, reconstructed_m_geq0, label=r'Reconstructed ($m&gt;0$)', ls='--', lw=2)
 
-plt.xlabel(&#39;Time&#39;); plt.ylabel(&#39;Signal&#39;); plt.legend(loc=&#39;upper right&#39;)
+plt.xlabel('Time'); plt.ylabel('Signal'); plt.legend(loc='upper right')
 plt.show()
 </pre></div>
 </div>

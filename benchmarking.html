@@ -133,7 +133,7 @@ x = np.random.normal(size=wdm.N) # white noise
 w = wdm.forward_transform_exact(x).block_until_ready()
 t1 = time.time()
 
-print(f&quot;Time taken: {(t1-t0)*1000:.2f} milliseconds&quot;)
+print(f"Time taken: {(t1-t0)*1000:.2f} milliseconds")
 </pre></div>
 </div>
 </div>
@@ -153,7 +153,7 @@ Time taken: 3080.75 milliseconds
 w = wdm.forward_transform_short_fft(x).block_until_ready()
 t1 = time.time()
 
-print(f&quot;Time taken: {(t1-t0)*1000:.2f} milliseconds&quot;)
+print(f"Time taken: {(t1-t0)*1000:.2f} milliseconds")
 </pre></div>
 </div>
 </div>
@@ -173,7 +173,7 @@ Time taken: 226.78 milliseconds
 w = wdm.forward_transform_fft(x).block_until_ready()
 t1 = time.time()
 
-print(f&quot;Time taken: {(t1-t0)*1000:.2f} milliseconds&quot;)
+print(f"Time taken: {(t1-t0)*1000:.2f} milliseconds")
 </pre></div>
 </div>
 </div>
@@ -194,13 +194,13 @@ Time taken: 57.78 milliseconds
 w = wdm.dwt(x).block_until_ready()
 t1 = time.time()
 
-print(f&quot;Time taken: {(t1-t0)*1000:.2f} milliseconds&quot;)
+print(f"Time taken: {(t1-t0)*1000:.2f} milliseconds")
 
 t0 = time.time()
 w = wdm.dwt(x).block_until_ready()
 t1 = time.time()
 
-print(f&quot;Time taken: {(t1-t0)*1000:.2f} milliseconds&quot;)
+print(f"Time taken: {(t1-t0)*1000:.2f} milliseconds")
 </pre></div>
 </div>
 </div>
@@ -224,13 +224,13 @@ t0 = time.time()
 w = wdm.dwt(x).block_until_ready()
 t1 = time.time()
 
-print(f&quot;Time taken: {(t1-t0)*1000:.2f} milliseconds&quot;)
+print(f"Time taken: {(t1-t0)*1000:.2f} milliseconds")
 
 t0 = time.time()
 w = wdm.dwt(x).block_until_ready()
 t1 = time.time()
 
-print(f&quot;Time taken: {(t1-t0)*1000:.2f} milliseconds&quot;)
+print(f"Time taken: {(t1-t0)*1000:.2f} milliseconds")
 </pre></div>
 </div>
 </div>
@@ -252,13 +252,13 @@ Time taken: 8.49 milliseconds
 w = jnp.fft.fft(x).block_until_ready()
 t1 = time.time()
 
-print(f&quot;Time taken: {(t1-t0)*1000:.2f} milliseconds&quot;)
+print(f"Time taken: {(t1-t0)*1000:.2f} milliseconds")
 
 t0 = time.time()
 w = jnp.fft.fft(x).block_until_ready()
 t1 = time.time()
 
-print(f&quot;Time taken: {(t1-t0)*1000:.2f} milliseconds&quot;)
+print(f"Time taken: {(t1-t0)*1000:.2f} milliseconds")
 </pre></div>
 </div>
 </div>
@@ -284,7 +284,7 @@ t0 = time.time()
 x_recovered = wdm.idwt(w).block_until_ready()
 t1 = time.time()
 
-print(f&quot;Time taken: {(t1-t0)*1000:.2f} milliseconds&quot;)
+print(f"Time taken: {(t1-t0)*1000:.2f} milliseconds")
 </pre></div>
 </div>
 </div>
@@ -309,7 +309,7 @@ t0 = time.time()
 x_recovered = wdm.idwt(w).block_until_ready()
 t1 = time.time()
 
-print(f&quot;Time taken: {(t1-t0)*1000:.2f} milliseconds&quot;)
+print(f"Time taken: {(t1-t0)*1000:.2f} milliseconds")
 </pre></div>
 </div>
 </div>

@@ -526,7 +526,17 @@ by evaluating the sum</p>
 :math:’f(t) = sum_{nm} omega_{nm} g_{nm}(t)’
 and we sample a time-shift :math:’delta(t_n) = delta_n’ then the
 resulting shifted grid :math:’tilde{omega}_{nm}’
-is the equivalent to the WDM transform of :math:’f(t-delta(t))’.</p>
+is the equivalent to the WDM transform of :math:’f(t+delta(t))’.</p>
+<p>Mind the sign. Shifting the <em>coefficients</em> is the active
+transformation and carries the opposite sign to shifting the <em>basis
+functions</em>, since
+<span class="math notranslate nohighlight">\(\langle f(t-\delta), g_{nm}(t)\rangle
+= \langle f(t), g_{nm}(t+\delta)\rangle\)</span>. That is why the matrix
+elements above are evaluated at <span class="math notranslate nohighlight">\(-\delta_n\)</span> while the output is
+the transform of <span class="math notranslate nohighlight">\(f(t+\delta(t))\)</span>: pass the delay with the sign
+of the shift you want applied to the samples. Checked directly - an
+asymmetric pulse fed through with a constant <span class="math notranslate nohighlight">\(\delta&gt;0\)</span> comes
+back centred <span class="math notranslate nohighlight">\(\delta\)</span> seconds <em>earlier</em>.</p>
 <p>Terms where <span class="math notranslate nohighlight">\(n-l\)</span> or <span class="math notranslate nohighlight">\(m+\sigma\)</span> fall outside the array
 limits are wrapped around periodically. It is the users reponsibility
 to ensure that the input array <cite>wdm_coeff</cite> is suitably zero padded.</p>
@@ -582,7 +592,7 @@ cost, compile time and compile-time memory outweigh the benefit.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants">
-<span class="sig-name descname"><span class="pre">build_time_delay_filter_interpolants</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_lag_L</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_interp_points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.build_time_delay_filter_interpolants"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">build_time_delay_filter_interpolants</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_lag_L</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_interp_points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_bytes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">268435456</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.build_time_delay_filter_interpolants"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants" title="Link to this definition"></a></dt>
 <dd><p>If the user needs to do any time-shift operations involving the
 WDM wavelets, then this function should be called first. It tabulates
 the time-delay filter functions <span class="math notranslate nohighlight">\(T_l(\delta)\)</span> and
@@ -596,6 +606,12 @@ interpolate linearly between the tabulated points.</p>
 <li><p><strong>max_lag_L</strong> (<em>int</em>) – The maximum lag index, <span class="math notranslate nohighlight">\(L\)</span>.</p></li>
 <li><p><strong>num_interp_points</strong> (<em>int</em>) – The number of interpolation points in the range
 <span class="math notranslate nohighlight">\(-\Delta T/2\leq \delta\leq \Delta T/2.\)</span></p></li>
+<li><p><strong>max_bytes</strong> (<em>int</em>) – Working-set budget, in bytes, for one frequency block of the
+tabulation, passed straight to <cite>build_filter_tables</cite>. The
+tabulation is blocked over frequency so that its peak allocation
+is bounded by this rather than by <span class="math notranslate nohighlight">\(N\)</span>; lower it if the build
+still does not fit. Defaults to
+<cite>filters.FILTER_TABLE_BLOCK_BYTES</cite>, 256 MiB. Optional.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -608,6 +624,12 @@ passed to the methods that use it - see the note below them.</p>
 <dd class="field-odd"><p>jnp.array</p>
 </dd>
 </dl>
+<p class="rubric">Notes</p>
+<p>The returned table is small - <span class="math notranslate nohighlight">\(2(2L+1)\)</span> by <cite>num_interp_points</cite> -
+and independent of <span class="math notranslate nohighlight">\(N\)</span>. Only the intermediates scale with the
+time series, and <cite>build_filter_tables</cite> bounds those, so this is safe to
+call on year-plus grids for any <cite>num_interp_points</cite> whose table itself
+fits in memory.</p>
 </dd></dl>
 
 <dl class="py method">

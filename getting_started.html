@@ -103,7 +103,7 @@
 <p>To run this notebook you will first need to download the GW data,</p>
 <p><code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">download_SXSwaveform_data.py</span></code></p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
@@ -114,10 +114,10 @@ import WDM
 </div>
 <p>Here’s an example GW waveform. We also compute the frequency of the signal as a function of time.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>data = np.loadtxt(&quot;../data/waveform_SXS:BBH:0305_Reh22.txt&quot;)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>data = np.loadtxt("../data/waveform_SXS:BBH:0305_Reh22.txt")
 
 time = data[0]
 re_strain = data[1]
@@ -127,12 +127,12 @@ frequency = np.diff(-np.unwrap(np.atan2(im_strain, re_strain)), prepend=0) / np.
 
 fig, axes = plt.subplots(nrows=2, sharex=True)
 axes[0].plot(time, re_strain)
-axes[0].set_xlabel(&#39;Time&#39;)
-axes[0].set_ylabel(&#39;Strain&#39;)
+axes[0].set_xlabel('Time')
+axes[0].set_ylabel('Strain')
 axes[0].grid()
-axes[1].plot(time[100:-200], frequency[100:-200], &#39;k-&#39;)
-axes[1].set_xlabel(&#39;Time&#39;)
-axes[1].set_ylabel(&#39;Frequency&#39;)
+axes[1].plot(time[100:-200], frequency[100:-200], 'k-')
+axes[1].set_xlabel('Time')
+axes[1].set_ylabel('Frequency')
 axes[1].grid()
 plt.show()
 </pre></div>
@@ -146,12 +146,12 @@ plt.show()
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>current_length = len(time)
 
-print(f&quot;Current length of time series: {current_length}&quot;)
+print(f"Current length of time series: {current_length}")
 </pre></div>
 </div>
 </div>
@@ -165,7 +165,7 @@ Current length of time series: 7688
 </div>
 <p>Let’s take a wavelet transform of this using <span class="math notranslate nohighlight">\(N_f=512\)</span> frequency slices. The <code class="docutils literal notranslate"><span class="pre">wdm</span></code> object will handle the wavelet transform. We need to pad the signal so that it’s length is an even multiple of this number</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>dt = np.mean(np.diff(time))
@@ -179,7 +179,7 @@ wdm = WDM.WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8, calc_m0=True)
 re_strain_padded, mask = WDM.utils.pad_signal(re_strain, N)
 im_strain_padded, mask = WDM.utils.pad_signal(im_strain, N)
 
-print(f&quot;Padded length of time series: {N}&quot;)
+print(f"Padded length of time series: {N}")
 <br/></pre></div>
 </div>
 </div>
@@ -193,7 +193,7 @@ Padded length of time series: 8192
 </div>
 <p>We can print the wdm object to see some key information about the wavelets we are using.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>print(wdm)
@@ -217,7 +217,7 @@ self.K = 8192 window length
 </div>
 <p>Take the forward discrete wavelet transform (dwt). This transforms from the time domain to the time-frequency domain.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w = wdm.dwt(re_strain_padded)
@@ -226,12 +226,12 @@ self.K = 8192 window length
 </div>
 <p>We can plot these coefficients in the time-frequency plane. The black line shows the frequency obtained directly from the NR waveform. Note, this doesn’t look as beautifully smooth as the oversampled periodograms we are used to looking at, but this is what we want for data analysis.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = WDM.plotting.time_frequency_plot(wdm, w, part=&#39;abs&#39;, scale=&#39;linear&#39;)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = WDM.plotting.time_frequency_plot(wdm, w, part='abs', scale='linear')
 ax.set_ylim(0,0.1)
-ax.plot(time[100:-200], frequency[100:-200], color=&#39;k&#39;, lw=2)
+ax.plot(time[100:-200], frequency[100:-200], color='k', lw=2)
 plt.show()
 </pre></div>
 </div>
@@ -246,14 +246,14 @@ plt.show()
 <p>Let’s take an inverse discrete wavelet transform (idwt).</p>
 <p>This transforms back into the time domain. We do this to check we can recover the original signal. We will use the mask to get the output back to the original shape.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>re_strain_recovered = wdm.idwt(w)[mask]
 
 residuals = re_strain_recovered-re_strain
 
-print(f&quot;Max residual: {np.max(np.abs(residuals))}&quot;)
+print(f"Max residual: {np.max(np.abs(residuals))}")
 </pre></div>
 </div>
 </div>
@@ -262,19 +262,19 @@ print(f&quot;Max residual: {np.max(np.abs(residuals))}&quot;)
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Max residual: 3.08801649615692e-14
+Max residual: 3.0877427351083675e-14
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
-ax.plot(time, re_strain, label=&#39;SXS:BBH:0305&#39;)
-ax.plot(time, re_strain_recovered, label=&#39;recovered&#39;)
-ax.plot(time, residuals, &#39;k:&#39;, label=&#39;residuals&#39;)
-ax.set_xlabel(&#39;Time (s)&#39;)
-ax.set_ylabel(&#39;Strain&#39;)
+ax.plot(time, re_strain, label='SXS:BBH:0305')
+ax.plot(time, re_strain_recovered, label='recovered')
+ax.plot(time, residuals, 'k:', label='residuals')
+ax.set_xlabel('Time (s)')
+ax.set_ylabel('Strain')
 ax.legend()
 ax.grid()
 plt.show()
@@ -291,20 +291,20 @@ plt.show()
 <p>The operations for the forward and inverse discrete wavelet transform are vectorised for multiple transforms to be performed at once in batches.</p>
 <p>We demonstrate this here by transforming both + and <span class="math notranslate nohighlight">\(\times\)</span> components of the GW signal (batch size=2).</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>GW_signal_padded = np.vstack((re_strain_padded, re_strain_padded))
 
-print(f&quot;Time series shape = {GW_signal_padded.shape}&quot;)
+print(f"Time series shape = {GW_signal_padded.shape}")
 
 GW_w = wdm.dwt(GW_signal_padded)
 
-print(f&quot;Wavelet coefficients shape = {GW_w.shape}&quot;)
+print(f"Wavelet coefficients shape = {GW_w.shape}")
 
 GW_signal_recovered = wdm.idwt(GW_w)
 
-print(f&quot;Recovered time series shape = {GW_signal_padded.shape}&quot;)
+print(f"Recovered time series shape = {GW_signal_padded.shape}")
 </pre></div>
 </div>
 </div>

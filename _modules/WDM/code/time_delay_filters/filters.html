@@ -81,8 +81,20 @@
            <div itemprop="articleBody">
              
   <h1>Source code for WDM.code.time_delay_filters.filters</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+
+<span class="c1">#: Default working-set budget, in bytes, for one frequency block of</span>
+<span class="c1">#: `build_filter_tables`. The whole point of the blocking is that the peak</span>
+<span class="c1">#: allocation stops depending on :math:`N`, so this only has to be small</span>
+<span class="c1">#: enough to fit and large enough that the matrix products stay efficient.</span>
+<span class="c1">#: It is the default of every `max_bytes` argument in the package, so that</span>
+<span class="c1">#: the budget has one definition rather than one per call site.</span>
+<span class="n">FILTER_TABLE_BLOCK_BYTES</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">28</span>  <span class="c1"># 256 MiB</span>
 
 
 <div class="viewcode-block" id="time_delay_filter_Tl_reference">
@@ -93,8 +105,8 @@
                          <span class="n">window_FD</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
                          <span class="n">dT</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
                          <span class="n">df</span> <span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    The time-delay filter for the case :math:`m&#39;=m` is defined as</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""</span>
+<span class="sd">    The time-delay filter for the case :math:`m'=m` is defined as</span>
 
 <span class="sd">    .. math::</span>
 <span class="sd">        T_{\ell}(\delta)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta)) </span>
@@ -108,7 +120,7 @@
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    ell : int</span>
-<span class="sd">        The time index difference :math:`\ell=n-n&#39;`.</span>
+<span class="sd">        The time index difference :math:`\ell=n-n'`.</span>
 <span class="sd">    delta : float</span>
 <span class="sd">        The time delay :math:`\delta`, in the time units of `wdm`.</span>
 <span class="sd">    freqs : jnp.ndarray</span>
@@ -125,7 +137,7 @@
 <span class="sd">    -------</span>
 <span class="sd">    T_l : float</span>
 <span class="sd">        The time-delay filter :math:`T_{\ell}(\delta)`.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">integrand</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="n">freqs</span><span class="o">*</span><span class="p">(</span><span class="n">ell</span><span class="o">*</span><span class="n">dT</span><span class="o">-</span><span class="n">delta</span><span class="p">))</span> <span class="o">*</span> <span class="n">window_FD</span><span class="o">**</span><span class="mi">2</span>
 
     <span class="n">T_l</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">integrand</span><span class="p">)</span> <span class="o">*</span> <span class="n">df</span>
@@ -144,11 +156,11 @@
                          <span class="n">dF</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
                          <span class="n">N</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
                          <span class="n">df</span> <span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    The time-delay filter for the case :math:`m&#39;=m\pm 1` is defined as</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""</span>
+<span class="sd">    The time-delay filter for the case :math:`m'=m\pm 1` is defined as</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        T&#39;_{\ell}(\delta)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta)) </span>
+<span class="sd">        T'_{\ell}(\delta)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta)) </span>
 <span class="sd">                            \tilde{\Phi}\left(f-\frac{1}{2}\Delta F\right)</span>
 <span class="sd">                            \tilde{\Phi}\left(f+\frac{1}{2}\Delta F\right) .</span>
 
@@ -160,7 +172,7 @@
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    ell : int</span>
-<span class="sd">        The time index difference :math:`\ell=n-n&#39;`.</span>
+<span class="sd">        The time index difference :math:`\ell=n-n'`.</span>
 <span class="sd">    delta : float</span>
 <span class="sd">        The time delay :math:`\delta`, in the time units of `wdm`.</span>
 <span class="sd">    freqs : jnp.ndarray</span>
@@ -180,8 +192,8 @@
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    Tprime_l : float</span>
-<span class="sd">        The time-delay filter :math:`T&#39;_{\ell}(\delta)`.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">        The time-delay filter :math:`T'_{\ell}(\delta)`.</span>
+<span class="sd">    """</span>
     <span class="n">indices</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
 
     <span class="n">shift</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.5</span><span class="o">*</span><span class="n">dF</span><span class="o">/</span><span class="n">df</span><span class="p">)</span>
@@ -195,6 +207,123 @@
     <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">Tprime_l</span><span class="o">.</span><span class="n">real</span><span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="window_support">
+<a class="viewcode-back" href="../../../../WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.window_support">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">window_support</span><span class="p">(</span><span class="n">window_FD</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                   <span class="n">shift</span> <span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""</span>
+<span class="sd">    Bound the frequency samples that can contribute to the filter integrals.</span>
+
+<span class="sd">    The Meyer window is compactly supported: `window_FD` is exactly zero</span>
+<span class="sd">    outside a band of roughly :math:`(1-A_{\rm frac})N_t` samples centred on</span>
+<span class="sd">    :math:`f=0`, which on production grids is a factor :math:`\sim N_f`</span>
+<span class="sd">    shorter than the array itself.</span>
+
+<span class="sd">    The range is measured from the two window products themselves rather</span>
+<span class="sd">    than inferred from the support of `window_FD`. Inferring it needs the</span>
+<span class="sd">    argument that each factor of the rolled product is the same support</span>
+<span class="sd">    translated by :math:`\mp` `shift`, so the product lives on the overlap of</span>
+<span class="sd">    the two translates, which sits inside the untranslated support. That</span>
+<span class="sd">    argument holds only while neither translate wraps: `jnp.roll` is</span>
+<span class="sd">    circular, so a copy pushed off one end reappears at the other, and the</span>
+<span class="sd">    overlap can then land somewhere the untranslated support does not cover</span>
+<span class="sd">    at all. Trimming to the window's own support would silently integrate</span>
+<span class="sd">    over the wrong samples. Measuring cannot make that mistake, and costs one</span>
+<span class="sd">    boolean array of length :math:`N`.</span>
+
+<span class="sd">    The masks are exact: a product of two floats is non-zero wherever both</span>
+<span class="sd">    factors are, so the only discrepancy possible is a product underflowing</span>
+<span class="sd">    to zero where the mask says otherwise, which widens the range rather than</span>
+<span class="sd">    narrowing it.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    window_FD : jnp.ndarray</span>
+<span class="sd">        The frequency-domain Meyer window, :math:`\tilde{\Phi}(f)`,</span>
+<span class="sd">        shape=(N,).</span>
+<span class="sd">    shift : int</span>
+<span class="sd">        The half-bin index offset :math:`\Delta F/2\delta f` applied to the</span>
+<span class="sd">        window in the :math:`T'_{\ell}` integrand.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    start, stop : int</span>
+<span class="sd">        Half-open index range covering every sample at which either window</span>
+<span class="sd">        product is non-zero. `(0, N)` is returned if neither is ever</span>
+<span class="sd">        non-zero, and also whenever the non-zero samples straddle the array</span>
+<span class="sd">        edge, so the caller always integrates over a superset of the true</span>
+<span class="sd">        support.</span>
+<span class="sd">    """</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">window_FD</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">window_FD</span><span class="p">)</span> <span class="o">!=</span> <span class="mf">0.0</span>
+
+    <span class="c1"># the supports of window_FD**2 and of the half-bin-shifted product; the</span>
+    <span class="c1"># roll directions match the gathers in `_filter_tables_block`</span>
+    <span class="n">support</span> <span class="o">=</span> <span class="n">mask</span> <span class="o">|</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">shift</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="o">-</span><span class="n">shift</span><span class="p">))</span>
+
+    <span class="n">nonzero</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">support</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nonzero</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span><span class="p">,</span> <span class="n">N</span>
+
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">nonzero</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">nonzero</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="mi">1</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_choose_freq_block</span><span class="p">(</span><span class="n">num_lags</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                       <span class="n">num_deltas</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                       <span class="n">num_freqs</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                       <span class="n">max_bytes</span> <span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""</span>
+<span class="sd">    Largest number of frequency samples whose temporaries fit in `max_bytes`.</span>
+
+<span class="sd">    One block of `_filter_tables_block` holds the lag phase (`num_lags`</span>
+<span class="sd">    complex values per frequency), its two windowed copies (`2*num_lags`) and</span>
+<span class="sd">    the delay phase (`num_deltas`); the accumulator itself does not scale with</span>
+<span class="sd">    the block.</span>
+<span class="sd">    """</span>
+    <span class="n">bytes_per_freq</span> <span class="o">=</span> <span class="mi">16</span> <span class="o">*</span> <span class="p">(</span><span class="mi">3</span><span class="o">*</span><span class="n">num_lags</span> <span class="o">+</span> <span class="n">num_deltas</span><span class="p">)</span>
+
+    <span class="n">block</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_bytes</span> <span class="o">//</span> <span class="n">bytes_per_freq</span><span class="p">)</span> <span class="k">if</span> <span class="n">bytes_per_freq</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">num_freqs</span>
+
+    <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">num_freqs</span><span class="p">),</span> <span class="n">block</span><span class="p">))</span>
+
+
+<span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_filter_tables_block</span><span class="p">(</span><span class="n">lags_dT</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                         <span class="n">deltas</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                         <span class="n">freqs</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                         <span class="n">window_FD</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+                         <span class="n">indices</span> <span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span>
+                         <span class="n">shift</span> <span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""</span>
+<span class="sd">    The contribution of one contiguous block of frequency samples.</span>
+
+<span class="sd">    `indices` is `(start, stop)`, a half-open range into the frequency axis.</span>
+<span class="sd">    It is static so that the block shape is a compile-time constant and every</span>
+<span class="sd">    full-sized block reuses the same compiled kernel.</span>
+
+<span class="sd">    The windows are gathered at the block's own indices rather than rolled</span>
+<span class="sd">    over the whole array, which is what keeps the working set independent of</span>
+<span class="sd">    :math:`N`. `jnp.roll(w, s)[j]` is `w[(j-s)%N]`, hence the index signs.</span>
+<span class="sd">    """</span>
+    <span class="n">start</span><span class="p">,</span> <span class="n">stop</span> <span class="o">=</span> <span class="n">indices</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="n">window_FD</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">index</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">)</span>
+
+    <span class="n">windows</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">window_FD</span><span class="p">[(</span><span class="n">index</span><span class="o">-</span><span class="n">shift</span><span class="p">)</span> <span class="o">%</span> <span class="n">N</span><span class="p">]</span>
+                            <span class="o">*</span> <span class="n">window_FD</span><span class="p">[(</span><span class="n">index</span><span class="o">+</span><span class="n">shift</span><span class="p">)</span> <span class="o">%</span> <span class="n">N</span><span class="p">],</span>
+                         <span class="n">window_FD</span><span class="p">[</span><span class="n">index</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">])</span>
+
+    <span class="n">block_freqs</span> <span class="o">=</span> <span class="n">freqs</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+
+    <span class="n">lag_phase</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">lags_dT</span><span class="p">,</span> <span class="n">block_freqs</span><span class="p">))</span>
+    <span class="n">delta_phase</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">block_freqs</span><span class="p">,</span> <span class="n">deltas</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">((</span><span class="n">lag_phase</span><span class="o">*</span><span class="n">windows</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span> <span class="o">@</span> <span class="n">delta_phase</span><span class="p">)</span>
+
+
 <div class="viewcode-block" id="build_filter_tables">
 <a class="viewcode-back" href="../../../../WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.build_filter_tables">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">build_filter_tables</span><span class="p">(</span><span class="n">lags</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
@@ -203,14 +332,30 @@
                         <span class="n">window_FD</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
                         <span class="n">dT</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
                         <span class="n">dF</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-                        <span class="n">df</span> <span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+                        <span class="n">df</span> <span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                        <span class="n">max_bytes</span> <span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">FILTER_TABLE_BLOCK_BYTES</span>
+                        <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""</span>
 <span class="sd">    Evaluate both time-delay filters on a grid of lags and delays.</span>
 
-<span class="sd">    :math:`T_{\ell}` and :math:`T&#39;_{\ell}` are the same integral over a</span>
+<span class="sd">    :math:`T_{\ell}` and :math:`T'_{\ell}` are the same integral over a</span>
 <span class="sd">    different window product, so they are built together. The lag phase and</span>
 <span class="sd">    the delay phase separate, which turns the whole grid into two matrix</span>
 <span class="sd">    products rather than a loop over :math:`(\ell,\delta)` pairs.</span>
+
+<span class="sd">    The frequency axis is the contraction index, so nothing of size :math:`N`</span>
+<span class="sd">    appears in the result - only in the intermediates. Those intermediates are</span>
+<span class="sd">    what used to make this function unusable at year-plus durations: written</span>
+<span class="sd">    as a single pair of matrix products they need</span>
+<span class="sd">    :math:`16(3A+B)N` bytes, which is tens of gigabytes for</span>
+<span class="sd">    :math:`N\sim 10^7`, and it is the choice of `num_interp_points` (:math:`B`)</span>
+<span class="sd">    that tips a working configuration over the edge. Two things bound it here:</span>
+
+<span class="sd">    - the integral is restricted to the window's compact support (see</span>
+<span class="sd">      `window_support`), which is exact rather than an approximation and on</span>
+<span class="sd">      production grids removes a factor of order :math:`N_f`;</span>
+<span class="sd">    - what remains is accumulated over frequency blocks sized by `max_bytes`,</span>
+<span class="sd">      so the peak allocation is capped whatever the grid.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -228,23 +373,44 @@
 <span class="sd">        Frequency resolution of the wdm object.</span>
 <span class="sd">    df : float</span>
 <span class="sd">        The frequency resolution of the wdm object time series.</span>
+<span class="sd">    max_bytes : int</span>
+<span class="sd">        Working-set budget, in bytes, for one frequency block. The point of</span>
+<span class="sd">        the blocking is that the peak allocation stops depending on :math:`N`,</span>
+<span class="sd">        so this only has to be small enough to fit and large enough that the</span>
+<span class="sd">        matrix products stay efficient. Defaults to</span>
+<span class="sd">        `FILTER_TABLE_BLOCK_BYTES`, 256 MiB. Optional.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    tables : jnp.ndarray</span>
-<span class="sd">        shape=(2, A, B). Index 0 is :math:`T&#39;_{\ell}`, index 1 is</span>
+<span class="sd">        shape=(2, A, B). Index 0 is :math:`T'_{\ell}`, index 1 is</span>
 <span class="sd">        :math:`T_{\ell}`.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">lag_phase</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">lags</span><span class="o">*</span><span class="n">dT</span><span class="p">,</span> <span class="n">freqs</span><span class="p">))</span>
-    <span class="n">delta_phase</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="p">)</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">freqs</span><span class="p">,</span> <span class="n">deltas</span><span class="p">))</span>
+<span class="sd">    """</span>
+    <span class="n">lags</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">lags</span><span class="p">)</span>
+    <span class="n">deltas</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">deltas</span><span class="p">)</span>
+
+    <span class="n">num_lags</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">lags</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">num_deltas</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">deltas</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
     <span class="n">shift</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.5</span><span class="o">*</span><span class="n">dF</span><span class="o">/</span><span class="n">df</span><span class="p">)</span>
 
-    <span class="n">windows</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">jnp</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">window_FD</span><span class="p">,</span> <span class="n">shift</span><span class="p">)</span>
-                            <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">window_FD</span><span class="p">,</span> <span class="o">-</span><span class="n">shift</span><span class="p">),</span>
-                         <span class="n">window_FD</span><span class="o">**</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">start</span><span class="p">,</span> <span class="n">stop</span> <span class="o">=</span> <span class="n">window_support</span><span class="p">(</span><span class="n">window_FD</span><span class="p">,</span> <span class="n">shift</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">((</span><span class="n">lag_phase</span><span class="o">*</span><span class="n">windows</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span> <span class="o">@</span> <span class="n">delta_phase</span><span class="p">)</span> <span class="o">*</span> <span class="n">df</span></div>
+    <span class="n">block</span> <span class="o">=</span> <span class="n">_choose_freq_block</span><span class="p">(</span><span class="n">num_lags</span><span class="p">,</span> <span class="n">num_deltas</span><span class="p">,</span> <span class="n">stop</span><span class="o">-</span><span class="n">start</span><span class="p">,</span> <span class="n">max_bytes</span><span class="p">)</span>
+
+    <span class="n">lags_dT</span> <span class="o">=</span> <span class="n">lags</span><span class="o">*</span><span class="n">dT</span>
+
+    <span class="n">tables</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="n">num_lags</span><span class="p">,</span> <span class="n">num_deltas</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="n">lo</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">,</span> <span class="n">block</span><span class="p">):</span>
+        <span class="n">tables</span> <span class="o">+=</span> <span class="n">_filter_tables_block</span><span class="p">(</span><span class="n">lags_dT</span><span class="p">,</span>
+                                       <span class="n">deltas</span><span class="p">,</span>
+                                       <span class="n">freqs</span><span class="p">,</span>
+                                       <span class="n">window_FD</span><span class="p">,</span>
+                                       <span class="p">(</span><span class="n">lo</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">lo</span><span class="o">+</span><span class="n">block</span><span class="p">,</span> <span class="n">stop</span><span class="p">)),</span>
+                                       <span class="n">shift</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">tables</span> <span class="o">*</span> <span class="n">df</span></div>
 
 </pre></div>
 

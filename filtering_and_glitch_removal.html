@@ -120,14 +120,14 @@ import WDM
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>path = &quot;../data/L-L1_GWOSC_4KHZ_R1-1187006835-4096.txt&quot;
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>path = "../data/L-L1_GWOSC_4KHZ_R1-1187006835-4096.txt"
 
 data = np.loadtxt(path)
 
 f_samp = 4096.0
 gps_time = 1187006835.0 + np.arange(data.shape[0]) / f_samp
 
-trigger_time = int(Time(&#39;2017-08-17T12:41:04&#39;).gps)
+trigger_time = int(Time('2017-08-17T12:41:04').gps)
 </pre></div>
 </div>
 </div>
@@ -137,10 +137,10 @@ trigger_time = int(Time(&#39;2017-08-17T12:41:04&#39;).gps)
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
-ax.plot(gps_time-trigger_time, data, color=&#39;black&#39;, lw=0.5)
-ax.set_xlabel(&quot;Time from August 17, 2017 12:41:04 UTC [s]&quot;)
-ax.set_ylabel(&quot;Strain&quot;)
-ax.set_title(&quot;LIGO Livingston data around GW170817&quot;)
+ax.plot(gps_time-trigger_time, data, color='black', lw=0.5)
+ax.set_xlabel("Time from August 17, 2017 12:41:04 UTC [s]")
+ax.set_ylabel("Strain")
+ax.set_title("LIGO Livingston data around GW170817")
 plt.show()
 </pre></div>
 </div>
@@ -173,7 +173,7 @@ window_times = overlapping_windows(gps_time,
 
 num_windows = windows.shape[-2]
 
-print(f&quot;Number of windows {num_windows}&quot;)
+print(f"Number of windows {num_windows}")
 </pre></div>
 </div>
 </div>
@@ -193,7 +193,7 @@ Number of windows 128
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>idx = np.argmax(np.any(window_times&gt;trigger_time, axis=1))
 
-print(f&quot;Signal is in window {idx:d}&quot;)
+print(f"Signal is in window {idx:d}")
 
 analysis_data = windows[idx,:]
 analysis_times = window_times[idx,:]
@@ -235,12 +235,12 @@ Sn = interp1d(psd_freqs, psd, bounds_error=False, fill_value=np.inf)
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
-ax.loglog(psd_freqs, psd, color=&#39;black&#39;, lw=0.5)
+ax.loglog(psd_freqs, psd, color='black', lw=0.5)
 ax.set_xlim(1, 2000)
 ax.set_ylim(1.0e-48, 1.0e-37)
-ax.set_xlabel(r&#39;Frequency $f$ [Hz]&#39;)
-ax.set_ylabel(r&#39;PSD $S_n(f)$ [1/Hz]&#39;)
-ax.set_title(&quot;Welch PSD Estimate&quot;)
+ax.set_xlabel(r'Frequency $f$ [Hz]')
+ax.set_ylabel(r'PSD $S_n(f)$ [1/Hz]')
+ax.set_title("Welch PSD Estimate")
 plt.show()
 </pre></div>
 </div>
@@ -273,15 +273,15 @@ analysis_data_whitened = np.fft.irfft(analysis_data_FD) * f_samp
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
-ax.plot(analysis_times-trigger_time, analysis_data_whitened*tukey_window, color=&#39;black&#39;, lw=0.5)
-ax.set_xlabel(&quot;Time from August 17, 2017 12:41:04 UTC [s]&quot;)
-ax.set_ylabel(&quot;Strain&quot;)
-ax.set_title(&quot;LIGO Livingston data around GW170817&quot;)
+ax.plot(analysis_times-trigger_time, analysis_data_whitened*tukey_window, color='black', lw=0.5)
+ax.set_xlabel("Time from August 17, 2017 12:41:04 UTC [s]")
+ax.set_ylabel("Strain")
+ax.set_title("LIGO Livingston data around GW170817")
 ax.set_ylim(-100,120)
 axins = ax.inset_axes([0.15, 0.7, 0.45, 0.2],
                       xlim=(-20, -19), ylim=(-5, 5), yticks=[-3,0,3], yticklabels=[-3,0,3])
-axins.plot(analysis_times-trigger_time, analysis_data_whitened, color=&#39;black&#39;, lw=0.5)
-ax.indicate_inset_zoom(axins, edgecolor=&quot;black&quot;)
+axins.plot(analysis_times-trigger_time, analysis_data_whitened, color='black', lw=0.5)
+ax.indicate_inset_zoom(axins, edgecolor="black")
 plt.show()
 </pre></div>
 </div>
@@ -354,40 +354,40 @@ self.K = 8192 window length
 
 for i, t_idx in enumerate([128, 256, 384]):
     axes[0].loglog(f_nm[0,:], wavelet_covariance[i,:].T,
-                   label=f&quot;t={t_nm[t_idx,1]}s&quot;,
-                   color=&#39;k&#39;, ls=[&#39;--&#39;,&#39;-.&#39;,&#39;:&#39;][i])
+                   label=f"t={t_nm[t_idx,1]}s",
+                   color='k', ls=['--','-.',':'][i])
 for i, f_idx in enumerate([2,13,125]):
-    axes[0].axvline(f_nm[1, f_idx], color=&#39;C{}&#39;.format(i))
+    axes[0].axvline(f_nm[1, f_idx], color='C{}'.format(i))
 axes[0].set_xlim(1, 2000)
 axes[0].set_ylim(1.0e-50, 1.0e-41)
-axes[0].set_xlabel(r&#39;Frequency $f$ [Hz]&#39;)
-axes[0].set_ylabel(r&#39;$S_{nm}$ [1/Hz]&#39;)
-axes[0].set_title(&quot;Wavelet $S_{nm}$ frequency slice&quot;)
-axes[0].legend(loc=&#39;lower left&#39;)
+axes[0].set_xlabel(r'Frequency $f$ [Hz]')
+axes[0].set_ylabel(r'$S_{nm}$ [1/Hz]')
+axes[0].set_title("Wavelet $S_{nm}$ frequency slice")
+axes[0].legend(loc='lower left')
 
 for i, f_idx in enumerate([2,13,125]):
     axes[1].plot(t_nm[:,1], wavelet_covariance[:,f_idx].T,
-                        label=f&quot;f={f_nm[1,f_idx]}Hz&quot;,
-                        color=&#39;C{}&#39;.format(i))
+                        label=f"f={f_nm[1,f_idx]}Hz",
+                        color='C{}'.format(i))
 for i, t_idx in enumerate([128, 256, 384]):
-    axes[1].axvline(t_nm[t_idx,1], color=&#39;k&#39;, ls=[&#39;--&#39;,&#39;-.&#39;,&#39;:&#39;][i])
+    axes[1].axvline(t_nm[t_idx,1], color='k', ls=['--','-.',':'][i])
 axes[1].set_xlim(0, 32)
-axes[1].set_yscale(&#39;log&#39;)
-axes[1].set_xlabel(r&#39;Time $t$ [s]&#39;)
-axes[1].set_ylabel(r&#39;$S_{nm}$ [1/Hz]&#39;)
-axes[1].set_title(&quot;Wavelet $S_{nm}$ time slice&quot;)
-axes[1].legend(loc=&#39;lower right&#39;, framealpha=0.9)
+axes[1].set_yscale('log')
+axes[1].set_xlabel(r'Time $t$ [s]')
+axes[1].set_ylabel(r'$S_{nm}$ [1/Hz]')
+axes[1].set_title("Wavelet $S_{nm}$ time slice")
+axes[1].legend(loc='lower right', framealpha=0.9)
 
 plt.show()
 
 fig, ax = plt.subplots()
-im = ax.imshow(np.log10(wavelet_covariance.T), extent=[0., num_perseg/f_samp, 0., 0.5*f_samp], aspect=&#39;auto&#39;)
+im = ax.imshow(np.log10(wavelet_covariance.T), extent=[0., num_perseg/f_samp, 0., 0.5*f_samp], aspect='auto')
 cbar = fig.colorbar(im, ax=ax, pad=0.02)
-cbar.set_label(r&#39;$\log_{10}\, S_{nm}$ [1/Hz]&#39;)
+cbar.set_label(r'$\log_{10}\, S_{nm}$ [1/Hz]')
 ax.set_xticks(t_nm[::50,1])
 ax.set_yticks(f_nm[1,::30])
-ax.set_xlabel(r&#39;Time $t$ [s]&#39;)
-ax.set_ylabel(r&#39;Frequency $f$ [Hz]&#39;)
+ax.set_xlabel(r'Time $t$ [s]')
+ax.set_ylabel(r'Frequency $f$ [Hz]')
 plt.tight_layout()
 plt.show()
 </pre></div>
@@ -416,9 +416,9 @@ plt.show()
 
 wavelet_w = wdm.dwt(analysis_data*tukey_window)
 
-fig, ax = time_frequency_plot(wdm, wavelet_w, part=&#39;abs&#39;, scale=&#39;log&#39;)
-ax.set_xlabel(&quot;Time from August 17, 2017 12:41:04 UTC [s]&quot;)
-ax.set_ylabel(r&#39;Frequency $f$ [Hz]&#39;)
+fig, ax = time_frequency_plot(wdm, wavelet_w, part='abs', scale='log')
+ax.set_xlabel("Time from August 17, 2017 12:41:04 UTC [s]")
+ax.set_ylabel(r'Frequency $f$ [Hz]')
 ax.set_ylim(0, 500)
 plt.show()
 </pre></div>
@@ -469,9 +469,9 @@ wavelet_w_whitened_bandpassfiltered_deglitched[deglitch] = wavelet_w_whitened_ba
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = time_frequency_plot(wdm, wavelet_w_whitened_bandpassfiltered_deglitched, part=&#39;abs&#39;, scale=&#39;log&#39;)
-ax.set_xlabel(&quot;Time from August 17, 2017 12:41:04 UTC [s]&quot;)
-ax.set_ylabel(r&#39;Frequency $f$ [Hz]&#39;)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = time_frequency_plot(wdm, wavelet_w_whitened_bandpassfiltered_deglitched, part='abs', scale='log')
+ax.set_xlabel("Time from August 17, 2017 12:41:04 UTC [s]")
+ax.set_ylabel(r'Frequency $f$ [Hz]')
 ax.set_ylim(0, 500)
 plt.show()
 </pre></div>
@@ -492,10 +492,10 @@ plt.show()
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>clean_data = wdm.idwt(wavelet_w_whitened_bandpassfiltered_deglitched)
 
 fig, ax = plt.subplots()
-ax.plot(analysis_times-trigger_time, clean_data, color=&#39;black&#39;, lw=0.5)
-ax.set_xlabel(&quot;Time from August 17, 2017 12:41:04 UTC [s]&quot;)
-ax.set_ylabel(&quot;Cleaned data&quot;)
-ax.set_title(&quot;Cleaned GW170817 Data&quot;)
+ax.plot(analysis_times-trigger_time, clean_data, color='black', lw=0.5)
+ax.set_xlabel("Time from August 17, 2017 12:41:04 UTC [s]")
+ax.set_ylabel("Cleaned data")
+ax.set_title("Cleaned GW170817 Data")
 plt.show()
 </pre></div>
 </div>

@@ -123,7 +123,7 @@ import WDM
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>dt, N, Nt, Nf = 0.5, 512, 64, 8
 
-assert Nf*Nt==N, &quot;Incompatible dimensions&quot;
+assert Nf*Nt==N, "Incompatible dimensions"
 </pre></div>
 </div>
 </div>
@@ -187,18 +187,18 @@ err = np.max(np.abs(x - x_recovered))
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
-fig.suptitle(&quot;Truncated Wavelet Transform Error&quot;)
+fig.suptitle("Truncated Wavelet Transform Error")
 
-ax.plot(q_vals, err_vals, marker=&#39;o&#39;, label=&#39;Truncated&#39;)
-ax.axhline(err, color=&#39;k&#39;, lw=3, linestyle=&#39;:&#39;, label=&#39;Exact&#39;)
+ax.plot(q_vals, err_vals, marker='o', label='Truncated')
+ax.axhline(err, color='k', lw=3, linestyle=':', label='Exact')
 
-ax.set_xlabel(r&quot;$q$&quot;)
-ax.set_ylabel(r&quot;Max error&quot;)
+ax.set_xlabel(r"$q$")
+ax.set_ylabel(r"Max error")
 
-ax.set_yscale(&#39;log&#39;)
+ax.set_yscale('log')
 
 ax.grid()
-ax.legend(loc=&#39;upper right&#39;)
+ax.legend(loc='upper right')
 
 plt.show()
 </pre></div>
@@ -247,19 +247,19 @@ for j, d in enumerate(d_vals):
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
-fig.suptitle(&quot;Truncated Wavelet Transform Error&quot;)
+fig.suptitle("Truncated Wavelet Transform Error")
 
 for d in d_vals:
-    ax.plot(q_vals, err_vals[d], marker=&#39;o&#39;, label=f&#39;Truncated {d=}&#39;)
-ax.axhline(err, color=&#39;k&#39;, lw=3, linestyle=&#39;:&#39;, label=&#39;Exact&#39;)
+    ax.plot(q_vals, err_vals[d], marker='o', label=f'Truncated {d=}')
+ax.axhline(err, color='k', lw=3, linestyle=':', label='Exact')
 
-ax.set_xlabel(r&quot;$q$&quot;)
-ax.set_ylabel(r&quot;Max error&quot;)
+ax.set_xlabel(r"$q$")
+ax.set_ylabel(r"Max error")
 
-ax.set_yscale(&#39;log&#39;)
+ax.set_yscale('log')
 
 ax.grid()
-ax.legend(loc=&#39;upper right&#39;)
+ax.legend(loc='upper right')
 
 plt.show()
 </pre></div>
