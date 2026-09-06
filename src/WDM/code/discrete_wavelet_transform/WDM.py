@@ -1755,12 +1755,11 @@ class WDM_transform:
 
         return jnp.real(X)
 
-    @partial(jax.jit, static_argnums=0, static_argnames=('lag_block',))
+    @partial(jax.jit, static_argnums=0)
     def apply_variable_time_shift(self,
                                   filter_tables : jnp.array,
                                   wdm_coeff : jnp.array,
-                                  delta : jnp.array,
-                                  lag_block : int = None) -> jnp.array:
+                                  delta : jnp.array) -> jnp.array:
         r"""
         Perform the variable time shift operation on a grid of WDM coefficients
         by evaluating the sum
@@ -1799,10 +1798,22 @@ class WDM_transform:
         textbook form.
 
         The matrix elements are evaluated in real arithmetic - see
-        `real_matrix_element` below for that rearrangement. The carrier phase
-        :math:`\phi=2\pi(m+\sigma/2)\Delta F\delta_n` does not depend on
-        :math:`l`, so it is built once outside the lag loop and the
-        :math:`\sigma=\pm1` cases follow from it by angle addition.
+        `matrix_element_weights` below for that rearrangement. The carrier
+        phase :math:`\phi=2\pi(m+\sigma/2)\Delta F\delta_n` does not depend on
+        :math:`l`, so its :math:`\sigma=0` cosine and sine are built once
+        outside the lag loop. They are the only :math:`(N_t, N_f)` arrays here:
+        the :math:`\sigma=\pm1` sidebands differ by a half-bin phase that is
+        rank-1 in :math:`n`, so angle addition folds them into the per-element
+        weights rather than into four more grids.
+
+        The lag sum is a python loop, so all :math:`2L+1` terms are unrolled
+        into the graph. XLA:CPU fuses the accumulation chain into one pass but
+        will not fuse across a `lax.fori_loop` body, so blocking the sum sends
+        the :math:`(N_t, N_f)` accumulator back to memory once per block. At
+        :math:`N_t=4096`, :math:`N_f=1024`, :math:`L=25` that costs 2.16 s
+        unrolled against 2.26 s at eight lags per block and 4.37 s at
+        fifty-one. Unrolling pays for it in graph size, but only at compile
+        time - about half a second here, then cached.
 
         Parameters
         ----------
@@ -1813,13 +1824,6 @@ class WDM_transform:
             WDM coefficient grid. Array, dtype=float, shape=(Nt,Nf)
         delta : jnp.array
             Array, dtype=float, shape=(Nt,)
-        lag_block : int or None
-            Number of lags handled per loop iteration. `None` (the default)
-            unrolls the lag sum completely, which is fastest for small `L`
-            because the lag index becomes a compile-time constant. For
-            :math:`L \gtrsim 30` prefer a small block (8 is a reasonable
-            start): the unrolled graph becomes large enough that scheduling
-            cost, compile time and compile-time memory outweigh the benefit.
 
         Returns
         -------
@@ -1835,15 +1839,14 @@ class WDM_transform:
         sign_n = jnp.where(n % 2 == 0, 1.0, -1.0)[:, jnp.newaxis]
         sign_m = jnp.where(m % 2 == 0, 1.0, -1.0)[jnp.newaxis, :]
 
-        # cos/sin of the sigma=0 carrier; sigma=+-1 by angle addition with
-        # the rank-1 half-bin phase
+        # The only two (Nt, Nf) grids in the whole sum: cos and sin of the
+        # sigma=0 carrier. The sigma=+-1 sidebands are NOT built - they differ
+        # by the rank-1 half-bin phase below, which angle addition lets every
+        # matrix element absorb into a rank-1 coefficient instead.
         theta = 2*jnp.pi*self.dF*jnp.outer(delta, m)
         cos_t, sin_t = jnp.cos(theta), jnp.sin(theta)
         half = jnp.pi*self.dF*delta[:, jnp.newaxis]
         cos_h, sin_h = jnp.cos(half), jnp.sin(half)
-        carrier = {-1: (cos_t*cos_h + sin_t*sin_h, sin_t*cos_h - cos_t*sin_h),
-                    0: (cos_t, sin_t),
-                   +1: (cos_t*cos_h - sin_t*sin_h, sin_t*cos_h + cos_t*sin_h)}
 
         # every lag at once: shape (2L+1, Nt), no Nf axis
         lags = jnp.arange(-max_lag_L, max_lag_L + 1)
@@ -1865,10 +1868,18 @@ class WDM_transform:
         # (1j)**l for l modulo 4, as (real, imaginary) pairs
         i_pow = jnp.array([[1., 0.], [0., 1.], [-1., 0.], [0., -1.]])
 
-        def real_matrix_element(l, i, sigma):
+        def matrix_element_weights(l, i, sigma):
             r"""
             :math:`X_{n(n-l);m(m+\sigma)}(-\delta_n)` in real arithmetic, for
-            one lag and one frequency offset. Array, shape=(Nt, Nf).
+            one lag and one frequency offset, as the weights of `cos_t` and
+            `sin_t` rather than as the grid itself.
+
+            The element is
+            :math:`(\hat{a}\cos\theta + \hat{b}\sin\theta)` times
+            :math:`(-1)^m` when `alternates`, and both weights are rank-1 in
+            :math:`n`. Returning them instead of the assembled
+            :math:`(N_t, N_f)` grid is what keeps the sidebands from ever
+            being materialised.
 
             Parameters
             ----------
@@ -1880,6 +1891,13 @@ class WDM_transform:
                 that range rather than over :math:`l` itself.
             sigma : int
                 Frequency lag, :math:`0` or :math:`\pm1`.
+
+            Returns
+            -------
+            a, b : jnp.array
+                Weights of `cos_t` and `sin_t`. Array, shape=(Nt, 1).
+            alternates : bool
+                Whether the element carries a further factor of :math:`(-1)^m`.
             """
             # C = (+-i)**l, the scalar lag phase: sigma=-1 carries (1j)**l,
             # sigma=+1 its conjugate, and sigma=0 has no such factor at all.
@@ -1890,6 +1908,13 @@ class WDM_transform:
                 lag_phase_re = i_pow_re
                 lag_phase_im = i_pow_im if sigma == -1 else -i_pow_im
 
+            # The sideband carrier is cos/sin of (theta + sigma*half). Angle
+            # addition splits it back onto cos_t and sin_t with these rank-1
+            # weights. Mind that cos(sigma*half) is 1 at sigma=0, NOT cos_h -
+            # cosine being even covers sigma=+-1 only.
+            cos_s = 1.0 if sigma == 0 else cos_h
+            sin_s = 0.0 if sigma == 0 else sigma*sin_h
+
             # The parity factor conj(i**a) i**b, with a = (n+m) % 2 and
             # b = (n'+m') % 2, collapses to a choice of just two cases:
             #     (l+sigma) even ->  1
@@ -1898,18 +1923,22 @@ class WDM_transform:
             #     even ->  lag_phase_re cos(phi) + lag_phase_im sin(phi)
             #     odd  -> -lag_phase_im cos(phi) + lag_phase_re sin(phi)
             # which is why nothing here needs to be complex.
-            carrier_cos, carrier_sin = carrier[sigma]
-            element = jnp.where(
-                    ((l + sigma) % 2) != 0,
-                    sign_n*sign_m*(-lag_phase_im*carrier_cos
-                                   + lag_phase_re*carrier_sin),
-                    lag_phase_re*carrier_cos + lag_phase_im*carrier_sin)
+            if (l + sigma) % 2 == 0:
+                a = lag_phase_re*cos_s + lag_phase_im*sin_s
+                b = lag_phase_im*cos_s - lag_phase_re*sin_s
+                alternates = False
+            else:
+                a = sign_n*(lag_phase_re*sin_s - lag_phase_im*cos_s)
+                b = sign_n*(lag_phase_re*cos_s + lag_phase_im*sin_s)
+                alternates = True
 
             # the two remaining factors: (-1)**(l m), and the delay filter
-            alternating = jnp.where((l % 2) != 0, sign_m, 1.0)
+            if l % 2 != 0:
+                alternates = not alternates
 
-            return element * alternating \
-                        * delay_filter[sigma][i][:, jnp.newaxis]
+            delay = delay_filter[sigma][i][:, jnp.newaxis]
+
+            return a*delay, b*delay, alternates
 
         def body(i, acc):
             l = i - max_lag_L
@@ -1919,25 +1948,28 @@ class WDM_transform:
             rows = jax.lax.dynamic_slice_in_dim(cyclic_ext, max_lag_L - l,
                                                 self.Nt, axis=0)
 
+            # The three sigma are summed before touching acc, so one lag costs
+            # one pass over the accumulator rather than three.
+            total = 0.0
             for sigma in (-1, 0, 1):
                 # offset by 1 because cyclic_ext carries one extra column at
                 # each edge, so column m+sigma sits at index m+sigma+1
                 coeff = jax.lax.slice_in_dim(rows, sigma + 1,
                                              sigma + 1 + self.Nf, axis=1)
 
-                acc = acc + coeff*real_matrix_element(l, i, sigma)
+                a, b, alternates = matrix_element_weights(l, i, sigma)
+                term = coeff*(cos_t*a + sin_t*b)
 
-            return acc
+                total = total + (term*sign_m if alternates else term)
+
+            return acc + total
 
         acc = jnp.zeros((self.Nt, self.Nf), dtype=wdm_coeff.dtype)
 
-        if lag_block is None:
-            for i in range(2*max_lag_L + 1):
-                acc = body(i, acc)
-            return acc
+        for i in range(2*max_lag_L + 1):
+            acc = body(i, acc)
 
-        return jax.lax.fori_loop(0, 2*max_lag_L + 1, body, acc,
-                                 unroll=lag_block)
+        return acc
 
     def __repr__(self) -> str:
         r"""
