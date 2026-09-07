@@ -79,11 +79,7 @@ class WDM_transform:
     Cnm : jnp.ndarray 
         Coefficients :math:`C_{nm}` used for the wavelet transform. Equal to 1 
         if :math:`n+m` is even or :math:`i` if it's odd. Array shape=(N_t, N_f).
-    calc_m0 : bool
-        If this is set to False (default value) then the wavelet coefficients
-        with :math:`m=0` are handled INCORRECTLY. This is faster. If these 
-        coefficients are needed the initialise the class with `calc_m0=True`.
-    window_TD : jnp.ndarray 
+    window_TD : jnp.ndarray
         The time-domain Meyer window function, :math:`\phi(t)`. 
         Array shape=(N,).
     window_FD : jnp.ndarray 
@@ -107,8 +103,7 @@ class WDM_transform:
                  N : int,
                  q : int = 16,
                  d : int = 4,
-                 A_frac : float = 0.25,
-                 calc_m0 : bool = False) -> None:
+                 A_frac : float = 0.25) -> None:
         r"""
         Initialize the WDM_transform.
 
@@ -126,10 +121,6 @@ class WDM_transform:
             Steepness parameter for the transition. Optional.
         A_frac : float
             Bandwidth fraction of flat-top response. Optional.
-        calc_m0 : bool
-            If False, then the wavelet calculations for the :math:`m=0` temrs 
-            will be wrong; this has performance benefits. If True, then all 
-            calculations will be correct, but this may be slower. Optional.
 
         Returns
         -------
@@ -141,7 +132,6 @@ class WDM_transform:
         self.q = int(q)
         self.A_frac = float(A_frac)
         self.d = int(d)
-        self.calc_m0 = bool(calc_m0)
 
         self.validate_parameters()
 
@@ -483,28 +473,27 @@ class WDM_transform:
                              jnp.conj(self.Cnm[jnp.newaxis,:,:])*\
                               self.window_FD[shift_do%self.N][:,jnp.newaxis,:])
 
-            if self.calc_m0:
-                # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-                n_vals = jnp.arange(self.Nt//2)
+            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
+            n_vals = jnp.arange(self.Nt//2)
 
-                f0_term = jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
-                                om[:,jnp.newaxis]*self.dT) * \
-                                    self.window_FD[:,jnp.newaxis]
+            f0_term = jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
+                            om[:,jnp.newaxis]*self.dT) * \
+                                self.window_FD[:,jnp.newaxis]
 
-                basis = basis.at[:, n_vals, 0].set(f0_term)
+            basis = basis.at[:, n_vals, 0].set(f0_term)
 
-                # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
-                n_vals = jnp.arange(self.Nt//2, self.Nt)
+            # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
+            n_vals = jnp.arange(self.Nt//2, self.Nt)
 
-                shift_up = (jnp.arange(self.N) + self.N//2) 
-                shift_do = (jnp.arange(self.N) - self.N//2) 
+            shift_up = (jnp.arange(self.N) + self.N//2)
+            shift_do = (jnp.arange(self.N) - self.N//2)
 
-                fNy_term = 0.5 * jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
-                                om[:,jnp.newaxis]*self.dT) * \
-                            (self.window_FD[shift_up%self.N][:,jnp.newaxis] +
-                                self.window_FD[shift_do%self.N][:,jnp.newaxis])
+            fNy_term = 0.5 * jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
+                            om[:,jnp.newaxis]*self.dT) * \
+                        (self.window_FD[shift_up%self.N][:,jnp.newaxis] +
+                            self.window_FD[shift_do%self.N][:,jnp.newaxis])
 
-                basis = basis.at[:, n_vals, 0].set(fNy_term)
+            basis = basis.at[:, n_vals, 0].set(fNy_term)
 
             self._cached_Gnm_basis = basis
 
@@ -660,27 +649,26 @@ class WDM_transform:
             basis = f_vmapped(n_vals, m_vals)
             basis = jnp.transpose(basis, (2, 0, 1))
 
-            if self.calc_m0:
-                # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-                n_vals = jnp.arange(self.Nt//2)
+            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
+            n_vals = jnp.arange(self.Nt//2)
 
-                f0_term = self.window_TD[(k_vals[:,jnp.newaxis]
-                                    -2*n_vals[jnp.newaxis,:]*self.Nf)%self.N]
+            f0_term = self.window_TD[(k_vals[:,jnp.newaxis]
+                                -2*n_vals[jnp.newaxis,:]*self.Nf)%self.N]
 
-                basis = basis.at[:, n_vals, 0].set(f0_term)
+            basis = basis.at[:, n_vals, 0].set(f0_term)
 
-                # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
-                n_vals = jnp.arange(self.Nt//2, self.Nt)
+            # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
+            n_vals = jnp.arange(self.Nt//2, self.Nt)
 
-                def temp_func(n):
-                    return (-1)**(k_vals) * \
-                            self.window_TD[(k_vals-2*n*self.Nf)%self.N]
+            def temp_func(n):
+                return (-1)**(k_vals) * \
+                        self.window_TD[(k_vals-2*n*self.Nf)%self.N]
 
-                f_vmapped = jax.vmap(temp_func)
+            f_vmapped = jax.vmap(temp_func)
 
-                fNy_term = f_vmapped(n_vals).T
+            fNy_term = f_vmapped(n_vals).T
 
-                basis = basis.at[:, n_vals, 0].set(fNy_term)
+            basis = basis.at[:, n_vals, 0].set(fNy_term)
 
             self._cached_gnm_basis = basis
 
@@ -815,7 +803,7 @@ class WDM_transform:
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
         for n in range(self.Nt):
-            for m in range(not self.calc_m0, self.Nf): # start at m=0 or 1 
+            for m in range(self.Nf):
                 gnm = B[:, n, m]
                 gnm_x = gnm[(k_vals+(1 if m>0 else 2)*n*self.Nf)%self.N] * \
                             x[(k_vals+(1 if m>0 else 2)*n*self.Nf)%self.N]
@@ -901,29 +889,28 @@ class WDM_transform:
                     self.window_TD[k_vals%self.N,jnp.newaxis,jnp.newaxis], 
                 axis=0).real
 
-        if self.calc_m0:
-            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-            n_vals = jnp.arange(self.Nt//2)
+        # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
+        n_vals = jnp.arange(self.Nt//2)
 
-            k_plus_2n = (k_vals[:,jnp.newaxis]+2*n_vals[jnp.newaxis,:]*self.Nf)
+        k_plus_2n = (k_vals[:,jnp.newaxis]+2*n_vals[jnp.newaxis,:]*self.Nf)
 
-            f0_term = self.dt * jnp.sum(
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            x[k_plus_2n%self.N],
-                        axis=0)
+        f0_term = self.dt * jnp.sum(
+                        self.window_TD[k_vals%self.N, jnp.newaxis] * \
+                        x[k_plus_2n%self.N],
+                    axis=0)
 
-            w = w.at[n_vals, 0].set(f0_term)
+        w = w.at[n_vals, 0].set(f0_term)
 
-            # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
-            n_vals = jnp.arange(self.Nt//2, self.Nt)
+        # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
+        n_vals = jnp.arange(self.Nt//2, self.Nt)
 
-            fNy_term = self.dt * jnp.sum( 
-                            (-1)**k_vals[:,jnp.newaxis] * \
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            x[k_plus_2n%self.N],
-                        axis=0)
+        fNy_term = self.dt * jnp.sum(
+                        (-1)**k_vals[:,jnp.newaxis] * \
+                        self.window_TD[k_vals%self.N, jnp.newaxis] * \
+                        x[k_plus_2n%self.N],
+                    axis=0)
 
-            w = w.at[n_vals, 0].set(fNy_term)
+        w = w.at[n_vals, 0].set(fNy_term)
 
         return w
     
@@ -978,29 +965,28 @@ class WDM_transform:
 
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
-        if self.calc_m0:
-            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-            n_vals = jnp.arange(self.Nt//2)
+        # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
+        n_vals = jnp.arange(self.Nt//2)
 
-            k_plus_2n = (k_vals[:,jnp.newaxis]+2*n_vals[jnp.newaxis,:]*self.Nf)
+        k_plus_2n = (k_vals[:,jnp.newaxis]+2*n_vals[jnp.newaxis,:]*self.Nf)
 
-            f0_term = self.dt * jnp.sum(
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            x[k_plus_2n%self.N],
-                        axis=0)
+        f0_term = self.dt * jnp.sum(
+                        self.window_TD[k_vals%self.N, jnp.newaxis] * \
+                        x[k_plus_2n%self.N],
+                    axis=0)
 
-            w = w.at[n_vals, 0].set(f0_term)
+        w = w.at[n_vals, 0].set(f0_term)
 
-            # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
-            n_vals = jnp.arange(self.Nt//2, self.Nt)
+        # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
+        n_vals = jnp.arange(self.Nt//2, self.Nt)
 
-            fNy_term = self.dt * jnp.sum( 
-                            (-1)**k_vals[:,jnp.newaxis] * \
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            x[k_plus_2n%self.N],
-                        axis=0)
+        fNy_term = self.dt * jnp.sum(
+                        (-1)**k_vals[:,jnp.newaxis] * \
+                        self.window_TD[k_vals%self.N, jnp.newaxis] * \
+                        x[k_plus_2n%self.N],
+                    axis=0)
 
-            w = w.at[n_vals, 0].set(fNy_term)
+        w = w.at[n_vals, 0].set(fNy_term)
 
         return w
     
@@ -1198,41 +1184,40 @@ class WDM_transform:
                               lambda n, acc: add_one_time(acc, n), 
                               x)
         
-        if self.calc_m0:
-            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-            n_vals = jnp.arange(self.Nt//2)
+        # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
+        n_vals = jnp.arange(self.Nt//2)
 
-            @jax.jit
-            def add_zero_freq(x, n):
-                k_vals = jnp.arange(-self.K//2, self.K//2)
-                wavelet = self.window_TD[k_vals]
-                indices = (k_vals+2*n*self.Nf)%self.N
-                coeff = jnp.atleast_1d(w[...,n,0])
-                term  = coeff[..., None] * wavelet[None, ...] 
-                updates_shape = x[..., indices].shape
-                x = x.at[..., indices].add(jnp.reshape(term, updates_shape))
-                return x
+        @jax.jit
+        def add_zero_freq(x, n):
+            k_vals = jnp.arange(-self.K//2, self.K//2)
+            wavelet = self.window_TD[k_vals]
+            indices = (k_vals+2*n*self.Nf)%self.N
+            coeff = jnp.atleast_1d(w[...,n,0])
+            term  = coeff[..., None] * wavelet[None, ...]
+            updates_shape = x[..., indices].shape
+            x = x.at[..., indices].add(jnp.reshape(term, updates_shape))
+            return x
 
-            x = jax.lax.fori_loop(0, 
-                                  self.Nt//2,
-                                  lambda n, acc: add_zero_freq(acc, n), 
-                                  x)
-            
-            @jax.jit
-            def add_Nyquist_freq(x, n):
-                k_vals = jnp.arange(-self.K//2, self.K//2)
-                wavelet = (-1)**(k_vals) * self.window_TD[k_vals]
-                indices = (k_vals+2*n*self.Nf)%self.N
-                coeff = jnp.atleast_1d(w[...,n,0])
-                term  = coeff[..., None] * wavelet[None, ...] 
-                updates_shape = x[..., indices].shape
-                x = x.at[..., indices].add(jnp.reshape(term, updates_shape))
-                return x
+        x = jax.lax.fori_loop(0,
+                              self.Nt//2,
+                              lambda n, acc: add_zero_freq(acc, n),
+                              x)
 
-            x = jax.lax.fori_loop(self.Nt//2, 
-                                  self.Nt,
-                                  lambda n, acc: add_Nyquist_freq(acc, n), 
-                                  x)
+        @jax.jit
+        def add_Nyquist_freq(x, n):
+            k_vals = jnp.arange(-self.K//2, self.K//2)
+            wavelet = (-1)**(k_vals) * self.window_TD[k_vals]
+            indices = (k_vals+2*n*self.Nf)%self.N
+            coeff = jnp.atleast_1d(w[...,n,0])
+            term  = coeff[..., None] * wavelet[None, ...]
+            updates_shape = x[..., indices].shape
+            x = x.at[..., indices].add(jnp.reshape(term, updates_shape))
+            return x
+
+        x = jax.lax.fori_loop(self.Nt//2,
+                              self.Nt,
+                              lambda n, acc: add_Nyquist_freq(acc, n),
+                              x)
 
         return x
 
@@ -2025,7 +2010,7 @@ class WDM_transform:
         """
         lines = []
         lines.append( (f"WDM_transform(Nf={self.Nf}, N={self.N}, q={self.q}, "
-                f"d={self.d}, A_frac={self.A_frac}, calc_m0={self.calc_m0})") )
+                f"d={self.d}, A_frac={self.A_frac})") )
         lines.append( f"{self.Nt = } time cells" )
         lines.append( f"{self.Nf = } frequency cells" )
         lines.append( f"{self.dT = } time resolution" )

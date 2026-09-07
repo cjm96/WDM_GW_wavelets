@@ -14,8 +14,7 @@ def test_time_frequency_plot():
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=4, 
                                                                 N=64, 
-                                                                q=8,
-                                                                calc_m0=True)
+                                                                q=8)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise

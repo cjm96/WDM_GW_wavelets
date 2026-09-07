@@ -23,8 +23,7 @@ def test_filter_functions():
     wdm = WDM.WDM_transform(dt=0.5, 
                             Nf=8, 
                             N=256,
-                            q=4,
-                            calc_m0=True)
+                            q=4)
 
     L = 25  # the maximum lag index
     N = 10  # the number of interpolation points
@@ -57,7 +56,7 @@ def test_time_delay():
     signal = sine_gauss(times)
 
     N, Nf= times.shape[0], 200
-    wdm = WDM.WDM_transform(dt=1/fs, Nf=Nf, N=N, q=32, calc_m0=True)
+    wdm = WDM.WDM_transform(dt=1/fs, Nf=Nf, N=N, q=32)
 
     w = wdm(signal)
 
@@ -121,7 +120,7 @@ def test_time_delay_matrix_X_orthogonality():
     zero.
     """
     L = 4
-    wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4, calc_m0=True)
+    wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4)
     tables = wdm.build_time_delay_filter_interpolants(L, 65)
 
     n = jnp.arange(wdm.Nt)
@@ -159,7 +158,7 @@ def test_time_delay_matrix_X_definitional_symmetry():
     :math:`\sigma` branches.
     """
     L = 4
-    wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4, calc_m0=True)
+    wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4)
     tables = wdm.build_time_delay_filter_interpolants(L, 65)
 
     n = jnp.arange(wdm.Nt)
@@ -197,7 +196,7 @@ def test_time_delay_matrix_X_matches_direct_integral():
     indices are kept away from the edges to avoid wrap-around.
     """
     L = 4
-    wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4, calc_m0=True)
+    wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4)
     tables = wdm.build_time_delay_filter_interpolants(L, 129)
 
     n_idx = jnp.arange(wdm.Nt)
@@ -241,7 +240,7 @@ def test_apply_variable_time_shift_matches_X_reference():
     never drift apart.
     """
     L = 4
-    wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4, calc_m0=True)
+    wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4)
     tables = wdm.build_time_delay_filter_interpolants(L, 65)
 
     key = jax.random.PRNGKey(0)
@@ -290,8 +289,7 @@ def test_variable_time_shift_linear_ramp():
     times = jnp.arange(0, T, 1/fs)
     signal = sine_gauss(times)
 
-    wdm = WDM.WDM_transform(dt=1/fs, Nf=200, N=times.shape[0], q=32,
-                            calc_m0=True)
+    wdm = WDM.WDM_transform(dt=1/fs, Nf=200, N=times.shape[0], q=32)
     w = wdm(signal)
 
     L = 25  # the maximum lag index
@@ -330,7 +328,7 @@ def test_rebuilding_interpolants_takes_effect():
     frozen into the compiled code on the first call and every later rebuild
     would be silently ignored - this test fails if that regresses.
     """
-    wdm = WDM.WDM_transform(dt=0.5, Nf=16, N=16*32, q=4, calc_m0=True)
+    wdm = WDM.WDM_transform(dt=0.5, Nf=16, N=16*32, q=4)
 
     lags = jnp.arange(-3, 4)
     delta = jnp.array([0.1*wdm.dT, -0.2*wdm.dT])

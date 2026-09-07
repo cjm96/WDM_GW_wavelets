@@ -50,8 +50,7 @@ def test_Gnm():
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=8, 
                                                                 N=64,
-                                                                q=4,
-                                                                calc_m0=True)
+                                                                q=4)
     
     Gnm_basis = wdm.Gnm_basis()
 
@@ -89,8 +88,7 @@ def test_gnm():
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=8, 
                                                                 N=64,
-                                                                q=4,
-                                                                calc_m0=True)
+                                                                q=4)
     
     gnm_basis = wdm.gnm_basis()
 
@@ -131,8 +129,7 @@ def test_exact_transform():
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=16, 
                                                                 N=512, 
-                                                                q=5,
-                                                                calc_m0=True)
+                                                                q=5)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
@@ -154,8 +151,7 @@ def test_inverse_transforms():
 
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=16, 
-                                                                N=512, 
-                                                                calc_m0=True)
+                                                                N=512)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
@@ -188,8 +184,7 @@ def test_truncated_transform():
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=4, 
                                                                 N=64, 
-                                                                q=8,
-                                                                calc_m0=True)
+                                                                q=8)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
@@ -213,8 +208,7 @@ def test_truncated_window_transform():
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=4, 
                                                                 N=64, 
-                                                                q=8,
-                                                                calc_m0=True)
+                                                                q=8)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
@@ -237,8 +231,7 @@ def test_short_fft_transform():
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=4, 
                                                                 N=64, 
-                                                                q=8,
-                                                                calc_m0=True)
+                                                                q=8)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
@@ -293,8 +286,7 @@ def test_fft_transform_thisone():
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.333, 
                                                                 Nf=4, 
                                                                 N=64, 
-                                                                q=8,
-                                                                calc_m0=True)
+                                                                q=8)
 
     key, subkey = jax.random.split(key)
     x = jax.random.normal(subkey, shape=(wdm.N,)) # white noise
@@ -326,7 +318,6 @@ def test_fft_transform_m0():
         Nf=4,
         N=64,
         q=8,
-        calc_m0=True,
     )
 
     key, subkey = jax.random.split(key)
@@ -371,7 +362,6 @@ def test_fft_transform_m0_independent_of_q():
         Nf=Nf,
         N=N,
         q=2,
-        calc_m0=True,
     )
 
     wdm_q8 = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(
@@ -379,7 +369,6 @@ def test_fft_transform_m0_independent_of_q():
         Nf=Nf,
         N=N,
         q=8,
-        calc_m0=True,
     )
 
     w_q2 = wdm_q2.forward_transform_fft(x)

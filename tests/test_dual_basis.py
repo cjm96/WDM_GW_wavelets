@@ -13,8 +13,7 @@ def test_gnm_dual_basis():
     wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5, 
                                                                 Nf=8, 
                                                                 N=64,
-                                                                q=4,
-                                                                calc_m0=True)
+                                                                q=4)
     
     n, m = 3, 5
     ghat = wdm.gnm_dual(n, m)
