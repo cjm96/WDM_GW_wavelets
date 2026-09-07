@@ -1,6 +1,127 @@
+import os
 from functools import partial
 import jax
 import jax.numpy as jnp
+
+
+#: Fraction of the machine's memory that one working set may occupy before
+#: the reference transforms refuse to run. Unlike
+#: `filters.FILTER_TABLE_BLOCK_BYTES`, which is a block size chosen so that
+#: many blocks fit at once, this is a refusal threshold: the arrays it
+#: guards are built whole and cannot be blocked. Raise it if you have
+#: headroom.
+MAX_WORKING_SET_FRACTION = 0.25
+
+#: Working-set limit used when the machine's memory cannot be detected.
+MAX_WORKING_SET_BYTES_FALLBACK = 1 << 30  # 1 GiB
+
+
+def detect_memory_bytes() -> int:
+    r"""
+    Total memory available to JAX, in bytes.
+
+    Prefers the memory limit of the default JAX device, so that a run on an
+    accelerator is bounded by device memory rather than host memory. The CPU
+    backend reports no such limit, in which case the host's physical memory
+    is used. If neither can be determined - `os.sysconf` is absent on
+    Windows - `MAX_WORKING_SET_BYTES_FALLBACK` is returned.
+
+    Returns
+    -------
+    nbytes : int
+        Total memory, in bytes.
+    """
+    try:
+        stats = jax.devices()[0].memory_stats()
+        if stats is not None and stats.get('bytes_limit'):
+            return int(stats['bytes_limit'])
+    except Exception:
+        pass
+
+    try:
+        return int(os.sysconf('SC_PHYS_PAGES') * os.sysconf('SC_PAGE_SIZE'))
+    except (ValueError, AttributeError, OSError):
+        return MAX_WORKING_SET_BYTES_FALLBACK
+
+
+def check_working_set(nbytes: int, what: str, instead: str) -> None:
+    r"""
+    Refuse to build an array that would not fit in memory.
+
+    The reference and truncated transforms build dense arrays whose size
+    grows as :math:`N^2` (the wavelet bases) or :math:`qNN_f` (the truncated
+    window transform). At production grid sizes these reach tens or hundreds
+    of GiB - enough to take a machine down rather than merely run slowly -
+    so it is better to refuse with an explanation than to start allocating.
+
+    The guarded methods are jitted with `self` static, so :math:`N`,
+    :math:`N_t`, :math:`N_f` and :math:`K` are compile-time constants at the
+    call site: this check costs arithmetic at trace time and nothing at all
+    at run time.
+
+    Parameters
+    ----------
+    nbytes : int
+        Estimated peak working set, in bytes.
+    what : str
+        Description of the array being built, naming its shape. Used in the
+        error message.
+    instead : str
+        Name of the production method to suggest instead.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    MemoryError
+        If `nbytes` exceeds `MAX_WORKING_SET_FRACTION` of detected memory.
+    """
+    limit = MAX_WORKING_SET_FRACTION * detect_memory_bytes()
+
+    if nbytes > limit:
+        raise MemoryError(
+            f"{what} needs about {format_bytes(nbytes)}, which exceeds the "
+            f"working-set limit of {format_bytes(limit)} "
+            f"({100*MAX_WORKING_SET_FRACTION:.0f}% of detected memory). "
+            f"This method is intended for testing and debugging; use "
+            f"`{instead}` instead, which does not build this array. To "
+            f"override, raise "
+            f"`WDM.code.utils.utils.MAX_WORKING_SET_FRACTION`.")
+
+
+def format_bytes(nbytes: float) -> str:
+    r"""
+    Render a number of bytes in the largest unit that keeps it above one.
+
+    Parameters
+    ----------
+    nbytes : float
+        A number of bytes.
+
+    Returns
+    -------
+    text : str
+        Human-readable size.
+
+    Notes
+    -----
+    Example:
+
+    >>> for n in [512, 1 << 18, 1 << 28, 1 << 34, 1 << 44]:
+    ...     print(f"{n} -> {format_bytes(n)}")
+    512 -> 512.00 B
+    262144 -> 256.00 KiB
+    268435456 -> 256.00 MiB
+    17179869184 -> 16.00 GiB
+    17592186044416 -> 16.00 TiB
+    """
+    for unit in ('B', 'KiB', 'MiB', 'GiB'):
+        if nbytes < 1024.:
+            return f"{nbytes:.2f} {unit}"
+        nbytes /= 1024.
+    return f"{nbytes:.2f} TiB"
 
 
 def next_multiple(i: int, N: int) -> int:
@@ -24,7 +145,7 @@ def next_multiple(i: int, N: int) -> int:
     Example with N = 3:
 
     >>> for i in [-4, -3, -2, -1, 0, 1, 2, 3, 4]:
-    ...     print(f"{i} -> {next_multiple(i, 4)}")
+    ...     print(f"{i:2d} -> {next_multiple(i, 3):2d}")
     -4 -> -3
     -3 -> -3
     -2 ->  0
@@ -90,11 +211,11 @@ def overlapping_windows(x: jnp.ndarray, K: int, Nt: int, Nf: int) -> jnp.ndarray
     >>> Nf = 4
     >>> K = 8
     >>> x = jnp.arange(Nt*Nf)
-    >>> overlapping_windows(x, K, Nt, Nf)
-    array([ [12, 13, 14, 15,  0,  1,  2,  3],
-            [ 0,  1,  2,  3,  4,  5,  6,  7],
-            [ 4,  5,  6,  7,  8,  9, 10, 11],
-            [ 8,  9, 10, 11, 12, 13, 14, 15] ])
+    >>> print(overlapping_windows(x, K, Nt, Nf))
+    [[12 13 14 15  0  1  2  3]
+     [ 0  1  2  3  4  5  6  7]
+     [ 4  5  6  7  8  9 10 11]
+     [ 8  9 10 11 12 13 14 15]]
     """
     N = x.shape[0]
     

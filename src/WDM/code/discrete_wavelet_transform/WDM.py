@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 
 from WDM.code.utils.Meyer import Meyer
-from WDM.code.utils.utils import C_nm, overlapping_windows
+from WDM.code.utils.utils import C_nm, check_working_set, overlapping_windows
 from WDM.code.time_delay_filters.filters import (FILTER_TABLE_BLOCK_BYTES,
                                                  build_filter_tables)
 
@@ -442,15 +442,29 @@ class WDM_transform:
 
         Returns
         -------
-        basis : jnp.ndarray 
+        basis : jnp.ndarray
             Array of shape (N, Nt, Nf). The time-domain wavelet basis.
             The first axis is frequency, the second is the wavelet time index,
             and the third is the wavelet frequency index.
+
+        Raises
+        ------
+        MemoryError
+            If the basis would exceed the working-set limit; see
+            `utils.check_working_set`. The basis grows as :math:`N^2`, so
+            this method is only usable on small grids.
         """
         if self._cached_Gnm_basis is not None:
             pass
 
         else:
+            # the complex (N, Nt, Nf) basis, plus one live temporary; note
+            # Nt*Nf = N, so this grows as N^2 and does not depend on Nf
+            check_working_set(2 * 16 * self.N * self.Nt * self.Nf,
+                              f"Gnm_basis builds a complex (N, Nt, Nf) = "
+                              f"({self.N}, {self.Nt}, {self.Nf}) array which",
+                              "forward_transform_fft")
+
             n_vals = jnp.arange(self.Nt)
             m_vals = jnp.arange(self.Nf)
 
@@ -608,13 +622,27 @@ class WDM_transform:
 
         Returns
         -------
-        basis : jnp.ndarray 
+        basis : jnp.ndarray
             Array of shape (N, Nt, Nf). The time-domain wavelet basis.
+
+        Raises
+        ------
+        MemoryError
+            If the basis would exceed the working-set limit; see
+            `utils.check_working_set`. The basis grows as :math:`N^2`, so
+            this method is only usable on small grids.
         """
         if self._cached_gnm_basis is not None:
             pass
 
         else:
+            # the real (N, Nt, Nf) basis; the vmapped result and its
+            # transpose are both live, hence the factor of two
+            check_working_set(2 * 8 * self.N * self.Nt * self.Nf,
+                              f"gnm_basis builds a real (N, Nt, Nf) = "
+                              f"({self.N}, {self.Nt}, {self.Nf}) array which",
+                              "inverse_transform_fft")
+
             n_vals = jnp.arange(self.Nt)
             m_vals = jnp.arange(self.Nf)
             k_vals = jnp.arange(self.N)
@@ -827,21 +855,36 @@ class WDM_transform:
 
         Returns
         -------
-        w : jnp.ndarray 
-            Array shape (Nt, Nf). 
+        w : jnp.ndarray
+            Array shape (Nt, Nf).
             WDM time-frequency-domain wavelet coefficients.
+
+        Raises
+        ------
+        MemoryError
+            If the summand would exceed the working-set limit; see
+            `utils.check_working_set`. It grows as :math:`qNN_f`, so this
+            method is only usable on small grids.
 
         Notes
         -----
-        This method is slow. It is only intended to be used for testing and 
-        debugging purposes. 
+        This method is slow. It is only intended to be used for testing and
+        debugging purposes.
         """
         x = jnp.asarray(x)
 
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
-        
-        w = jnp.zeros((self.Nt, self.Nf), dtype=self.jax_dtype) 
+
+        # the complex (K, Nt, Nf) summand, plus one live temporary; with
+        # K = 2 q Nf this grows as q N Nf
+        check_working_set(2 * 16 * self.K * self.Nt * self.Nf,
+                          f"forward_transform_truncated_window builds a "
+                          f"complex (K, Nt, Nf) = "
+                          f"({self.K}, {self.Nt}, {self.Nf}) array which",
+                          "forward_transform_fft")
+
+        w = jnp.zeros((self.Nt, self.Nf), dtype=self.jax_dtype)
 
         n_vals = jnp.arange(self.Nt)
         m_vals = jnp.arange(self.Nf)

@@ -1,7 +1,46 @@
 import numpy as np
+import pytest
 import jax
 import jax.numpy as jnp
 import WDM
+import WDM.code.utils.utils
+
+
+def test_reference_transforms_refuse_to_exhaust_memory():
+    r"""
+    Test that the reference transforms refuse a working set that will not
+    fit, rather than trying to allocate it.
+
+    These methods build dense arrays that grow as :math:`N^2` (the bases) or
+    :math:`qNN_f` (the truncated window transform), which reach tens of GiB
+    at production grid sizes. The limit is pinned to something tiny here so
+    that a small grid trips it: the point is to prove the guard is wired
+    into each method, and nothing large is ever allocated.
+    """
+    wdm = WDM.code.discrete_wavelet_transform.WDM.WDM_transform(dt=0.5,
+                                                                Nf=4,
+                                                                N=64,
+                                                                q=8)
+
+    x = jnp.zeros(wdm.N)
+
+    guarded = [("Gnm_basis", lambda: wdm.Gnm_basis()),
+               ("gnm_basis", lambda: wdm.gnm_basis()),
+               ("forward_transform_truncated_window",
+                    lambda: wdm.forward_transform_truncated_window(x))]
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(WDM.code.utils.utils,
+                      "MAX_WORKING_SET_FRACTION", 1.0e-12)
+
+        for name, call in guarded:
+            with pytest.raises(MemoryError):
+                call()
+
+    # with the limit restored, the same calls go through
+    for name, call in guarded:
+        assert call() is not None, \
+            f"{name} should succeed once the working set fits."
 
 
 def test_Gnm():
