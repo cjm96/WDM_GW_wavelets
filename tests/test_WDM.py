@@ -175,14 +175,14 @@ def test_inverse_transforms():
     w = wdm.forward_transform_exact(x)
 
     x = wdm.inverse_transform_exact(w)
-    x_ = wdm.inverse_transform(w)
+    x_ = wdm.inverse_transform_truncated_window(w)
 
     assert np.allclose(x, x_, rtol=1.0e-3, atol=1.0e-3), \
         "Inverse transforms don't agree."
 
     w_lots = np.repeat(w[np.newaxis,:,:], 3, axis=0)
 
-    x_lots = wdm.inverse_transform(w_lots)
+    x_lots = wdm.inverse_transform_truncated_window(w_lots)
     
     assert (x_lots.shape==(3, wdm.N) and 
             np.allclose(x, x_lots[0], rtol=1.0e-3, atol=1.0e-3)), \

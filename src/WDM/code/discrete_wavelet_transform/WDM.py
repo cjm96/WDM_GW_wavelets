@@ -1124,14 +1124,20 @@ class WDM_transform:
         return w
     
     @partial(jax.jit, static_argnums=0)
-    def inverse_transform(self, w : jnp.ndarray) -> jnp.ndarray:
-        r""" 
-        Perform the inverse discrete wavelet transform. Transforms the wavelet 
+    def inverse_transform_truncated_window(self,
+                                           w : jnp.ndarray) -> jnp.ndarray:
+        r"""
+        Perform the inverse discrete wavelet transform. Transforms the wavelet
         coefficients from the time-frequency domain into the time domain.
 
-        This method computes the inverse dwt using the truncated wavelets.
-        This is also vectorised to allow for batch jobs computing the idwt for 
-        multiple sets of wavelet coefficients at once; note the shapes of the 
+        This method computes the inverse dwt using the truncated time-domain
+        wavelets, so its accuracy depends on the truncation parameter
+        :math:`q`, in the same way as `forward_transform_truncated_window`.
+        Consider using `inverse_transform_fft` instead, which uses the
+        frequency-domain window and is exact.
+
+        This is also vectorised to allow for batch jobs computing the idwt for
+        multiple sets of wavelet coefficients at once; note the shapes of the
         input and output arrays.
 
         Parameters
@@ -1447,7 +1453,7 @@ class WDM_transform:
             x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .
 
         This method is slow and very memory inefficient. It is here
-        mainly for testing. Consider using `inverse_transform` instead.
+        mainly for testing. Consider using `inverse_transform_fft` instead.
 
         Parameters
         ----------
@@ -1480,7 +1486,7 @@ class WDM_transform:
         r"""
         Forward discrete wavelet transform.
 
-        Calls `self.fast_forward_transform`. Vectorised to allow for 
+        Calls `self.forward_transform_fft`. Vectorised to allow for
         transforming multiple time series at once.
 
         Parameters
@@ -1503,8 +1509,8 @@ class WDM_transform:
         r"""
         Inverse discrete wavelet transform.
 
-        Calls `self.inverse_transform`. Vectorised to allow for transforming 
-        multiple time series at once.
+        Calls `self.inverse_transform_fft`. Vectorised to allow for
+        transforming multiple time series at once.
 
         Parameters
         ----------

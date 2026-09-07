@@ -10,7 +10,7 @@ import jax.numpy as jnp
 #: many blocks fit at once, this is a refusal threshold: the arrays it
 #: guards are built whole and cannot be blocked. Raise it if you have
 #: headroom.
-MAX_WORKING_SET_FRACTION = 0.25
+MAX_WORKING_SET_FRACTION = 0.75
 
 #: Working-set limit used when the machine's memory cannot be detected.
 MAX_WORKING_SET_BYTES_FALLBACK = 1 << 30  # 1 GiB
