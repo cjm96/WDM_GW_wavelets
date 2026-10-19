@@ -77,14 +77,19 @@ from jax.experimental.pallas import triton as plgpu
 
 
 #: Output tile of one kernel program: rows (time) by columns (frequency).
-#: Measured on an RTX A400 at Nt=4096, Nf=1024, L=25. Taller tiles spill the
-#: accumulators out of registers and get slower (32x128 nearly 2x, 32x256 2x).
-BLOCK_ROWS = 16
-BLOCK_COLS = 128
+#: Measured on an RTX A400 at L=25. The kernel's cost is dominated by loading
+#: the delay filters, one value per row per lag, and each value serves every
+#: column of the tile - so short, wide tiles pay: at Nt=4096, Nf=1024, 8x256
+#: runs in 10.2 ms for six grids against 14.3 ms at 16x128, and the gain holds
+#: from 0.33 to 2.66 yr (1.27x to 1.46x). Wider still loses (4x1024 13.3 ms),
+#: and taller tiles spill the accumulators (32x128 30 ms). A grid narrower
+#: than `BLOCK_COLS` gets a narrower tile, and rows are added back to keep at
+#: least `MIN_TILE` elements: 8 rows at Nf=128 (1.14x over 16x128), 16 at
+#: Nf=64, where 8 rows ran 1.5x slower.
+BLOCK_ROWS = 8
+BLOCK_COLS = 256
+MIN_TILE = 1024
 NUM_WARPS = 4
-
-#: Width of the low part when the carrier is built by angle addition.
-CARRIER_SPLIT = 32
 
 
 def _round_up(x, k):
@@ -100,6 +105,14 @@ def _block_cols(Nf):
     while width < min(Nf, BLOCK_COLS):
         width *= 2
     return width
+
+
+def _block_rows(block_cols):
+    r"""
+    Row tile height: `BLOCK_ROWS`, or more for a narrow tile so that it still
+    holds `MIN_TILE` elements. A power of two, since `block_cols` is.
+    """
+    return max(BLOCK_ROWS, MIN_TILE//block_cols)
 
 
 def lag_sums(T, wdm_coeff, max_lag_L, interpret=False):
@@ -133,7 +146,8 @@ def lag_sums(T, wdm_coeff, max_lag_L, interpret=False):
     L = max_lag_L
     G, Nt, Nf = wdm_coeff.shape
     dtype = wdm_coeff.dtype
-    BN, BM = BLOCK_ROWS, _block_cols(Nf)
+    BM = _block_cols(Nf)
+    BN = _block_rows(BM)
     Nt_pad, Nf_pad = _round_up(Nt, BN), _round_up(Nf, BM)
 
     # Cyclic extension by L rows at each end, so the wrapped read is a
@@ -231,10 +245,15 @@ def carrier(dF, delta, Nf, dtype):
 
     In float64 this is direct. In float32 the phase is too large to hand to
     trig - :math:`\theta` reaches a few hundred radians, where float32 spacing
-    is :math:`10^{-5}` - so :math:`m` is split as :math:`m_{hi}+m_{lo}`, each
-    part's phase is reduced to one cycle in float64, and the grid is assembled
-    by angle addition from two narrow tables. That is also an order of
-    magnitude cheaper than a full grid of trig calls on a GPU.
+    is :math:`10^{-5}` - so it is reduced in cycles first. Per row, in float64,
+    :math:`c_n=\Delta F\delta_n \bmod 1` is split as
+    :math:`c_n = c^{hi}_n + c^{lo}_n` with :math:`c^{hi}_n` on a grid of
+    :math:`2^{-b}`, :math:`b = 24 - \lceil\log_2 N_f\rceil`, so that
+    :math:`c^{hi}_n m` is exact in float32 for every :math:`m < N_f` and its
+    fractional part is exact too, while :math:`c^{lo}_n m` stays below
+    :math:`2^{-b} N_f` and loses nothing that matters. What is left is
+    elementwise, so XLA fuses it into its consumer and no
+    :math:`(N_t, N_f)` grid of phases is ever stored.
 
     Parameters
     ----------
@@ -257,21 +276,17 @@ def carrier(dF, delta, Nf, dtype):
         theta = 2*jnp.pi*dF*jnp.outer(delta, m)
         return jnp.cos(theta), jnp.sin(theta)
 
-    k = CARRIER_SPLIT
+    bits = 24 - (Nf - 1).bit_length()
     cycles = (dF*delta) % 1.0
-    lo = jnp.arange(k)
-    hi = jnp.arange(0, _round_up(Nf, k), k)
-    a = (2*jnp.pi*((cycles[:, None]*lo) % 1.0)).astype(dtype)
-    b = (2*jnp.pi*((cycles[:, None]*hi) % 1.0)).astype(dtype)
-    cos_a, sin_a, cos_b, sin_b = jnp.cos(a), jnp.sin(a), jnp.cos(b), jnp.sin(b)
+    c_hi = jnp.round(cycles*2.0**bits)/2.0**bits
+    c_lo = (cycles - c_hi).astype(dtype)[:, None]
+    c_hi = c_hi.astype(dtype)[:, None]
 
-    Nt = delta.shape[0]
-    cos_t = (cos_b[:, :, None]*cos_a[:, None, :]
-             - sin_b[:, :, None]*sin_a[:, None, :]).reshape(Nt, -1)
-    sin_t = (sin_b[:, :, None]*cos_a[:, None, :]
-             + cos_b[:, :, None]*sin_a[:, None, :]).reshape(Nt, -1)
+    m = jnp.arange(Nf, dtype=dtype)
+    whole = c_hi*m
+    theta = 2*jnp.pi*((whole - jnp.floor(whole)) + c_lo*m)
 
-    return cos_t[:, :Nf], sin_t[:, :Nf]
+    return jnp.cos(theta), jnp.sin(theta)
 
 
 def recombine(sums, delta, dF, dtype):
