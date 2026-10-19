@@ -3,6 +3,7 @@ import jax.numpy as jnp
 
 from WDM.code.utils.Meyer import Meyer
 from WDM.code.utils.utils import C_nm, check_working_set, overlapping_windows
+from WDM.code.time_delay_filters.shift_gpu import variable_time_shift_gpu
 from WDM.code.time_delay_filters.filters import (FILTER_TABLE_BLOCK_BYTES,
                                                  build_filter_tables)
 
@@ -1830,6 +1831,55 @@ class WDM_transform:
         `test_apply_variable_time_shift_matches_X_reference`, so read
         `time_delay_matrix_X` first if you want the expressions in their
         textbook form.
+
+        Backends. On a CUDA device the sum is evaluated by the Pallas kernel in
+        `time_delay_filters.shift_gpu`, which regroups it by :math:`l \bmod 4`
+        so that the lag sum is one pass over the grid, and runs it in float32
+        with the delay, phases and filter interpolation kept in float64. Its
+        result is within a relative L2 of :math:`2\times10^{-7}` of the float64
+        path (mismatch :math:`10^{-14}`) and is returned in the dtype of
+        `wdm_coeff`. On every other device the sum is evaluated by
+        `_variable_time_shift_xla`, in the dtype of `wdm_coeff`. The choice is
+        made by `jax.lax.platform_dependent` when the call is lowered, so the
+        CUDA kernel is never compiled for a CPU and the CPU path is exactly the
+        one it always was.
+
+        Parameters
+        ----------
+        filter_tables : jnp.array
+            The tables returned by `build_time_delay_filter_interpolants`,
+            dtype=float, shape=(2, 2L+1, num_interp_points).
+        wdm_coeff : jnp.array
+            WDM coefficient grid. Array, dtype=float, shape=(Nt,Nf)
+        delta : jnp.array
+            Array, dtype=float, shape=(Nt,)
+
+        Returns
+        -------
+        shifted_wdm_coeff : jnp.array
+            Shifted wdm_coefficients. Array, dtype=float, shape=(Nt, Nf)
+        """
+        def cuda(filter_tables, wdm_coeff, delta):
+            max_lag_L = (filter_tables.shape[1] - 1)//2
+            lags = jnp.arange(-max_lag_L, max_lag_L + 1)
+            Tl = self._interp_filter(filter_tables[1], lags, -delta)
+            Tprimel = self._interp_filter(filter_tables[0], lags, -delta)
+            return variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta,
+                                           self.dF)
+
+        return jax.lax.platform_dependent(filter_tables, wdm_coeff, delta,
+                                          default=self._variable_time_shift_xla,
+                                          cuda=cuda)
+
+    @partial(jax.jit, static_argnums=0)
+    def _variable_time_shift_xla(self,
+                                 filter_tables : jnp.array,
+                                 wdm_coeff : jnp.array,
+                                 delta : jnp.array) -> jnp.array:
+        r"""
+        `apply_variable_time_shift` written as plain XLA operations. This is
+        the CPU backend, and the default on any device without a kernel of its
+        own; see `apply_variable_time_shift` for what it computes.
 
         The matrix elements are evaluated in real arithmetic - see
         `matrix_element_weights` below for that rearrangement. The carrier

@@ -1,10 +1,12 @@
 import inspect
 
 import jax
+import pytest
 import jax.numpy as jnp
 
 import WDM
 from WDM.code.discrete_wavelet_transform import WDM
+from WDM.code.time_delay_filters import shift_gpu
 from WDM.code.time_delay_filters.filters import (
                                         FILTER_TABLE_BLOCK_BYTES,
                                         _choose_freq_block,
@@ -269,10 +271,13 @@ def test_apply_variable_time_shift_matches_X_reference():
         \tilde{\omega}_{nm}=\sum_{l,\sigma}\omega_{(n-l)(m+\sigma)}\,
                             X_{n(n-l);m(m+\sigma)}(-\delta_n) .
 
-    Check that `apply_variable_time_shift` reproduces that sum when it is
-    assembled explicitly from `time_delay_matrix_X`. This pins the optimised
-    kernel to the readable per-:math:`(l,\sigma)` expressions, so the two can
-    never drift apart.
+    Check that the XLA backend of `apply_variable_time_shift` reproduces that
+    sum when it is assembled explicitly from `time_delay_matrix_X`. This pins
+    the optimised kernel to the readable per-:math:`(l,\sigma)` expressions,
+    so the two can never drift apart. The backend is called directly because
+    on a GPU the public method runs the float32 kernel, which cannot meet this
+    tolerance; that kernel is pinned to this one by
+    `test_gpu_shift_algebra_matches_xla`.
     """
     L = 4
     wdm = WDM.WDM_transform(dt=0.5, Nf=8, N=8*32, q=4)
@@ -296,7 +301,7 @@ def test_apply_variable_time_shift_matches_X_reference():
 
             reference = reference + coeff*X
 
-    shifted = wdm.apply_variable_time_shift(tables, wdm_coeff, delta)
+    shifted = wdm._variable_time_shift_xla(tables, wdm_coeff, delta)
 
     eps = jnp.max(jnp.abs(shifted - reference))/jnp.max(jnp.abs(reference))
 
@@ -640,3 +645,101 @@ def test_window_support_still_trims_interior_support():
 
     assert window_support(interior, shift, shift) == (20, 31), \
         "interior support clear of both edges must still be trimmed"
+
+
+def _shift_inputs(dt, Nf, Nt, L, delay_amplitude, seed=0):
+    r"""
+    A transform, its filter tables, a random grid and a slowly varying delay
+    for the backend comparisons below.
+    """
+    wdm = WDM.WDM_transform(dt=dt, Nf=Nf, N=Nf*Nt, q=4)
+    tables = wdm.build_time_delay_filter_interpolants(L, 16)
+    wdm_coeff = jax.random.normal(jax.random.PRNGKey(seed), (Nt, Nf))
+    delta = delay_amplitude*jnp.sin(jnp.arange(Nt)/7.0 + 0.3)
+    lags = jnp.arange(-L, L+1)
+    Tl = wdm._interp_filter(tables[1], lags, -delta)
+    Tprimel = wdm._interp_filter(tables[0], lags, -delta)
+    return wdm, tables, wdm_coeff, delta, Tl, Tprimel
+
+
+def test_apply_variable_time_shift_is_the_xla_backend_on_cpu():
+    r"""
+    Off CUDA the dispatch must hand back exactly what the XLA backend
+    computes - the GPU kernel is not allowed to change the CPU path.
+    """
+    if jax.default_backend() != "cpu":
+        pytest.skip("checks the CPU path")
+
+    wdm, tables, wdm_coeff, delta, _, _ = _shift_inputs(0.5, 8, 32, 4, 2.0)
+
+    assert jnp.array_equal(wdm.apply_variable_time_shift(tables, wdm_coeff,
+                                                         delta),
+                           wdm._variable_time_shift_xla(tables, wdm_coeff,
+                                                        delta))
+
+
+@pytest.mark.parametrize("Nf, Nt", [(8, 32), (12, 40)])
+def test_gpu_shift_algebra_matches_xla(Nf, Nt):
+    r"""
+    The GPU backend regroups the sum by :math:`l \bmod 4`. Run its kernel in
+    float64 in the Pallas interpreter and check the regrouping reproduces the
+    XLA backend to rounding. The second grid is not a multiple of the tile
+    shape, so it also exercises the padding.
+    """
+    L = 4
+    wdm, tables, wdm_coeff, delta, Tl, Tprimel = _shift_inputs(0.5, Nf, Nt,
+                                                               L, 2.0)
+
+    reference = wdm._variable_time_shift_xla(tables, wdm_coeff, delta)
+    shifted = shift_gpu.variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta,
+                                                wdm.dF, dtype=jnp.float64,
+                                                interpret=True)
+
+    eps = jnp.max(jnp.abs(shifted - reference))/jnp.max(jnp.abs(reference))
+
+    assert eps < 1.0e-12, f"regrouped sum differs from the XLA one: {eps=}"
+
+
+def test_gpu_shift_float32_precision():
+    r"""
+    The GPU backend works in float32. With a delay of several hundred seconds
+    the carrier phase reaches ~125 rad, well past where float32 trig is
+    usable, so this also checks that the phase is reduced before the cast.
+    """
+    L = 8
+    wdm, tables, wdm_coeff, delta, Tl, Tprimel = _shift_inputs(10.0, 64, 128,
+                                                               L, 400.0)
+
+    reference = wdm._variable_time_shift_xla(tables, wdm_coeff, delta)
+    shifted = shift_gpu.variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta,
+                                                wdm.dF, interpret=True)
+
+    assert shifted.dtype == wdm_coeff.dtype
+    rel_l2 = jnp.linalg.norm(shifted - reference)/jnp.linalg.norm(reference)
+
+    assert rel_l2 < 1.0e-6, f"float32 shift not accurate enough: {rel_l2=}"
+
+
+@pytest.mark.skipif(not any(d.platform == "gpu" for d in jax.devices()),
+                    reason="needs a CUDA device")
+def test_apply_variable_time_shift_on_gpu_matches_cpu():
+    r"""
+    The public method on a GPU, i.e. the compiled Pallas kernel, against the
+    same call on the CPU.
+    """
+    L = 25
+    wdm, tables, wdm_coeff, delta, _, _ = _shift_inputs(10.0, 256, 512,
+                                                        L, 400.0)
+
+    with jax.default_device(jax.devices("cpu")[0]):
+        reference = wdm.apply_variable_time_shift(tables, wdm_coeff, delta)
+
+    gpu = jax.devices("gpu")[0]
+    shifted = wdm.apply_variable_time_shift(*jax.device_put(
+        (tables, wdm_coeff, delta), gpu))
+
+    assert shifted.devices() == {gpu}
+    rel_l2 = jnp.linalg.norm(jnp.asarray(shifted) - reference) \
+        / jnp.linalg.norm(reference)
+
+    assert rel_l2 < 1.0e-6, f"GPU shift differs from CPU: {rel_l2=}"

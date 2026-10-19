@@ -37,6 +37,13 @@ keywords = [
 ]
 
 [project.optional-dependencies]
+# CUDA build of jax. On a CUDA device apply_variable_time_shift runs the Pallas
+# (Triton) kernel in time_delay_filters/shift_gpu.py, float32 by design; the
+# CPU path is unchanged and needs nothing extra. Tested with jax 0.9.2 on sm_86.
+gpu = [
+    "jax[cuda12]",
+]
+
 dev = [
     "pytest",
     "astropy",
