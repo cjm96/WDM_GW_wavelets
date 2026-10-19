@@ -745,14 +745,15 @@ def test_gpu_delay_filters_match_interp_filter(amplitude):
     assert jnp.allclose(filters[:, 1], Tl, rtol=0, atol=1e-15)
 
 
-@pytest.mark.parametrize("Nf, Nt", [(8, 32), (12, 40)])
+@pytest.mark.parametrize("Nf, Nt", [(8, 32), (12, 40), (320, 8)])
 def test_gpu_shift_algebra_matches_xla(Nf, Nt):
     r"""
     The GPU backend regroups the sum by lag parity. Run its kernel in float64
     in the Pallas interpreter, on a stack of grids with different delays, and
     check the regrouping reproduces the XLA backend to rounding. The second
     grid is not a multiple of the tile shape, so it also exercises the
-    padding.
+    padding. The first two fit in one column tile and take the time-major
+    layout; the third is wider than a tile and takes the grid-major one.
     """
     L = 4
     wdm, tables, wdm_coeff, delta, Tl, Tprimel = _shift_inputs(0.5, Nf, Nt,

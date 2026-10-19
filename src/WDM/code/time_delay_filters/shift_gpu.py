@@ -153,9 +153,24 @@ def lag_sums(T, wdm_coeff, max_lag_L, interpret=False):
     # Cyclic extension by L rows at each end, so the wrapped read is a
     # contiguous window, then zeros to fill out the last tiles. The zero rows
     # and columns only ever feed outputs that are sliced away below.
-    ext = jnp.concatenate([wdm_coeff[:, -L:], wdm_coeff, wdm_coeff[:, :L]],
-                          axis=1)
-    ext = jnp.pad(ext, ((0, 0), (0, Nt_pad - Nt), (0, Nf_pad - Nf)))
+    #
+    # When one tile spans the whole frequency axis the extension is built time
+    # major, (Nt + 2L, G, Nf): XLA then writes it straight from whatever
+    # produced the grids, reading each source row once for all of them, and
+    # the separate extension copy disappears. On an RTX A400 at dt=4 s and
+    # ~2^23 samples that is 4-7% of a whole response call for Nf <= 256; for
+    # wider grids the longer row stride costs more than it saves (4-8% slower
+    # at Nf = 512-2048), so they keep the grid-major layout. Bitwise identical
+    # either way.
+    time_major = Nf_pad == BM
+    if time_major:
+        ext = jnp.transpose(wdm_coeff, (1, 0, 2))
+        ext = jnp.concatenate([ext[-L:], ext, ext[:L]], axis=0)
+        ext = jnp.pad(ext, ((0, Nt_pad - Nt), (0, 0), (0, Nf_pad - Nf)))
+    else:
+        ext = jnp.concatenate([wdm_coeff[:, -L:], wdm_coeff,
+                               wdm_coeff[:, :L]], axis=1)
+        ext = jnp.pad(ext, ((0, 0), (0, Nt_pad - Nt), (0, Nf_pad - Nf)))
     T = jnp.pad(T.astype(dtype), ((0, 0), (0, 0), (0, 0), (0, Nt_pad - Nt)))
 
     def kernel(ext_ref, t_ref, out_ref):
@@ -167,7 +182,10 @@ def lag_sums(T, wdm_coeff, max_lag_L, interpret=False):
         acc = [jnp.zeros((BN, BM), dtype) for _ in range(4)]
         for i in range(2*L + 1):
             l = i - L
-            rows = ext_ref[g, pl.ds(i0 + L - l, BN), pl.ds(j0, BM)]
+            if time_major:
+                rows = ext_ref[pl.ds(i0 + L - l, BN), g, pl.ds(j0, BM)]
+            else:
+                rows = ext_ref[g, pl.ds(i0 + L - l, BN), pl.ds(j0, BM)]
             p = l % 2
             acc[p] += t_ref[g, 0, i, pl.ds(i0, BN)][:, None]*rows
             acc[2 + p] += t_ref[g, 1, i, pl.ds(i0, BN)][:, None]*rows
