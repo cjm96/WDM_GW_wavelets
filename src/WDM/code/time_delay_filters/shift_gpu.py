@@ -187,6 +187,66 @@ def lag_sums(T, wdm_coeff, max_lag_L, interpret=False):
     return sums[:, :, :Nt, :Nf]
 
 
+def delay_filters(filter_tables, delta, dT, dtype):
+    r"""
+    The delay filters the kernel needs, :math:`\epsilon_l T'_l(-\delta_n)`
+    and :math:`T_l(-\delta_n)`, for every lag, row and grid.
+
+    The same lookup as `WDM_transform._interp_filter` - fold the delay into
+    :math:`[-\Delta T/2, \Delta T/2)` by shifting the lag, then blend
+    linearly between table nodes - split by cost. The fold and the position
+    in the table are per row, :math:`N_t` values, and stay in float64. The
+    gather and the blend are per lag and row and run in `dtype`, with int32
+    indices: in float64 with int64 indices this was 5.4 ms of a 70 ms call on
+    an RTX A400 at Nt=32768.
+
+    Parameters
+    ----------
+    filter_tables : jnp.array
+        The tables returned by `build_time_delay_filter_interpolants`,
+        shape=(2, 2L+1, num_interp_points).
+    delta : jnp.array
+        Delay per row, float64. Array, shape=(G, Nt).
+    dT : float
+        Time resolution :math:`\Delta T`.
+    dtype : jnp.dtype
+        Precision of the gather and blend.
+
+    Returns
+    -------
+    filters : jnp.array
+        :math:`\epsilon_l T'_l` and :math:`T_l`. Array, shape=(G, 2, 2L+1, Nt).
+    """
+    _, num_lags, num_points = filter_tables.shape
+    max_lag_L = (num_lags - 1)//2
+
+    # per row, in float64: the lag shift that folds -delta into the table's
+    # span, and the position within it
+    k, rem = jnp.divmod(-delta + 0.5*dT, dT)
+    u = rem/dT*(num_points - 1)
+    i0 = jnp.clip(jnp.floor(u), 0, num_points - 2)
+    frac = (u - i0).astype(dtype)[:, jnp.newaxis, :]
+    i0 = i0.astype(jnp.int32)[:, jnp.newaxis, :]
+
+    lags = jnp.arange(-max_lag_L, max_lag_L + 1, dtype=jnp.int32)
+    row = lags[:, jnp.newaxis] - k.astype(jnp.int32)[:, jnp.newaxis, :] \
+        + max_lag_L
+    in_range = (row >= 0) & (row <= 2*max_lag_L)
+    row = jnp.clip(row, 0, 2*max_lag_L)
+
+    # epsilon_l = (-1)^((l - l%2)/2): +1 for l = 0, 1 mod 4, -1 for 2, 3
+    epsilon = jnp.where(lags % 4 < 2, 1.0, -1.0).astype(dtype)[:, jnp.newaxis]
+
+    def lookup(table):
+        table = table.astype(dtype)
+        lo = table[row, i0]
+        hi = table[row, i0 + 1]
+        return jnp.where(in_range, lo + frac*(hi - lo), 0.0)
+
+    return jnp.stack([epsilon*lookup(filter_tables[0]),
+                      lookup(filter_tables[1])], axis=1)
+
+
 def group_weights(r, sigma, sign_n, cos_h, sin_h):
     r"""
     :math:`\alpha_{r\sigma}(n)` and :math:`\beta_{r\sigma}(n)`, the weights of
@@ -339,7 +399,7 @@ def recombine(sums, delta, dF, dtype):
     return cos_t*cos_part + sin_t*sin_part
 
 
-def variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta, dF,
+def variable_time_shift_gpu(filter_tables, wdm_coeff, delta, dF, dT,
                             dtype=jnp.float32, interpret=False):
     r"""
     The variable time shift of a stack of grids, regrouped for a GPU. Same
@@ -348,15 +408,17 @@ def variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta, dF,
 
     Parameters
     ----------
-    Tl, Tprimel : jnp.array
-        Delay filters :math:`T_l` and :math:`T'_l` evaluated at
-        :math:`-\delta_n`. Array, shape=(G, 2L+1, Nt).
+    filter_tables : jnp.array
+        The tables returned by `build_time_delay_filter_interpolants`,
+        shape=(2, 2L+1, num_interp_points).
     wdm_coeff : jnp.array
         WDM coefficient grids. Array, shape=(G, Nt, Nf).
     delta : jnp.array
         Delay per row, float64. Array, shape=(G, Nt).
     dF : float
         Frequency resolution :math:`\Delta F`.
+    dT : float
+        Time resolution :math:`\Delta T`.
     dtype : jnp.dtype
         Working precision of the kernel and the recombination. float64 is for
         testing the algebra; it is slow on most GPUs.
@@ -368,13 +430,9 @@ def variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta, dF,
     shifted_wdm_coeff : jnp.array
         In the dtype of `wdm_coeff`. Array, shape=(G, Nt, Nf).
     """
-    max_lag_L = (Tl.shape[1] - 1)//2
+    max_lag_L = (filter_tables.shape[1] - 1)//2
 
-    # epsilon_l = (-1)^((l - l%2)/2): +1 for l = 0, 1 mod 4, -1 for 2, 3
-    lags = jnp.arange(-max_lag_L, max_lag_L + 1)
-    epsilon = jnp.where(lags % 4 < 2, 1.0, -1.0)[:, None]
-
-    sums = lag_sums(jnp.stack([epsilon*Tprimel, Tl], axis=1),
+    sums = lag_sums(delay_filters(filter_tables, delta, dT, dtype),
                     wdm_coeff.astype(dtype), max_lag_L, interpret=interpret)
 
     shifted = jax.vmap(recombine, in_axes=(0, 0, None, None))(sums, delta, dF,

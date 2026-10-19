@@ -726,6 +726,25 @@ def test_gpu_shift_weights_repeat_every_two_lags(sigma):
         assert jnp.array_equal(beta2, flip*beta)
 
 
+@pytest.mark.parametrize("amplitude", [2.0, 0.6])
+def test_gpu_delay_filters_match_interp_filter(amplitude):
+    r"""
+    The GPU path looks the delay filters up itself, splitting the per-row
+    fold from the per-lag gather. In float64 it must reproduce
+    `_interp_filter` - including delays large enough to fold into another lag
+    row (2.0 is several dT here), where the lag shift matters.
+    """
+    L = 4
+    wdm, tables, wdm_coeff, delta, Tl, Tprimel = _shift_inputs(
+        0.5, 8, 32, L, amplitude*8*0.5)
+    filters = shift_gpu.delay_filters(tables, delta, wdm.dT, jnp.float64)
+    lags = jnp.arange(-L, L+1)
+    epsilon = jnp.where(lags % 4 < 2, 1.0, -1.0)[:, None]
+
+    assert jnp.allclose(filters[:, 0], epsilon*Tprimel, rtol=0, atol=1e-15)
+    assert jnp.allclose(filters[:, 1], Tl, rtol=0, atol=1e-15)
+
+
 @pytest.mark.parametrize("Nf, Nt", [(8, 32), (12, 40)])
 def test_gpu_shift_algebra_matches_xla(Nf, Nt):
     r"""
@@ -740,8 +759,9 @@ def test_gpu_shift_algebra_matches_xla(Nf, Nt):
                                                                L, 2.0)
 
     reference = _xla_reference(wdm, tables, wdm_coeff, delta)
-    shifted = shift_gpu.variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta,
-                                                wdm.dF, dtype=jnp.float64,
+    shifted = shift_gpu.variable_time_shift_gpu(tables, wdm_coeff, delta,
+                                                wdm.dF, wdm.dT,
+                                                dtype=jnp.float64,
                                                 interpret=True)
 
     eps = jnp.max(jnp.abs(shifted - reference))/jnp.max(jnp.abs(reference))
@@ -760,8 +780,9 @@ def test_gpu_shift_float32_precision():
                                                                L, 400.0)
 
     reference = _xla_reference(wdm, tables, wdm_coeff, delta)
-    shifted = shift_gpu.variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta,
-                                                wdm.dF, interpret=True)
+    shifted = shift_gpu.variable_time_shift_gpu(tables, wdm_coeff, delta,
+                                                wdm.dF, wdm.dT,
+                                                interpret=True)
 
     assert shifted.dtype == wdm_coeff.dtype
     rel_l2 = jnp.linalg.norm(shifted - reference)/jnp.linalg.norm(reference)

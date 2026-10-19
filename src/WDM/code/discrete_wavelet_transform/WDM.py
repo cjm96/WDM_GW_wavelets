@@ -1926,10 +1926,9 @@ class WDM_transform:
                                   wdm_coeff : jnp.array,
                                   delta : jnp.array) -> jnp.array:
         r"""
-        The CUDA backend of `apply_variable_time_shift_batch`: interpolate the
-        delay filters for every grid, then hand the stack to
-        `time_delay_filters.shift_gpu`. Called only inside the jitted public
-        methods.
+        The CUDA backend of `apply_variable_time_shift_batch`: hand the stack
+        to `time_delay_filters.shift_gpu`, which also does its own filter
+        lookup. Called only inside the jitted public methods.
 
         Parameters
         ----------
@@ -1946,17 +1945,8 @@ class WDM_transform:
             In the dtype the XLA backend returns for the same inputs.
             Shape=(G, Nt, Nf).
         """
-        max_lag_L = (filter_tables.shape[1] - 1)//2
-        lags = jnp.arange(-max_lag_L, max_lag_L + 1)
-
-        def filters(d):
-            return (self._interp_filter(filter_tables[1], lags, -d),
-                    self._interp_filter(filter_tables[0], lags, -d))
-
-        Tl, Tprimel = jax.vmap(filters)(delta)
-
-        shifted = variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta,
-                                          self.dF)
+        shifted = variable_time_shift_gpu(filter_tables, wdm_coeff, delta,
+                                          self.dF, self.dT)
 
         # platform_dependent traces every branch on every device and needs
         # them to agree, so return what the XLA backend would: float64 for
