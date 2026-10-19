@@ -1,8 +1,9 @@
 r"""
 GPU backend for the variable time shift.
 
-`WDM_transform.apply_variable_time_shift` dispatches here on CUDA devices. The
-sum it evaluates is the same one, written out in `time_delay_matrix_X`,
+`WDM_transform.apply_variable_time_shift` and
+`WDM_transform.apply_variable_time_shift_batch` dispatch here on CUDA devices.
+The sum they evaluate is the same one, written out in `time_delay_matrix_X`,
 
 .. math::
 
@@ -21,21 +22,28 @@ The regrouping. In real arithmetic every term of the sum is
 
 with :math:`\theta_{nm}=2\pi m\Delta F\delta_n`, :math:`F^{0}=T_l` and
 :math:`F^{\pm1}=T'_l` the delay filters, and :math:`s_\sigma(m)=(-1)^m` for
-:math:`\sigma=\pm1` and :math:`1` for :math:`\sigma=0`. Three facts make it
+:math:`\sigma=\pm1` and :math:`1` for :math:`\sigma=0`. Four facts make it
 factorise:
 
 * :math:`\cos\theta` and :math:`\sin\theta` do not depend on the lag;
 * :math:`\alpha` and :math:`\beta` are rank-1 in :math:`n` and depend on the
   lag only through :math:`l \bmod 4` (the lag phase :math:`(\pm i)^l` and the
   parity of :math:`l+\sigma`);
+* advancing the lag by two flips the sign of the lag phase and nothing else,
+  so :math:`\alpha_{l+2,\sigma}=-\alpha_{l\sigma}` for the sidebands, while for
+  :math:`\sigma=0` there is no lag phase and :math:`\alpha_{l+2,0}=\alpha_{l0}`
+  (likewise :math:`\beta`);
 * :math:`s_\sigma` depends on :math:`\sigma` alone.
 
-So the only sums over lags that are needed are the eight banded sums
+So, with :math:`\epsilon_l=(-1)^{(l-p)/2}` for :math:`l\equiv p \pmod 2`, the
+only sums over lags that are needed are the four banded sums
 
 .. math::
 
-    U^{F}_r(n, m) = \sum_{l \equiv r \ (\mathrm{mod}\ 4)} F_l(n)\,
-        \omega_{(n-l)m}, \qquad F \in \{T', T\},\ r=0\ldots3 ,
+    P_p(n, m) = \sum_{l \equiv p} \epsilon_l T'_l(n)\, \omega_{(n-l)m},
+    \qquad
+    Q_p(n, m) = \sum_{l \equiv p} T_l(n)\, \omega_{(n-l)m},
+    \qquad p = 0, 1 ,
 
 which is one load of the coefficient grid and two multiply-adds per lag. That
 is the Pallas kernel. Everything after it - the rank-1 weights, the
@@ -45,8 +53,14 @@ XLA to fuse.
 On a CPU this regrouping does not pay: XLA:CPU already fuses the direct sum
 into one pass, and the extra passes of the recombination cost more than the
 saved arithmetic. On a GPU the direct sum is not fused - it reloads the grid
-for each of the :math:`3(2L+1)` terms - and the regrouped form is about eight
+for each of the :math:`3(2L+1)` terms - and the regrouped form is about ten
 times faster than the direct form written as a Pallas kernel.
+
+Batching. A stack of grids goes through as one kernel launch with the grid
+index as the outermost axis of the launch grid. That does not make each grid
+cheaper - one grid of a year-long record is already a couple of thousand
+tiles, enough to fill a GPU - but it removes the per-grid launches and the
+per-grid glue around them, which for six links halves the time of the shift.
 
 Precision. The kernel and the recombination run in float32. The delay, the
 phases and the filter interpolation stay in float64 and are only cast at the
@@ -63,9 +77,8 @@ from jax.experimental.pallas import triton as plgpu
 
 
 #: Output tile of one kernel program: rows (time) by columns (frequency).
-#: Measured on an RTX A400 at Nt=4096, Nf=1024, L=25. Taller tiles spill
-#: the eight accumulators out of registers and get much slower (32x128 is 3.5x,
-#: 64x64 12x).
+#: Measured on an RTX A400 at Nt=4096, Nf=1024, L=25. Taller tiles spill the
+#: accumulators out of registers and get slower (32x128 nearly 2x, 32x256 2x).
 BLOCK_ROWS = 16
 BLOCK_COLS = 128
 NUM_WARPS = 4
@@ -91,19 +104,21 @@ def _block_cols(Nf):
 
 def lag_sums(T, wdm_coeff, max_lag_L, interpret=False):
     r"""
-    The eight banded sums :math:`U^F_r`, as one Pallas kernel.
+    The four banded sums :math:`P_0, P_1, Q_0, Q_1` for a stack of grids, as
+    one Pallas kernel.
 
-    Each program owns a `BLOCK_ROWS` by `BLOCK_COLS` tile and keeps all eight
-    accumulators in registers. Lag :math:`l` reads the tile's rows shifted by
-    :math:`l`; neighbouring lags overlap, so these reads mostly hit cache.
+    Each program owns one `BLOCK_ROWS` by `BLOCK_COLS` tile of one grid and
+    keeps the four accumulators in registers. Lag :math:`l` reads the tile's
+    rows shifted by :math:`l`; neighbouring lags overlap, so these reads mostly
+    hit cache.
 
     Parameters
     ----------
     T : jnp.array
-        Delay filters :math:`T'_l` and :math:`T_l` evaluated at
-        :math:`-\delta_n`. Array, shape=(2, 2L+1, Nt).
+        Delay filters :math:`\epsilon_l T'_l` and :math:`T_l` evaluated at
+        :math:`-\delta_n`. Array, shape=(G, 2, 2L+1, Nt).
     wdm_coeff : jnp.array
-        WDM coefficient grid. Array, shape=(Nt, Nf).
+        WDM coefficient grids. Array, shape=(G, Nt, Nf).
     max_lag_L : int
         :math:`L`.
     interpret : bool
@@ -111,12 +126,12 @@ def lag_sums(T, wdm_coeff, max_lag_L, interpret=False):
 
     Returns
     -------
-    U : jnp.array
-        :math:`U^{T'}_0\ldots U^{T'}_3, U^{T}_0\ldots U^{T}_3`, in the dtype of
-        `wdm_coeff`. Array, shape=(8, Nt, Nf).
+    sums : jnp.array
+        :math:`P_0, P_1, Q_0, Q_1` per grid, in the dtype of `wdm_coeff`.
+        Array, shape=(G, 4, Nt, Nf).
     """
     L = max_lag_L
-    Nt, Nf = wdm_coeff.shape
+    G, Nt, Nf = wdm_coeff.shape
     dtype = wdm_coeff.dtype
     BN, BM = BLOCK_ROWS, _block_cols(Nf)
     Nt_pad, Nf_pad = _round_up(Nt, BN), _round_up(Nf, BM)
@@ -124,35 +139,38 @@ def lag_sums(T, wdm_coeff, max_lag_L, interpret=False):
     # Cyclic extension by L rows at each end, so the wrapped read is a
     # contiguous window, then zeros to fill out the last tiles. The zero rows
     # and columns only ever feed outputs that are sliced away below.
-    ext = jnp.concatenate([wdm_coeff[-L:], wdm_coeff, wdm_coeff[:L]], axis=0)
-    ext = jnp.pad(ext, ((0, Nt_pad - Nt), (0, Nf_pad - Nf)))
-    T = jnp.pad(T.astype(dtype), ((0, 0), (0, 0), (0, Nt_pad - Nt)))
+    ext = jnp.concatenate([wdm_coeff[:, -L:], wdm_coeff, wdm_coeff[:, :L]],
+                          axis=1)
+    ext = jnp.pad(ext, ((0, 0), (0, Nt_pad - Nt), (0, Nf_pad - Nf)))
+    T = jnp.pad(T.astype(dtype), ((0, 0), (0, 0), (0, 0), (0, Nt_pad - Nt)))
 
     def kernel(ext_ref, t_ref, out_ref):
-        i0 = pl.program_id(0)*BN
-        j0 = pl.program_id(1)*BM
+        g = pl.program_id(0)
+        i0 = pl.program_id(1)*BN
+        j0 = pl.program_id(2)*BM
 
-        acc = [jnp.zeros((BN, BM), dtype) for _ in range(8)]
+        # P_0, P_1, Q_0, Q_1
+        acc = [jnp.zeros((BN, BM), dtype) for _ in range(4)]
         for i in range(2*L + 1):
             l = i - L
-            rows = ext_ref[pl.ds(i0 + L - l, BN), pl.ds(j0, BM)]
-            r = l % 4
-            acc[r] += t_ref[0, i, pl.ds(i0, BN)][:, None]*rows
-            acc[4 + r] += t_ref[1, i, pl.ds(i0, BN)][:, None]*rows
+            rows = ext_ref[g, pl.ds(i0 + L - l, BN), pl.ds(j0, BM)]
+            p = l % 2
+            acc[p] += t_ref[g, 0, i, pl.ds(i0, BN)][:, None]*rows
+            acc[2 + p] += t_ref[g, 1, i, pl.ds(i0, BN)][:, None]*rows
 
-        for k in range(8):
-            out_ref[k, pl.ds(i0, BN), pl.ds(j0, BM)] = acc[k]
+        for k in range(4):
+            out_ref[g, k, pl.ds(i0, BN), pl.ds(j0, BM)] = acc[k]
 
-    U = pl.pallas_call(
+    sums = pl.pallas_call(
         kernel,
-        out_shape=jax.ShapeDtypeStruct((8, Nt_pad, Nf_pad), dtype),
-        grid=(Nt_pad//BN, Nf_pad//BM),
+        out_shape=jax.ShapeDtypeStruct((G, 4, Nt_pad, Nf_pad), dtype),
+        grid=(G, Nt_pad//BN, Nf_pad//BM),
         compiler_params=plgpu.CompilerParams(num_warps=NUM_WARPS,
                                              num_stages=1),
         interpret=interpret,
     )(ext, T)
 
-    return U[:, :Nt, :Nf]
+    return sums[:, :, :Nt, :Nf]
 
 
 def group_weights(r, sigma, sign_n, cos_h, sin_h):
@@ -256,22 +274,72 @@ def carrier(dF, delta, Nf, dtype):
     return cos_t[:, :Nf], sin_t[:, :Nf]
 
 
+def recombine(sums, delta, dF, dtype):
+    r"""
+    The shifted grid from its four lag sums: apply the rank-1 weights, move
+    the sidebands to column :math:`m+\sigma`, and multiply in the carrier.
+
+    Parameters
+    ----------
+    sums : jnp.array
+        :math:`P_0, P_1, Q_0, Q_1` of one grid. Array, shape=(4, Nt, Nf).
+    delta : jnp.array
+        Delay, float64. Array, shape=(Nt,).
+    dF : float
+        Frequency resolution :math:`\Delta F`.
+    dtype : jnp.dtype
+        Working precision.
+
+    Returns
+    -------
+    shifted : jnp.array
+        Array, shape=(Nt, Nf).
+    """
+    _, Nt, Nf = sums.shape
+    sign_n = jnp.where(jnp.arange(Nt) % 2 == 0, 1.0, -1.0)
+    sign_m = jnp.where(jnp.arange(Nf) % 2 == 0, 1.0, -1.0).astype(dtype)
+    half = jnp.pi*dF*delta
+    cos_h, sin_h = jnp.cos(half), jnp.sin(half)
+
+    # weight of cos(theta) and of sin(theta), summed over sigma
+    cos_part = 0.0
+    sin_part = 0.0
+    for sigma in (-1, 0, 1):
+        first = 2 if sigma == 0 else 0   # Q for sigma=0, P for the sidebands
+        A = 0.0
+        B = 0.0
+        for p in range(2):
+            alpha, beta = group_weights(p, sigma, sign_n, cos_h, sin_h)
+            A = A + alpha.astype(dtype)[:, None]*sums[first + p]
+            B = B + beta.astype(dtype)[:, None]*sums[first + p]
+        if sigma != 0:
+            # omega_{(n-l)(m+sigma)}: column m+sigma, wrapped, then (-1)^m
+            A = jnp.roll(A, -sigma, axis=1)*sign_m
+            B = jnp.roll(B, -sigma, axis=1)*sign_m
+        cos_part = cos_part + A
+        sin_part = sin_part + B
+
+    cos_t, sin_t = carrier(dF, delta, Nf, dtype)
+
+    return cos_t*cos_part + sin_t*sin_part
+
+
 def variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta, dF,
                             dtype=jnp.float32, interpret=False):
     r"""
-    The variable time shift, regrouped for a GPU. Same contract as
-    `WDM_transform.apply_variable_time_shift`, including the periodic wrap at
-    the edges of the grid.
+    The variable time shift of a stack of grids, regrouped for a GPU. Same
+    contract as `WDM_transform.apply_variable_time_shift_batch`, including the
+    periodic wrap at the edges of each grid.
 
     Parameters
     ----------
     Tl, Tprimel : jnp.array
         Delay filters :math:`T_l` and :math:`T'_l` evaluated at
-        :math:`-\delta_n`. Array, shape=(2L+1, Nt).
+        :math:`-\delta_n`. Array, shape=(G, 2L+1, Nt).
     wdm_coeff : jnp.array
-        WDM coefficient grid. Array, shape=(Nt, Nf).
+        WDM coefficient grids. Array, shape=(G, Nt, Nf).
     delta : jnp.array
-        Delay per row, float64. Array, shape=(Nt,).
+        Delay per row, float64. Array, shape=(G, Nt).
     dF : float
         Frequency resolution :math:`\Delta F`.
     dtype : jnp.dtype
@@ -283,38 +351,18 @@ def variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta, dF,
     Returns
     -------
     shifted_wdm_coeff : jnp.array
-        In the dtype of `wdm_coeff`. Array, shape=(Nt, Nf).
+        In the dtype of `wdm_coeff`. Array, shape=(G, Nt, Nf).
     """
-    max_lag_L = (Tl.shape[0] - 1)//2
-    Nt, Nf = wdm_coeff.shape
+    max_lag_L = (Tl.shape[1] - 1)//2
 
-    U = lag_sums(jnp.stack([Tprimel, Tl]), wdm_coeff.astype(dtype), max_lag_L,
-                 interpret=interpret)
+    # epsilon_l = (-1)^((l - l%2)/2): +1 for l = 0, 1 mod 4, -1 for 2, 3
+    lags = jnp.arange(-max_lag_L, max_lag_L + 1)
+    epsilon = jnp.where(lags % 4 < 2, 1.0, -1.0)[:, None]
 
-    n = jnp.arange(Nt)
-    sign_n = jnp.where(n % 2 == 0, 1.0, -1.0)
-    sign_m = jnp.where(jnp.arange(Nf) % 2 == 0, 1.0, -1.0).astype(dtype)
-    half = jnp.pi*dF*delta
-    cos_h, sin_h = jnp.cos(half), jnp.sin(half)
+    sums = lag_sums(jnp.stack([epsilon*Tprimel, Tl], axis=1),
+                    wdm_coeff.astype(dtype), max_lag_L, interpret=interpret)
 
-    # weight of cos(theta) and of sin(theta), summed over sigma
-    cos_part = 0.0
-    sin_part = 0.0
-    for sigma in (-1, 0, 1):
-        first = 4 if sigma == 0 else 0   # T for sigma=0, T' for the sidebands
-        A = 0.0
-        B = 0.0
-        for r in range(4):
-            alpha, beta = group_weights(r, sigma, sign_n, cos_h, sin_h)
-            A = A + alpha.astype(dtype)[:, None]*U[first + r]
-            B = B + beta.astype(dtype)[:, None]*U[first + r]
-        if sigma != 0:
-            # omega_{(n-l)(m+sigma)}: column m+sigma, wrapped, then (-1)^m
-            A = jnp.roll(A, -sigma, axis=1)*sign_m
-            B = jnp.roll(B, -sigma, axis=1)*sign_m
-        cos_part = cos_part + A
-        sin_part = sin_part + B
+    shifted = jax.vmap(recombine, in_axes=(0, 0, None, None))(sums, delta, dF,
+                                                              dtype)
 
-    cos_t, sin_t = carrier(dF, delta, Nf, dtype)
-
-    return (cos_t*cos_part + sin_t*sin_part).astype(wdm_coeff.dtype)
+    return shifted.astype(wdm_coeff.dtype)

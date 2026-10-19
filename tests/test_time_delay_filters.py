@@ -647,50 +647,83 @@ def test_window_support_still_trims_interior_support():
         "interior support clear of both edges must still be trimmed"
 
 
-def _shift_inputs(dt, Nf, Nt, L, delay_amplitude, seed=0):
+
+def _shift_inputs(dt, Nf, Nt, L, delay_amplitude, num_grids=2, seed=0):
     r"""
-    A transform, its filter tables, a random grid and a slowly varying delay
-    for the backend comparisons below.
+    A transform, its filter tables, a stack of random grids and slowly varying
+    delays, one per grid, for the backend comparisons below.
     """
     wdm = WDM.WDM_transform(dt=dt, Nf=Nf, N=Nf*Nt, q=4)
     tables = wdm.build_time_delay_filter_interpolants(L, 16)
-    wdm_coeff = jax.random.normal(jax.random.PRNGKey(seed), (Nt, Nf))
-    delta = delay_amplitude*jnp.sin(jnp.arange(Nt)/7.0 + 0.3)
+    wdm_coeff = jax.random.normal(jax.random.PRNGKey(seed),
+                                  (num_grids, Nt, Nf))
+    delta = jnp.stack([delay_amplitude*jnp.sin(jnp.arange(Nt)/7.0 + 0.3 + g)
+                       for g in range(num_grids)])
     lags = jnp.arange(-L, L+1)
-    Tl = wdm._interp_filter(tables[1], lags, -delta)
-    Tprimel = wdm._interp_filter(tables[0], lags, -delta)
+    Tl = jnp.stack([wdm._interp_filter(tables[1], lags, -d) for d in delta])
+    Tprimel = jnp.stack([wdm._interp_filter(tables[0], lags, -d)
+                         for d in delta])
     return wdm, tables, wdm_coeff, delta, Tl, Tprimel
 
 
-def test_apply_variable_time_shift_is_the_xla_backend_on_cpu():
+def _xla_reference(wdm, tables, wdm_coeff, delta):
+    return jnp.stack([wdm._variable_time_shift_xla(tables, w, d)
+                      for w, d in zip(wdm_coeff, delta)])
+
+
+def test_cpu_path_is_the_xla_backend():
     r"""
-    Off CUDA the dispatch must hand back exactly what the XLA backend
-    computes - the GPU kernel is not allowed to change the CPU path.
+    Off CUDA both public methods must hand back exactly what the XLA backend
+    computes, grid by grid - the GPU kernel is not allowed to change the CPU
+    path.
     """
     if jax.default_backend() != "cpu":
         pytest.skip("checks the CPU path")
 
-    wdm, tables, wdm_coeff, delta, _, _ = _shift_inputs(0.5, 8, 32, 4, 2.0)
+    wdm, tables, wdm_coeff, delta, _, _ = _shift_inputs(0.5, 8, 32, 4, 2.0,
+                                                        num_grids=3)
+    reference = _xla_reference(wdm, tables, wdm_coeff, delta)
 
-    assert jnp.array_equal(wdm.apply_variable_time_shift(tables, wdm_coeff,
-                                                         delta),
-                           wdm._variable_time_shift_xla(tables, wdm_coeff,
-                                                        delta))
+    assert jnp.array_equal(wdm.apply_variable_time_shift_batch(
+        tables, wdm_coeff, delta), reference)
+    assert jnp.array_equal(wdm.apply_variable_time_shift(
+        tables, wdm_coeff[1], delta[1]), reference[1])
+
+
+@pytest.mark.parametrize("sigma", [-1, 0, 1])
+def test_gpu_shift_weights_repeat_every_two_lags(sigma):
+    r"""
+    The GPU kernel keeps one accumulator per lag parity because advancing the
+    lag by two flips the sign of the sideband weights and leaves the
+    :math:`\sigma=0` ones alone. Pin that identity directly.
+    """
+    n = jnp.arange(16)
+    sign_n = jnp.where(n % 2 == 0, 1.0, -1.0)
+    cos_h, sin_h = jnp.cos(0.1*n), jnp.sin(0.1*n)
+    flip = 1.0 if sigma == 0 else -1.0
+
+    for r in range(2):
+        alpha, beta = shift_gpu.group_weights(r, sigma, sign_n, cos_h, sin_h)
+        alpha2, beta2 = shift_gpu.group_weights(r + 2, sigma, sign_n,
+                                                cos_h, sin_h)
+        assert jnp.array_equal(alpha2, flip*alpha)
+        assert jnp.array_equal(beta2, flip*beta)
 
 
 @pytest.mark.parametrize("Nf, Nt", [(8, 32), (12, 40)])
 def test_gpu_shift_algebra_matches_xla(Nf, Nt):
     r"""
-    The GPU backend regroups the sum by :math:`l \bmod 4`. Run its kernel in
-    float64 in the Pallas interpreter and check the regrouping reproduces the
-    XLA backend to rounding. The second grid is not a multiple of the tile
-    shape, so it also exercises the padding.
+    The GPU backend regroups the sum by lag parity. Run its kernel in float64
+    in the Pallas interpreter, on a stack of grids with different delays, and
+    check the regrouping reproduces the XLA backend to rounding. The second
+    grid is not a multiple of the tile shape, so it also exercises the
+    padding.
     """
     L = 4
     wdm, tables, wdm_coeff, delta, Tl, Tprimel = _shift_inputs(0.5, Nf, Nt,
                                                                L, 2.0)
 
-    reference = wdm._variable_time_shift_xla(tables, wdm_coeff, delta)
+    reference = _xla_reference(wdm, tables, wdm_coeff, delta)
     shifted = shift_gpu.variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta,
                                                 wdm.dF, dtype=jnp.float64,
                                                 interpret=True)
@@ -710,7 +743,7 @@ def test_gpu_shift_float32_precision():
     wdm, tables, wdm_coeff, delta, Tl, Tprimel = _shift_inputs(10.0, 64, 128,
                                                                L, 400.0)
 
-    reference = wdm._variable_time_shift_xla(tables, wdm_coeff, delta)
+    reference = _xla_reference(wdm, tables, wdm_coeff, delta)
     shifted = shift_gpu.variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta,
                                                 wdm.dF, interpret=True)
 
@@ -722,24 +755,26 @@ def test_gpu_shift_float32_precision():
 
 @pytest.mark.skipif(not any(d.platform == "gpu" for d in jax.devices()),
                     reason="needs a CUDA device")
-def test_apply_variable_time_shift_on_gpu_matches_cpu():
+def test_variable_time_shift_on_gpu_matches_cpu():
     r"""
-    The public method on a GPU, i.e. the compiled Pallas kernel, against the
-    same call on the CPU.
+    Both public methods on a GPU, i.e. the compiled Pallas kernel, against the
+    same calls on the CPU.
     """
     L = 25
     wdm, tables, wdm_coeff, delta, _, _ = _shift_inputs(10.0, 256, 512,
-                                                        L, 400.0)
+                                                        L, 400.0, num_grids=3)
 
     with jax.default_device(jax.devices("cpu")[0]):
-        reference = wdm.apply_variable_time_shift(tables, wdm_coeff, delta)
+        reference = wdm.apply_variable_time_shift_batch(tables, wdm_coeff,
+                                                        delta)
 
     gpu = jax.devices("gpu")[0]
-    shifted = wdm.apply_variable_time_shift(*jax.device_put(
-        (tables, wdm_coeff, delta), gpu))
+    tables, wdm_coeff, delta = jax.device_put((tables, wdm_coeff, delta), gpu)
+    batch = wdm.apply_variable_time_shift_batch(tables, wdm_coeff, delta)
+    single = wdm.apply_variable_time_shift(tables, wdm_coeff[2], delta[2])
 
-    assert shifted.devices() == {gpu}
-    rel_l2 = jnp.linalg.norm(jnp.asarray(shifted) - reference) \
-        / jnp.linalg.norm(reference)
-
-    assert rel_l2 < 1.0e-6, f"GPU shift differs from CPU: {rel_l2=}"
+    assert batch.devices() == {gpu}
+    for shifted, ref in ((batch, reference), (single, reference[2])):
+        rel_l2 = jnp.linalg.norm(jnp.asarray(shifted) - ref) \
+            / jnp.linalg.norm(ref)
+        assert rel_l2 < 1.0e-6, f"GPU shift differs from CPU: {rel_l2=}"
