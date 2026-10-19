@@ -1837,8 +1837,8 @@ class WDM_transform:
         that the lag sum is one pass over the grid, and runs it in float32
         with the delay, phases and filter interpolation kept in float64. Its
         result is within a relative L2 of :math:`2\times10^{-7}` of the float64
-        path (mismatch :math:`10^{-14}`) and is returned in the dtype of
-        `wdm_coeff`. On every other device the sum is evaluated by
+        path (mismatch :math:`10^{-14}`) and is returned in the same dtype as
+        the CPU path. On every other device the sum is evaluated by
         `_variable_time_shift_xla`, in the dtype of `wdm_coeff`. The choice is
         made by `jax.lax.platform_dependent` when the call is lowered, so the
         CUDA kernel is never compiled for a CPU and the CPU path is exactly the
@@ -1943,7 +1943,8 @@ class WDM_transform:
         Returns
         -------
         shifted_wdm_coeff : jnp.array
-            In the dtype of `wdm_coeff`. Shape=(G, Nt, Nf).
+            In the dtype the XLA backend returns for the same inputs.
+            Shape=(G, Nt, Nf).
         """
         max_lag_L = (filter_tables.shape[1] - 1)//2
         lags = jnp.arange(-max_lag_L, max_lag_L + 1)
@@ -1954,7 +1955,16 @@ class WDM_transform:
 
         Tl, Tprimel = jax.vmap(filters)(delta)
 
-        return variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta, self.dF)
+        shifted = variable_time_shift_gpu(Tl, Tprimel, wdm_coeff, delta,
+                                          self.dF)
+
+        # platform_dependent traces every branch on every device and needs
+        # them to agree, so return what the XLA backend would: float64 for
+        # float32 coefficients, since its filters and phases are float64.
+        xla = jax.eval_shape(self._variable_time_shift_xla, filter_tables,
+                             wdm_coeff[0], delta[0])
+
+        return shifted.astype(xla.dtype)
 
     @partial(jax.jit, static_argnums=0)
     def _variable_time_shift_xla(self,

@@ -690,6 +690,22 @@ def test_cpu_path_is_the_xla_backend():
         tables, wdm_coeff[1], delta[1]), reference[1])
 
 
+def test_float32_coefficients_are_accepted():
+    r"""
+    Both backends must agree on the output dtype, because
+    `jax.lax.platform_dependent` traces every branch on every device. The XLA
+    backend promotes float32 coefficients to float64, so the GPU branch has to
+    as well - otherwise a float32 grid raises, on a CPU as much as a GPU.
+    """
+    wdm, tables, wdm_coeff, delta, _, _ = _shift_inputs(0.5, 8, 32, 4, 2.0)
+    wdm_coeff = wdm_coeff.astype(jnp.float32)
+
+    batch = wdm.apply_variable_time_shift_batch(tables, wdm_coeff, delta)
+    single = wdm.apply_variable_time_shift(tables, wdm_coeff[0], delta[0])
+
+    assert batch.dtype == single.dtype == jnp.float64
+
+
 @pytest.mark.parametrize("sigma", [-1, 0, 1])
 def test_gpu_shift_weights_repeat_every_two_lags(sigma):
     r"""
