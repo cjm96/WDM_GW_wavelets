@@ -108,18 +108,59 @@ def time_delay_filter_Tprimel_reference(ell : int,
     """
     indices = jnp.arange(N)
 
-    shift = int(0.5*dF/df)
+    # sampled at freqs + offset so both windows land on the grid
+    shift_lo, shift_hi, offset = half_bin_shifts(dF, df)
 
-    integrand = jnp.exp(2*jnp.pi*(1j)*freqs*(ell*dT-delta)) * \
-                    window_FD[(indices-shift)%N] * \
-                    window_FD[(indices+shift)%N]
+    integrand = jnp.exp(2*jnp.pi*(1j)*(freqs+offset)*(ell*dT-delta)) * \
+                    window_FD[(indices-shift_lo)%N] * \
+                    window_FD[(indices+shift_hi)%N]
 
     Tprime_l = jnp.sum(integrand) * df
 
     return float(Tprime_l.real)
 
+
+def half_bin_shifts(dF : float, df : float) -> tuple:
+    r"""
+    Where to sample the :math:`T'_{\ell}` integrand so that both windows
+    :math:`\tilde{\Phi}(f\mp\Delta F/2)` fall on samples of `window_FD`.
+
+    The two windows are :math:`\Delta F/\delta f = N_t/2` samples apart, a
+    whole number, but each sits :math:`N_t/4` samples from :math:`f`, which is
+    a half-integer :math:`k+\tfrac12` unless :math:`N_t` is a multiple of four.
+    In that case the integrand is sampled at :math:`f_j+\delta f/2`, which puts
+    the windows at :math:`f_{j-k}` and :math:`f_{j+k+1}`, both on the grid.
+
+    Parameters
+    ----------
+    dF : float
+        Frequency resolution of the wdm object.
+    df : float
+        The frequency resolution of the wdm object time series.
+
+    Returns
+    -------
+    shift_lo, shift_hi : int
+        Index offsets of the lower and upper window: :math:`k` and :math:`k`,
+        or :math:`k` and :math:`k+1`.
+    offset : float
+        Frequency offset of the integrand samples, :math:`0` or
+        :math:`\delta f/2`.
+    """
+    # Nt/2, a whole number since Nt is even; round only absorbs float error
+    full = int(round(dF/df))
+
+    shift_lo = full // 2
+    shift_hi = full - shift_lo
+
+    # the split is uneven, and the samples need moving, only when full is odd
+    offset = 0.5*df if full % 2 else 0.0
+
+    return shift_lo, shift_hi, offset
+
 def window_support(window_FD : jnp.array,
-                   shift : int) -> tuple:
+                   shift_lo : int,
+                   shift_hi : int) -> tuple:
     r"""
     Bound the frequency samples that can contribute to the filter integrals.
 
@@ -131,7 +172,7 @@ def window_support(window_FD : jnp.array,
     The range is measured from the two window products themselves rather
     than inferred from the support of `window_FD`. Inferring it needs the
     argument that each factor of the rolled product is the same support
-    translated by :math:`\mp` `shift`, so the product lives on the overlap of
+    translated by `shift_lo` or `shift_hi`, so the product lives on the overlap of
     the two translates, which sits inside the untranslated support. That
     argument holds only while neither translate wraps: `jnp.roll` is
     circular, so a copy pushed off one end reappears at the other, and the
@@ -150,9 +191,9 @@ def window_support(window_FD : jnp.array,
     window_FD : jnp.ndarray
         The frequency-domain Meyer window, :math:`\tilde{\Phi}(f)`,
         shape=(N,).
-    shift : int
-        The half-bin index offset :math:`\Delta F/2\delta f` applied to the
-        window in the :math:`T'_{\ell}` integrand.
+    shift_lo, shift_hi : int
+        Index offsets of the lower and upper window in the :math:`T'_{\ell}`
+        integrand, from `half_bin_shifts`.
 
     Returns
     -------
@@ -169,7 +210,7 @@ def window_support(window_FD : jnp.array,
 
     # the supports of window_FD**2 and of the half-bin-shifted product; the
     # roll directions match the gathers in `_filter_tables_block`
-    support = mask | (np.roll(mask, shift) & np.roll(mask, -shift))
+    support = mask | (np.roll(mask, shift_lo) & np.roll(mask, -shift_hi))
 
     nonzero = np.flatnonzero(support)
     if nonzero.size == 0:
@@ -203,7 +244,8 @@ def _filter_tables_block(lags_dT : jnp.array,
                          freqs : jnp.array,
                          window_FD : jnp.array,
                          indices : tuple,
-                         shift : int) -> jnp.array:
+                         shifts : tuple,
+                         offset : float) -> jnp.array:
     r"""
     The contribution of one contiguous block of frequency samples.
 
@@ -214,14 +256,20 @@ def _filter_tables_block(lags_dT : jnp.array,
     The windows are gathered at the block's own indices rather than rolled
     over the whole array, which is what keeps the working set independent of
     :math:`N`. `jnp.roll(w, s)[j]` is `w[(j-s)%N]`, hence the index signs.
+
+    `shifts` and `offset` come from `half_bin_shifts`. The offset is the same
+    for every frequency sample, so its phase comes out of the :math:`T'_{\ell}`
+    sum as a rank-1 lag-by-delay factor. It multiplies the complex sum, before
+    the real part is taken.
     """
     start, stop = indices
+    shift_lo, shift_hi = shifts
     N = window_FD.shape[0]
 
     index = jnp.arange(start, stop)
 
-    windows = jnp.stack([window_FD[(index-shift) % N]
-                            * window_FD[(index+shift) % N],
+    windows = jnp.stack([window_FD[(index-shift_lo) % N]
+                            * window_FD[(index+shift_hi) % N],
                          window_FD[index]**2])
 
     block_freqs = freqs[index]
@@ -229,7 +277,12 @@ def _filter_tables_block(lags_dT : jnp.array,
     lag_phase = jnp.exp(2*jnp.pi*(1j)*jnp.outer(lags_dT, block_freqs))
     delta_phase = jnp.exp(-2*jnp.pi*(1j)*jnp.outer(block_freqs, deltas))
 
-    return jnp.real((lag_phase*windows[:, jnp.newaxis, :]) @ delta_phase)
+    sums = (lag_phase*windows[:, jnp.newaxis, :]) @ delta_phase
+
+    offset_phase = jnp.outer(jnp.exp(2*jnp.pi*(1j)*offset*lags_dT),
+                             jnp.exp(-2*jnp.pi*(1j)*offset*deltas))
+
+    return jnp.real(sums.at[0].multiply(offset_phase))
 
 
 def build_filter_tables(lags : jnp.array,
@@ -298,9 +351,9 @@ def build_filter_tables(lags : jnp.array,
     num_lags = int(lags.shape[0])
     num_deltas = int(deltas.shape[0])
 
-    shift = int(0.5*dF/df)
+    shift_lo, shift_hi, offset = half_bin_shifts(dF, df)
 
-    start, stop = window_support(window_FD, shift)
+    start, stop = window_support(window_FD, shift_lo, shift_hi)
 
     block = _choose_freq_block(num_lags, num_deltas, stop-start, max_bytes)
 
@@ -314,6 +367,7 @@ def build_filter_tables(lags : jnp.array,
                                        freqs,
                                        window_FD,
                                        (lo, min(lo+block, stop)),
-                                       shift)
+                                       (shift_lo, shift_hi),
+                                       offset)
 
     return tables * df

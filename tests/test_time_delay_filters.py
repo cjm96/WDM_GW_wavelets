@@ -9,6 +9,7 @@ from WDM.code.time_delay_filters.filters import (
                                         FILTER_TABLE_BLOCK_BYTES,
                                         _choose_freq_block,
                                         build_filter_tables,
+                                        half_bin_shifts,
                                         time_delay_filter_Tl_reference,
                                         time_delay_filter_Tprimel_reference,
                                         window_support)
@@ -107,6 +108,40 @@ def _spectral_shift(wdm, g, s):
     """
     freqs = jnp.fft.fftfreq(wdm.N, d=wdm.dt)
     return jnp.real(jnp.fft.ifft(jnp.fft.fft(g)*jnp.exp(2j*jnp.pi*freqs*s)))
+
+
+def test_constant_shift_off_bin_for_every_Nt_parity():
+    r"""
+    An off-bin signal shifted by a constant delay must come out right whether
+    or not :math:`N_t` is a multiple of four.
+
+    The :math:`T'_{\ell}` windows sit :math:`N_t/4` samples from :math:`f`,
+    a half-integer when :math:`N_t\equiv2 \pmod 4`, so both parities are run.
+    :math:`T'_{\ell}` enters only the :math:`\sigma=\pm1` terms, which matter
+    only where neighbouring windows overlap, so the tone sits at
+    :math:`r=0.49` of a band. The reference is the spectral shift, exact on
+    the periodic grid the shift wraps on. Both parities reach a
+    :math:`\sim2\times10^{-7}` floor.
+    """
+    for Nt in (124, 126):
+        wdm = WDM.WDM_transform(dt=4.0, Nf=50, N=50*Nt)
+        tables = wdm.build_time_delay_filter_interpolants(25, 128)
+
+        f = 10.49*wdm.dF
+        signal = jnp.cos(2*jnp.pi*f*wdm.times)
+        delta = 70.0
+
+        shifted = wdm.apply_variable_time_shift(tables,
+                                                wdm.dwt(signal),
+                                                jnp.full(wdm.Nt, delta))
+        exact = wdm.dwt(_spectral_shift(wdm, signal, delta))
+
+        a, b = shifted[:, 1:], exact[:, 1:]
+        mismatch = 1.0 - jnp.sum(a*b)/jnp.sqrt(jnp.sum(a*a)*jnp.sum(b*b))
+
+        assert mismatch < 1.0e-6, \
+            f"off-bin constant shift mismatch {float(mismatch):.2e} at " \
+            f"{Nt=} ({Nt % 4=})"
 
 
 def test_time_delay_matrix_X_orthogonality():
@@ -360,11 +395,11 @@ def test_window_support_bounds_both_window_products():
                           (64, 64*128, 0.4), (128, 128*32, 0.1)):
         wdm = WDM.WDM_transform(dt=0.5, Nf=Nf, N=N, q=4, A_frac=A_frac)
 
-        shift = int(0.5*wdm.dF/wdm.df)
-        start, stop = window_support(wdm.window_FD, shift)
+        shift_lo, shift_hi, _ = half_bin_shifts(wdm.dF, wdm.df)
+        start, stop = window_support(wdm.window_FD, shift_lo, shift_hi)
 
-        products = jnp.stack([jnp.roll(wdm.window_FD, shift)
-                                  * jnp.roll(wdm.window_FD, -shift),
+        products = jnp.stack([jnp.roll(wdm.window_FD, shift_lo)
+                                  * jnp.roll(wdm.window_FD, -shift_hi),
                               wdm.window_FD**2])
 
         outside = jnp.concatenate([products[:, :start], products[:, stop:]],
@@ -422,8 +457,8 @@ def test_filter_tables_match_the_defining_integrals():
     lags = jnp.arange(-3, 4)
     deltas = jnp.linspace(-0.5*wdm.dT, 0.5*wdm.dT, 5)
 
-    shift = int(0.5*wdm.dF/wdm.df)
-    start, stop = window_support(wdm.window_FD, shift)
+    shift_lo, shift_hi, _ = half_bin_shifts(wdm.dF, wdm.df)
+    start, stop = window_support(wdm.window_FD, shift_lo, shift_hi)
 
     assert stop-start < wdm.window_FD.shape[0], \
         "this grid does not exercise the support trim - the comparison " \
@@ -567,7 +602,7 @@ def test_window_support_covers_a_wrapped_shifted_product():
     indices = jnp.arange(N)
     product = window_FD[(indices-shift) % N] * window_FD[(indices+shift) % N]
 
-    start, stop = window_support(window_FD, shift)
+    start, stop = window_support(window_FD, shift, shift)
 
     outside = jnp.concatenate([product[:start], product[stop:]])
 
@@ -587,7 +622,7 @@ def test_window_support_handles_a_window_that_is_never_non_zero():
     """
     N = 64
 
-    assert window_support(jnp.zeros(N), 3) == (0, N), \
+    assert window_support(jnp.zeros(N), 3, 3) == (0, N), \
         "a window that is nowhere non-zero must not be trimmed"
 
 
@@ -603,5 +638,5 @@ def test_window_support_still_trims_interior_support():
 
     interior = jnp.zeros(N).at[20].set(1.0).at[30].set(1.0)
 
-    assert window_support(interior, shift) == (20, 31), \
+    assert window_support(interior, shift, shift) == (20, 31), \
         "interior support clear of both edges must still be trimmed"
