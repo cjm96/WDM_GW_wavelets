@@ -146,9 +146,9 @@ def lag_sums(T, wdm_coeff, max_lag_L, interpret=False):
     L = max_lag_L
     G, Nt, Nf = wdm_coeff.shape
     dtype = wdm_coeff.dtype
-    BM = _block_cols(Nf)
-    BN = _block_rows(BM)
-    Nt_pad, Nf_pad = _round_up(Nt, BN), _round_up(Nf, BM)
+    block_cols = _block_cols(Nf)
+    block_rows = _block_rows(block_cols)
+    Nt_pad, Nf_pad = _round_up(Nt, block_rows), _round_up(Nf, block_cols)
 
     # Cyclic extension by L rows at each end, so the wrapped read is a
     # contiguous window, then zeros to fill out the last tiles. The zero rows
@@ -162,7 +162,7 @@ def lag_sums(T, wdm_coeff, max_lag_L, interpret=False):
     # wider grids the longer row stride costs more than it saves (4-8% slower
     # at Nf = 512-2048), so they keep the grid-major layout. Bitwise identical
     # either way.
-    time_major = Nf_pad == BM
+    time_major = Nf_pad == block_cols
     if time_major:
         ext = jnp.transpose(wdm_coeff, (1, 0, 2))
         ext = jnp.concatenate([ext[-L:], ext, ext[:L]], axis=0)
@@ -175,28 +175,31 @@ def lag_sums(T, wdm_coeff, max_lag_L, interpret=False):
 
     def kernel(ext_ref, t_ref, out_ref):
         g = pl.program_id(0)
-        i0 = pl.program_id(1)*BN
-        j0 = pl.program_id(2)*BM
+        i0 = pl.program_id(1)*block_rows
+        j0 = pl.program_id(2)*block_cols
 
         # P_0, P_1, Q_0, Q_1
-        acc = [jnp.zeros((BN, BM), dtype) for _ in range(4)]
+        acc = [jnp.zeros((block_rows, block_cols), dtype) for _ in range(4)]
         for i in range(2*L + 1):
             l = i - L
+            window = pl.ds(i0 + L - l, block_rows)
+            cols = pl.ds(j0, block_cols)
             if time_major:
-                rows = ext_ref[pl.ds(i0 + L - l, BN), g, pl.ds(j0, BM)]
+                rows = ext_ref[window, g, cols]
             else:
-                rows = ext_ref[g, pl.ds(i0 + L - l, BN), pl.ds(j0, BM)]
+                rows = ext_ref[g, window, cols]
             p = l % 2
-            acc[p] += t_ref[g, 0, i, pl.ds(i0, BN)][:, None]*rows
-            acc[2 + p] += t_ref[g, 1, i, pl.ds(i0, BN)][:, None]*rows
+            acc[p] += t_ref[g, 0, i, pl.ds(i0, block_rows)][:, None]*rows
+            acc[2 + p] += t_ref[g, 1, i, pl.ds(i0, block_rows)][:, None]*rows
 
         for k in range(4):
-            out_ref[g, k, pl.ds(i0, BN), pl.ds(j0, BM)] = acc[k]
+            out_ref[g, k, pl.ds(i0, block_rows),
+                    pl.ds(j0, block_cols)] = acc[k]
 
     sums = pl.pallas_call(
         kernel,
         out_shape=jax.ShapeDtypeStruct((G, 4, Nt_pad, Nf_pad), dtype),
-        grid=(G, Nt_pad//BN, Nf_pad//BM),
+        grid=(G, Nt_pad//block_rows, Nf_pad//block_cols),
         compiler_params=plgpu.CompilerParams(num_warps=NUM_WARPS,
                                              num_stages=1),
         interpret=interpret,
