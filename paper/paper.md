@@ -44,8 +44,7 @@ where $N=N_tN_f$ and the basis functions $g_{nm}$ are localised in time around $
 The quantities $\Delta T$ and $\Delta F$ are the wavelet time and frequency resolutions respectively; 
 one may be chosen freely while the other is constrained by $\Delta T \Delta F = 1/2$.
 The WDM basis maps the time series onto a regular grid of pixels that cover the time-frequency plane uniformly (see figure \autoref{fig:time_freq_plane}).
-The discrete WDM wavelet transform can be written in a form that uses the windowed discrete Fourier transform and has a cost that scales as $\mathcal{O}(2qN\log(2qN_f))$ where $q$ is a small integer (typically $q=16$) that controls the truncation of the window function; see `@Cornish:2020`. 
-This is comparable to the cost of a fast Fourier transform, $\mathcal{O}(N\log N)$, making the transformation relatively fast.
+The discrete WDM wavelet transform can be written in a form that makes its computational cost comparable to that of a fast Fourier transform.
 
 GW data analysis often requires introducing time delays between different detectors or data streams, either to synchronize them with respect to a particular sky location or to eliminate a common noise source. 
 A key property of the WDM wavelets is the existence of analytic time-delay filters which allow time delays to be performed in the time-frequency domain. 
