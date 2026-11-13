@@ -5,11 +5,9 @@ import jax.numpy as jnp
 
 
 #: Fraction of the machine's memory that one working set may occupy before
-#: the reference transforms refuse to run. Unlike
-#: `filters.FILTER_TABLE_BLOCK_BYTES`, which is a block size chosen so that
-#: many blocks fit at once, this is a refusal threshold: the arrays it
-#: guards are built whole and cannot be blocked. Raise it if you have
-#: headroom.
+#: the reference transforms refuse to run. This is a refusal threshold: the
+#: arrays it guards are built whole and cannot be blocked. Raise it if you
+#: have headroom.
 MAX_WORKING_SET_FRACTION = 0.75
 
 #: Working-set limit used when the machine's memory cannot be detected.
