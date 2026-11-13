@@ -99,7 +99,11 @@ def time_frequency_plot(wdm : WDM_transform,
                         w: jnp.ndarray, 
                         figax: Tuple = (),
                         part='abs',
-                        scale='linear') -> Tuple[plt.Figure, plt.Axes]:
+                        scale='linear',
+                        cmap='jet',
+                        vmin=None,
+                        vmax=None,
+                        label=None) -> Tuple[plt.Figure, plt.Axes]:
     r"""
     Plot the time-frequency coefficients of the WDM transform.
 
@@ -120,6 +124,14 @@ def time_frequency_plot(wdm : WDM_transform,
         Options are 'linear' or 'log'. Default is 'linear'. Logarithmic 
         scale should only be used with part='abs' otherwise problems with 
         negative values will occur. Optional.
+    cmap : str or matplotlib.colors.Colormap
+        Colour map. Default is 'jet'. Optional.
+    vmin, vmax : float
+        Limits of the colour axis, in the plotted quantity (its log10 when
+        scale='log'). Default is None, the data's range. Optional.
+    label : str
+        Colour-bar label. Default is None, which gives 'Magnitude', or
+        'log10 Magnitude' when scale='log'. Optional.
 
     Returns
     -------
@@ -153,15 +165,16 @@ def time_frequency_plot(wdm : WDM_transform,
         fig, ax = figax
 
     if scale == 'linear':
-        im = ax.imshow(data.T, aspect='auto', origin='lower', 
-                    extent=[0., wdm.T, 0., wdm.f_Ny], cmap='jet')
-        fig.colorbar(im, label='Magnitude', ax=ax)
+        values, default_label = data, 'Magnitude'
     elif scale == 'log':
-        im = ax.imshow(jnp.log10(data).T, aspect='auto', origin='lower', 
-                    extent=[0., wdm.T, 0., wdm.f_Ny], cmap='jet')
-        fig.colorbar(im, label='log10 Magnitude', ax=ax)
+        values, default_label = jnp.log10(data), 'log10 Magnitude'
     else:
         raise ValueError(f"Invalid {scale=}. Choose 'linear' or 'log'.")
+
+    im = ax.imshow(values.T, aspect='auto', origin='lower',
+                   extent=[0., wdm.T, 0., wdm.f_Ny],
+                   cmap=cmap, vmin=vmin, vmax=vmax)
+    fig.colorbar(im, label=default_label if label is None else label, ax=ax)
     
     ax.set_xlabel(r'Time $t$')
     ax.set_ylabel(r'Frequency $f$')

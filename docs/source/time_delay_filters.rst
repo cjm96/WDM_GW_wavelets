@@ -61,9 +61,9 @@ defined as
     T'_{\ell}(\delta t) = \int \mathrm{d}f \, \exp(2\pi i f (\ell \Delta T - \delta t)) 
                         \tilde{\Phi}\left(f-\frac{1}{2}\Delta F\right)\tilde{\Phi}\left(f+\frac{1}{2}\Delta F\right) .
 
-The time-delay filters :math:`T_{\ell}(\delta t)` and :math:`T'_{\ell}(\delta t)` are implemented in 
-:func:`WDM.code.time_delay_filters.filters.time_delay_filter_Tl_reference` and
-:func:`WDM.code.time_delay_filters.filters.time_delay_filter_Tprimel_reference` respectively.
+Both filters depend on :math:`\ell` and :math:`\delta t` only through :math:`\ell-\delta t/\Delta T`,
+and on the window shape alone. They are implemented in
+:func:`WDM.code.time_delay_filters.filters.filter_functions`.
 
 The time-delay filters satisfy 
 
