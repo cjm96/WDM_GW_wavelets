@@ -106,7 +106,7 @@
 <span id="wdm-code-discrete-wavelet-transform-wdm-module"></span><h2>WDM.code.discrete_wavelet_transform.WDM module<a class="headerlink" href="#module-WDM.code.discrete_wavelet_transform.WDM" title="Link to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.</span></span><span class="sig-name descname"><span class="pre">WDM_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Nf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">A_frac</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calc_m0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="Link to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">WDM.code.discrete_wavelet_transform.WDM.</span></span><span class="sig-name descname"><span class="pre">WDM_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Nf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">A_frac</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.25</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>This class implements the WDM discrete wavelet transform.</p>
 <dl class="py attribute">
@@ -362,19 +362,6 @@ if <span class="math notranslate nohighlight">\(n+m\)</span> is even or <span cl
 </dd></dl>
 
 <dl class="py attribute">
-<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.calc_m0">
-<span class="sig-name descname"><span class="pre">calc_m0</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.calc_m0" title="Link to this definition"></a></dt>
-<dd><p>If this is set to False (default value) then the wavelet coefficients
-with <span class="math notranslate nohighlight">\(m=0\)</span> are handled INCORRECTLY. This is faster. If these
-coefficients are needed the initialise the class with <cite>calc_m0=True</cite>.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>bool</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py attribute">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.window_TD">
 <span class="sig-name descname"><span class="pre">window_TD</span></span><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.window_TD" title="Link to this definition"></a></dt>
 <dd><p>The time-domain Meyer window function, <span class="math notranslate nohighlight">\(\phi(t)\)</span>.
@@ -503,6 +490,11 @@ and the third is the wavelet frequency index.</p>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>jnp.ndarray</p>
 </dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>MemoryError</strong> – If the basis would exceed the working-set limit; see
+    <cite>utils.check_working_set</cite>. The basis grows as <span class="math notranslate nohighlight">\(N^2\)</span>, so
+    this method is only usable on small grids.</p>
+</dd>
 </dl>
 </dd></dl>
 
@@ -516,7 +508,7 @@ and the third is the wavelet frequency index.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift">
-<span class="sig-name descname"><span class="pre">apply_variable_time_shift</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter_tables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wdm_coeff</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lag_block</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.apply_variable_time_shift"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">apply_variable_time_shift</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter_tables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wdm_coeff</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.apply_variable_time_shift"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift" title="Link to this definition"></a></dt>
 <dd><p>Perform the variable time shift operation on a grid of WDM coefficients
 by evaluating the sum</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-2">
@@ -547,10 +539,21 @@ arithmetic for speed. The two are checked against each other by
 <cite>time_delay_matrix_X</cite> first if you want the expressions in their
 textbook form.</p>
 <p>The matrix elements are evaluated in real arithmetic - see
-<cite>real_matrix_element</cite> below for that rearrangement. The carrier phase
-<span class="math notranslate nohighlight">\(\phi=2\pi(m+\sigma/2)\Delta F\delta_n\)</span> does not depend on
-<span class="math notranslate nohighlight">\(l\)</span>, so it is built once outside the lag loop and the
-<span class="math notranslate nohighlight">\(\sigma=\pm1\)</span> cases follow from it by angle addition.</p>
+<cite>matrix_element_weights</cite> below for that rearrangement. The carrier
+phase <span class="math notranslate nohighlight">\(\phi=2\pi(m+\sigma/2)\Delta F\delta_n\)</span> does not depend on
+<span class="math notranslate nohighlight">\(l\)</span>, so its <span class="math notranslate nohighlight">\(\sigma=0\)</span> cosine and sine are built once
+outside the lag loop. They are the only <span class="math notranslate nohighlight">\((N_t, N_f)\)</span> arrays here:
+the <span class="math notranslate nohighlight">\(\sigma=\pm1\)</span> sidebands differ by a half-bin phase that is
+rank-1 in <span class="math notranslate nohighlight">\(n\)</span>, so angle addition folds them into the per-element
+weights rather than into four more grids.</p>
+<p>The lag sum is a python loop, so all <span class="math notranslate nohighlight">\(2L+1\)</span> terms are unrolled
+into the graph. XLA:CPU fuses the accumulation chain into one pass but
+will not fuse across a <cite>lax.fori_loop</cite> body, so blocking the sum sends
+the <span class="math notranslate nohighlight">\((N_t, N_f)\)</span> accumulator back to memory once per block. At
+<span class="math notranslate nohighlight">\(N_t=4096\)</span>, <span class="math notranslate nohighlight">\(N_f=1024\)</span>, <span class="math notranslate nohighlight">\(L=25\)</span> that costs 2.16 s
+unrolled against 2.26 s at eight lags per block and 4.37 s at
+fifty-one. Unrolling pays for it in graph size, but only at compile
+time - about half a second here, then cached.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -558,12 +561,6 @@ textbook form.</p>
 dtype=float, shape=(2, 2L+1, num_interp_points).</p></li>
 <li><p><strong>wdm_coeff</strong> (<em>jnp.array</em>) – WDM coefficient grid. Array, dtype=float, shape=(Nt,Nf)</p></li>
 <li><p><strong>delta</strong> (<em>jnp.array</em>) – Array, dtype=float, shape=(Nt,)</p></li>
-<li><p><strong>lag_block</strong> (<em>int</em><em> or </em><em>None</em>) – Number of lags handled per loop iteration. <cite>None</cite> (the default)
-unrolls the lag sum completely, which is fastest for small <cite>L</cite>
-because the lag index becomes a compile-time constant. For
-<span class="math notranslate nohighlight">\(L \gtrsim 30\)</span> prefer a small block (8 is a reasonable
-start): the unrolled graph becomes large enough that scheduling
-cost, compile time and compile-time memory outweigh the benefit.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -592,7 +589,7 @@ cost, compile time and compile-time memory outweigh the benefit.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants">
-<span class="sig-name descname"><span class="pre">build_time_delay_filter_interpolants</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_lag_L</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_interp_points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_bytes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">268435456</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.build_time_delay_filter_interpolants"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">build_time_delay_filter_interpolants</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_lag_L</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_interp_points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.build_time_delay_filter_interpolants"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants" title="Link to this definition"></a></dt>
 <dd><p>If the user needs to do any time-shift operations involving the
 WDM wavelets, then this function should be called first. It tabulates
 the time-delay filter functions <span class="math notranslate nohighlight">\(T_l(\delta)\)</span> and
@@ -600,18 +597,15 @@ the time-delay filter functions <span class="math notranslate nohighlight">\(T_l
 lag) on a uniform grid in the range
 <span class="math notranslate nohighlight">\(-\Delta T/2\leq \delta\leq \Delta T/2\)</span>. Subsequent lookups
 interpolate linearly between the tabulated points.</p>
+<p>The filters depend on <span class="math notranslate nohighlight">\(\ell-\delta/\Delta T\)</span> and the window
+shape (<cite>d</cite>, <cite>A_frac</cite>) only, so the table is the same for every tiling;
+see <cite>filters.filter_functions</cite>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>max_lag_L</strong> (<em>int</em>) – The maximum lag index, <span class="math notranslate nohighlight">\(L\)</span>.</p></li>
 <li><p><strong>num_interp_points</strong> (<em>int</em>) – The number of interpolation points in the range
 <span class="math notranslate nohighlight">\(-\Delta T/2\leq \delta\leq \Delta T/2.\)</span></p></li>
-<li><p><strong>max_bytes</strong> (<em>int</em>) – Working-set budget, in bytes, for one frequency block of the
-tabulation, passed straight to <cite>build_filter_tables</cite>. The
-tabulation is blocked over frequency so that its peak allocation
-is bounded by this rather than by <span class="math notranslate nohighlight">\(N\)</span>; lower it if the build
-still does not fit. Defaults to
-<cite>filters.FILTER_TABLE_BLOCK_BYTES</cite>, 256 MiB. Optional.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -624,12 +618,6 @@ passed to the methods that use it - see the note below them.</p>
 <dd class="field-odd"><p>jnp.array</p>
 </dd>
 </dl>
-<p class="rubric">Notes</p>
-<p>The returned table is small - <span class="math notranslate nohighlight">\(2(2L+1)\)</span> by <cite>num_interp_points</cite> -
-and independent of <span class="math notranslate nohighlight">\(N\)</span>. Only the intermediates scale with the
-time series, and <cite>build_filter_tables</cite> bounds those, so this is safe to
-call on year-plus grids for any <cite>num_interp_points</cite> whose table itself
-fits in memory.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -674,7 +662,7 @@ must satisfy <span class="math notranslate nohighlight">\(0 \leq m &lt; N_f\)</s
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dwt">
 <span class="sig-name descname"><span class="pre">dwt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.dwt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.dwt" title="Link to this definition"></a></dt>
 <dd><p>Forward discrete wavelet transform.</p>
-<p>Calls <cite>self.fast_forward_transform</cite>. Vectorised to allow for
+<p>Calls <cite>self.forward_transform_fft</cite>. Vectorised to allow for
 transforming multiple time series at once.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -727,8 +715,12 @@ using the following expression,</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-5">
 <span class="eqno">(57)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-5" title="Link to this equation"></a></span>\[x_m[n] = \sum_{l=-N_t/2}^{N_t/2-1} \exp\left(\frac{2\pi i nl}{N_t}
             \right) \Phi[l] X[l-mN_t/2] .\]</div>
-<p>The <span class="math notranslate nohighlight">\(m=0\)</span> terms, if required, are calculated using the same method
-as in <cite>forward_transform_truncated_window</cite>.</p>
+<p>The <span class="math notranslate nohighlight">\(m=0\)</span> terms are calculated separately in the frequency domain.
+The zero- and Nyquist-frequency terms are evaluated together by folding
+the compact frequency-domain Meyer window onto <span class="math notranslate nohighlight">\(N_t/2\)</span> samples
+and applying a batched inverse FFT of length <span class="math notranslate nohighlight">\(N_t/2\)</span>.</p>
+<p>This calculation is exact and does not depend on the time-domain
+truncation parameter <span class="math notranslate nohighlight">\(q\)</span>.</p>
 <p>This is vectorised to allow for batch jobs computing the dwt for
 multiple time series at once; note the shapes of the input and output
 arrays.</p>
@@ -840,6 +832,11 @@ WDM time-frequency-domain wavelet coefficients.</p>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>jnp.ndarray</p>
 </dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>MemoryError</strong> – If the summand would exceed the working-set limit; see
+    <cite>utils.check_working_set</cite>. It grows as <span class="math notranslate nohighlight">\(qNN_f\)</span>, so this
+    method is only usable on small grids.</p>
+</dd>
 </dl>
 <p class="rubric">Notes</p>
 <p>This method is slow. It is only intended to be used for testing and
@@ -903,6 +900,11 @@ this function shifts indices of <cite>window_TD</cite>.</p>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>jnp.ndarray</p>
 </dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>MemoryError</strong> – If the basis would exceed the working-set limit; see
+    <cite>utils.check_working_set</cite>. The basis grows as <span class="math notranslate nohighlight">\(N^2\)</span>, so
+    this method is only usable on small grids.</p>
+</dd>
 </dl>
 </dd></dl>
 
@@ -944,36 +946,14 @@ Therefore, this only gives the correct results for <span class="math notranslate
 <dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.idwt">
 <span class="sig-name descname"><span class="pre">idwt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.idwt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.idwt" title="Link to this definition"></a></dt>
 <dd><p>Inverse discrete wavelet transform.</p>
-<p>Calls <cite>self.inverse_transform</cite>. Vectorised to allow for transforming
-multiple time series at once.</p>
+<p>Calls <cite>self.inverse_transform_fft</cite>. Vectorised to allow for
+transforming multiple time series at once.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>w</strong> (<em>jnp.ndarray</em>) – Wavelet coefficients. Array shape=(Nt, Nf) or (…, Nt, Nf).</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>x</strong> – Input time series. Array shape=(N,) or (…, N).</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>jnp.ndarray</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform">
-<span class="sig-name descname"><span class="pre">inverse_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.inverse_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform" title="Link to this definition"></a></dt>
-<dd><p>Perform the inverse discrete wavelet transform. Transforms the wavelet
-coefficients from the time-frequency domain into the time domain.</p>
-<p>This method computes the inverse dwt using the truncated wavelets.
-This is also vectorised to allow for batch jobs computing the idwt for
-multiple sets of wavelet coefficients at once; note the shapes of the
-input and output arrays.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>w</strong> (<em>jnp.ndarray</em>) – Wavelet coefficients. Array shape (…, Nt, Nf).</p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>x</strong> – The time-domain signal. Array shape (…, N).</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>jnp.ndarray</p>
@@ -990,7 +970,7 @@ coefficients from the time-frequency domain into the time domain.</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-discrete-wavelet-transform-15">
 <span class="eqno">(67)<a class="headerlink" href="#equation-wdm-code-discrete-wavelet-transform-15" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
 <p>This method is slow and very memory inefficient. It is here
-mainly for testing. Consider using <cite>inverse_transform</cite> instead.</p>
+mainly for testing. Consider using <cite>inverse_transform_fft</cite> instead.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>w</strong> (<em>jnp.ndarray</em>) – Array shape (Nt, Nf).
@@ -998,6 +978,68 @@ WDM time-frequency-domain wavelet coefficients.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>x</strong> – Array shape (N,). The time-domain signal.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_fft">
+<span class="sig-name descname"><span class="pre">inverse_transform_fft</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.inverse_transform_fft"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_fft" title="Link to this definition"></a></dt>
+<dd><p>Perform the inverse discrete wavelet transform using the rapid
+frequency-domain FFT algorithm.</p>
+<p>For the <span class="math notranslate nohighlight">\(m&gt;0\)</span> terms, the WDM coefficients are first transformed
+along the wavelet time index <span class="math notranslate nohighlight">\(n\)</span>. The positive- and
+negative-frequency branches are then multiplied by the frequency-domain
+Meyer window and overlap-added into the full Fourier spectrum.</p>
+<p>The special <span class="math notranslate nohighlight">\(m=0\)</span> column is treated separately. The first
+<span class="math notranslate nohighlight">\(N_t/2\)</span> coefficients correspond to the zero-frequency edge
+wavelets and the remaining <span class="math notranslate nohighlight">\(N_t/2\)</span> coefficients correspond to
+the Nyquist-frequency edge wavelets. These are transformed together
+using a batched FFT of length <span class="math notranslate nohighlight">\(N_t/2\)</span>, expanded over the compact
+support of the Meyer window, and added to the corresponding edges of
+the full Fourier spectrum.</p>
+<p>Finally, an inverse FFT of length <span class="math notranslate nohighlight">\(N\)</span> returns the time-domain
+signal.</p>
+<p>This calculation uses the frequency-domain Meyer window directly and
+therefore does not depend on the time-domain truncation parameter
+<span class="math notranslate nohighlight">\(q\)</span>.</p>
+<p>This is vectorised to allow for batch jobs computing the inverse dwt
+for multiple sets of wavelet coefficients at once.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>w</strong> (<em>jnp.ndarray</em>) – Wavelet coefficients. Array shape (…, Nt, Nf).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>x</strong> – Reconstructed time-domain signal. Array shape (…, N).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jnp.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_truncated_window">
+<span class="sig-name descname"><span class="pre">inverse_transform_truncated_window</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="reference internal" href="_modules/WDM/code/discrete_wavelet_transform/WDM.html#WDM_transform.inverse_transform_truncated_window"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_truncated_window" title="Link to this definition"></a></dt>
+<dd><p>Perform the inverse discrete wavelet transform. Transforms the wavelet
+coefficients from the time-frequency domain into the time domain.</p>
+<p>This method computes the inverse dwt using the truncated time-domain
+wavelets, so its accuracy depends on the truncation parameter
+<span class="math notranslate nohighlight">\(q\)</span>, in the same way as <cite>forward_transform_truncated_window</cite>.
+Consider using <cite>inverse_transform_fft</cite> instead, which uses the
+frequency-domain window and is exact.</p>
+<p>This is also vectorised to allow for batch jobs computing the idwt for
+multiple sets of wavelet coefficients at once; note the shapes of the
+input and output arrays.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>w</strong> (<em>jnp.ndarray</em>) – Wavelet coefficients. Array shape (…, Nt, Nf).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>x</strong> – The time-domain signal. Array shape (…, N).</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>jnp.ndarray</p>

@@ -85,9 +85,8 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.utils.Meyer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Meyer</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.utils.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">C_nm</span><span class="p">,</span> <span class="n">overlapping_windows</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.time_delay_filters.filters</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">FILTER_TABLE_BLOCK_BYTES</span><span class="p">,</span>
-                                                 <span class="n">build_filter_tables</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.utils.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">C_nm</span><span class="p">,</span> <span class="n">check_working_set</span><span class="p">,</span> <span class="n">overlapping_windows</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">WDM.code.time_delay_filters.filters</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_filter_tables</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tuple</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
@@ -164,11 +163,7 @@
 <span class="sd">    Cnm : jnp.ndarray </span>
 <span class="sd">        Coefficients :math:`C_{nm}` used for the wavelet transform. Equal to 1 </span>
 <span class="sd">        if :math:`n+m` is even or :math:`i` if it's odd. Array shape=(N_t, N_f).</span>
-<span class="sd">    calc_m0 : bool</span>
-<span class="sd">        If this is set to False (default value) then the wavelet coefficients</span>
-<span class="sd">        with :math:`m=0` are handled INCORRECTLY. This is faster. If these </span>
-<span class="sd">        coefficients are needed the initialise the class with `calc_m0=True`.</span>
-<span class="sd">    window_TD : jnp.ndarray </span>
+<span class="sd">    window_TD : jnp.ndarray</span>
 <span class="sd">        The time-domain Meyer window function, :math:`\phi(t)`. </span>
 <span class="sd">        Array shape=(N,).</span>
 <span class="sd">    window_FD : jnp.ndarray </span>
@@ -192,8 +187,7 @@
                  <span class="n">N</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
                  <span class="n">q</span> <span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
                  <span class="n">d</span> <span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
-                 <span class="n">A_frac</span> <span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span><span class="p">,</span>
-                 <span class="n">calc_m0</span> <span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                 <span class="n">A_frac</span> <span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">"""</span>
 <span class="sd">        Initialize the WDM_transform.</span>
 
@@ -211,10 +205,6 @@
 <span class="sd">            Steepness parameter for the transition. Optional.</span>
 <span class="sd">        A_frac : float</span>
 <span class="sd">            Bandwidth fraction of flat-top response. Optional.</span>
-<span class="sd">        calc_m0 : bool</span>
-<span class="sd">            If False, then the wavelet calculations for the :math:`m=0` temrs </span>
-<span class="sd">            will be wrong; this has performance benefits. If True, then all </span>
-<span class="sd">            calculations will be correct, but this may be slower. Optional.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -226,7 +216,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">q</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">A_frac</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">A_frac</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">d</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">calc_m0</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">calc_m0</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">validate_parameters</span><span class="p">()</span>
 
@@ -553,15 +542,29 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        basis : jnp.ndarray </span>
+<span class="sd">        basis : jnp.ndarray</span>
 <span class="sd">            Array of shape (N, Nt, Nf). The time-domain wavelet basis.</span>
 <span class="sd">            The first axis is frequency, the second is the wavelet time index,</span>
 <span class="sd">            and the third is the wavelet frequency index.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        MemoryError</span>
+<span class="sd">            If the basis would exceed the working-set limit; see</span>
+<span class="sd">            `utils.check_working_set`. The basis grows as :math:`N^2`, so</span>
+<span class="sd">            this method is only usable on small grids.</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_Gnm_basis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">pass</span>
 
         <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># the complex (N, Nt, Nf) basis, plus one live temporary; note</span>
+            <span class="c1"># Nt*Nf = N, so this grows as N^2 and does not depend on Nf</span>
+            <span class="n">check_working_set</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="mi">16</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">,</span>
+                              <span class="sa">f</span><span class="s2">"Gnm_basis builds a complex (N, Nt, Nf) = "</span>
+                              <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="si">}</span><span class="s2">) array which"</span><span class="p">,</span>
+                              <span class="s2">"forward_transform_fft"</span><span class="p">)</span>
+
             <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
             <span class="n">m_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
 
@@ -580,28 +583,27 @@
                              <span class="n">jnp</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Cnm</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:,:])</span><span class="o">*</span>\
                               <span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">[</span><span class="n">shift_do</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">][:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span>
 
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_m0</span><span class="p">:</span>
-                <span class="c1"># overwrite m=0 terms for n&lt;Nt/2 (zero-frequency terms)</span>
-                <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+            <span class="c1"># overwrite m=0 terms for n&lt;Nt/2 (zero-frequency terms)</span>
+            <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
 
-                <span class="n">f0_term</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="n">j</span><span class="o">*</span><span class="n">n_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span> <span class="o">*</span> \
-                                <span class="n">om</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">)</span> <span class="o">*</span> \
-                                    <span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+            <span class="n">f0_term</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="n">j</span><span class="o">*</span><span class="n">n_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span> <span class="o">*</span> \
+                            <span class="n">om</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">)</span> <span class="o">*</span> \
+                                <span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
 
-                <span class="n">basis</span> <span class="o">=</span> <span class="n">basis</span><span class="o">.</span><span class="n">at</span><span class="p">[:,</span> <span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">f0_term</span><span class="p">)</span>
+            <span class="n">basis</span> <span class="o">=</span> <span class="n">basis</span><span class="o">.</span><span class="n">at</span><span class="p">[:,</span> <span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">f0_term</span><span class="p">)</span>
 
-                <span class="c1"># overwrite m=0 terms for n&gt;=Nt/2 (Nyquist-frequency terms)</span>
-                <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
+            <span class="c1"># overwrite m=0 terms for n&gt;=Nt/2 (Nyquist-frequency terms)</span>
+            <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
 
-                <span class="n">shift_up</span> <span class="o">=</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span> 
-                <span class="n">shift_do</span> <span class="o">=</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span> 
+            <span class="n">shift_up</span> <span class="o">=</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">shift_do</span> <span class="o">=</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
 
-                <span class="n">fNy_term</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="n">j</span><span class="o">*</span><span class="n">n_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span> <span class="o">*</span> \
-                                <span class="n">om</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">)</span> <span class="o">*</span> \
-                            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">[</span><span class="n">shift_up</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">][:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">[</span><span class="n">shift_do</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">][:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span>
+            <span class="n">fNy_term</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="n">j</span><span class="o">*</span><span class="n">n_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span> <span class="o">*</span> \
+                            <span class="n">om</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">)</span> <span class="o">*</span> \
+                        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">[</span><span class="n">shift_up</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">][:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">[</span><span class="n">shift_do</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">][:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span>
 
-                <span class="n">basis</span> <span class="o">=</span> <span class="n">basis</span><span class="o">.</span><span class="n">at</span><span class="p">[:,</span> <span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">fNy_term</span><span class="p">)</span>
+            <span class="n">basis</span> <span class="o">=</span> <span class="n">basis</span><span class="o">.</span><span class="n">at</span><span class="p">[:,</span> <span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">fNy_term</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">_cached_Gnm_basis</span> <span class="o">=</span> <span class="n">basis</span>
 
@@ -728,13 +730,27 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        basis : jnp.ndarray </span>
+<span class="sd">        basis : jnp.ndarray</span>
 <span class="sd">            Array of shape (N, Nt, Nf). The time-domain wavelet basis.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        MemoryError</span>
+<span class="sd">            If the basis would exceed the working-set limit; see</span>
+<span class="sd">            `utils.check_working_set`. The basis grows as :math:`N^2`, so</span>
+<span class="sd">            this method is only usable on small grids.</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_gnm_basis</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">pass</span>
 
         <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># the real (N, Nt, Nf) basis; the vmapped result and its</span>
+            <span class="c1"># transpose are both live, hence the factor of two</span>
+            <span class="n">check_working_set</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="mi">8</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">,</span>
+                              <span class="sa">f</span><span class="s2">"gnm_basis builds a real (N, Nt, Nf) = "</span>
+                              <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="si">}</span><span class="s2">) array which"</span><span class="p">,</span>
+                              <span class="s2">"inverse_transform_fft"</span><span class="p">)</span>
+
             <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
             <span class="n">m_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
             <span class="n">k_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">)</span>
@@ -752,27 +768,26 @@
             <span class="n">basis</span> <span class="o">=</span> <span class="n">f_vmapped</span><span class="p">(</span><span class="n">n_vals</span><span class="p">,</span> <span class="n">m_vals</span><span class="p">)</span>
             <span class="n">basis</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">basis</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
 
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_m0</span><span class="p">:</span>
-                <span class="c1"># overwrite m=0 terms for n&lt;Nt/2 (zero-frequency terms)</span>
-                <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+            <span class="c1"># overwrite m=0 terms for n&lt;Nt/2 (zero-frequency terms)</span>
+            <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
 
-                <span class="n">f0_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[(</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
-                                    <span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">n_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">]</span>
+            <span class="n">f0_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[(</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+                                <span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">n_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">]</span>
 
-                <span class="n">basis</span> <span class="o">=</span> <span class="n">basis</span><span class="o">.</span><span class="n">at</span><span class="p">[:,</span> <span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">f0_term</span><span class="p">)</span>
+            <span class="n">basis</span> <span class="o">=</span> <span class="n">basis</span><span class="o">.</span><span class="n">at</span><span class="p">[:,</span> <span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">f0_term</span><span class="p">)</span>
 
-                <span class="c1"># overwrite m=0 terms for n&gt;=Nt/2 (Nyquist-frequency terms)</span>
-                <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
+            <span class="c1"># overwrite m=0 terms for n&gt;=Nt/2 (Nyquist-frequency terms)</span>
+            <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
 
-                <span class="k">def</span><span class="w"> </span><span class="nf">temp_func</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
-                    <span class="k">return</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">k_vals</span><span class="p">)</span> <span class="o">*</span> \
-                            <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[(</span><span class="n">k_vals</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">]</span>
+            <span class="k">def</span><span class="w"> </span><span class="nf">temp_func</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="k">return</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">k_vals</span><span class="p">)</span> <span class="o">*</span> \
+                        <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[(</span><span class="n">k_vals</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">]</span>
 
-                <span class="n">f_vmapped</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">temp_func</span><span class="p">)</span>
+            <span class="n">f_vmapped</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">temp_func</span><span class="p">)</span>
 
-                <span class="n">fNy_term</span> <span class="o">=</span> <span class="n">f_vmapped</span><span class="p">(</span><span class="n">n_vals</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">fNy_term</span> <span class="o">=</span> <span class="n">f_vmapped</span><span class="p">(</span><span class="n">n_vals</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
 
-                <span class="n">basis</span> <span class="o">=</span> <span class="n">basis</span><span class="o">.</span><span class="n">at</span><span class="p">[:,</span> <span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">fNy_term</span><span class="p">)</span>
+            <span class="n">basis</span> <span class="o">=</span> <span class="n">basis</span><span class="o">.</span><span class="n">at</span><span class="p">[:,</span> <span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">fNy_term</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">_cached_gnm_basis</span> <span class="o">=</span> <span class="n">basis</span>
 
@@ -916,7 +931,7 @@
         <span class="n">k_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">):</span>
-            <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_m0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">):</span> <span class="c1"># start at m=0 or 1 </span>
+            <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">):</span>
                 <span class="n">gnm</span> <span class="o">=</span> <span class="n">B</span><span class="p">[:,</span> <span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">]</span>
                 <span class="n">gnm_x</span> <span class="o">=</span> <span class="n">gnm</span><span class="p">[(</span><span class="n">k_vals</span><span class="o">+</span><span class="p">(</span><span class="mi">1</span> <span class="k">if</span> <span class="n">m</span><span class="o">&gt;</span><span class="mi">0</span> <span class="k">else</span> <span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">]</span> <span class="o">*</span> \
                             <span class="n">x</span><span class="p">[(</span><span class="n">k_vals</span><span class="o">+</span><span class="p">(</span><span class="mi">1</span> <span class="k">if</span> <span class="n">m</span><span class="o">&gt;</span><span class="mi">0</span> <span class="k">else</span> <span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">]</span>
@@ -959,21 +974,36 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        w : jnp.ndarray </span>
-<span class="sd">            Array shape (Nt, Nf). </span>
+<span class="sd">        w : jnp.ndarray</span>
+<span class="sd">            Array shape (Nt, Nf).</span>
 <span class="sd">            WDM time-frequency-domain wavelet coefficients.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        MemoryError</span>
+<span class="sd">            If the summand would exceed the working-set limit; see</span>
+<span class="sd">            `utils.check_working_set`. It grows as :math:`qNN_f`, so this</span>
+<span class="sd">            method is only usable on small grids.</span>
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
-<span class="sd">        This method is slow. It is only intended to be used for testing and </span>
-<span class="sd">        debugging purposes. </span>
+<span class="sd">        This method is slow. It is only intended to be used for testing and</span>
+<span class="sd">        debugging purposes.</span>
 <span class="sd">        """</span>
         <span class="n">x</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 
         <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,),</span> \
                     <span class="sa">f</span><span class="s2">"Input signal must have shape (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="si">}</span><span class="s2">,), got </span><span class="si">{</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="si">=}</span><span class="s2">"</span>
-        
-        <span class="n">w</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">jax_dtype</span><span class="p">)</span> 
+
+        <span class="c1"># the complex (K, Nt, Nf) summand, plus one live temporary; with</span>
+        <span class="c1"># K = 2 q Nf this grows as q N Nf</span>
+        <span class="n">check_working_set</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="mi">16</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">,</span>
+                          <span class="sa">f</span><span class="s2">"forward_transform_truncated_window builds a "</span>
+                          <span class="sa">f</span><span class="s2">"complex (K, Nt, Nf) = "</span>
+                          <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="si">}</span><span class="s2">) array which"</span><span class="p">,</span>
+                          <span class="s2">"forward_transform_fft"</span><span class="p">)</span>
+
+        <span class="n">w</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">jax_dtype</span><span class="p">)</span>
 
         <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
         <span class="n">m_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
@@ -990,29 +1020,28 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">],</span> 
                 <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">real</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_m0</span><span class="p">:</span>
-            <span class="c1"># overwrite m=0 terms for n&lt;Nt/2 (zero-frequency terms)</span>
-            <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+        <span class="c1"># overwrite m=0 terms for n&lt;Nt/2 (zero-frequency terms)</span>
+        <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
 
-            <span class="n">k_plus_2n</span> <span class="o">=</span> <span class="p">(</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">n_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
+        <span class="n">k_plus_2n</span> <span class="o">=</span> <span class="p">(</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">n_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
 
-            <span class="n">f0_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
-                            <span class="n">x</span><span class="p">[</span><span class="n">k_plus_2n</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">],</span>
-                        <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">f0_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
+                        <span class="n">x</span><span class="p">[</span><span class="n">k_plus_2n</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">],</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
-            <span class="n">w</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">f0_term</span><span class="p">)</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">f0_term</span><span class="p">)</span>
 
-            <span class="c1"># overwrite m=0 terms for n&gt;=Nt/2 (Nyquist-frequency terms)</span>
-            <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
+        <span class="c1"># overwrite m=0 terms for n&gt;=Nt/2 (Nyquist-frequency terms)</span>
+        <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
 
-            <span class="n">fNy_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span> 
-                            <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
-                            <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
-                            <span class="n">x</span><span class="p">[</span><span class="n">k_plus_2n</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">],</span>
-                        <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">fNy_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                        <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
+                        <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
+                        <span class="n">x</span><span class="p">[</span><span class="n">k_plus_2n</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">],</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
-            <span class="n">w</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">fNy_term</span><span class="p">)</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">fNy_term</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">w</span></div>
 
@@ -1070,29 +1099,28 @@
 
         <span class="n">k_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_m0</span><span class="p">:</span>
-            <span class="c1"># overwrite m=0 terms for n&lt;Nt/2 (zero-frequency terms)</span>
-            <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+        <span class="c1"># overwrite m=0 terms for n&lt;Nt/2 (zero-frequency terms)</span>
+        <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
 
-            <span class="n">k_plus_2n</span> <span class="o">=</span> <span class="p">(</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">n_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
+        <span class="n">k_plus_2n</span> <span class="o">=</span> <span class="p">(</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">n_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
 
-            <span class="n">f0_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
-                            <span class="n">x</span><span class="p">[</span><span class="n">k_plus_2n</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">],</span>
-                        <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">f0_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
+                        <span class="n">x</span><span class="p">[</span><span class="n">k_plus_2n</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">],</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
-            <span class="n">w</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">f0_term</span><span class="p">)</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">f0_term</span><span class="p">)</span>
 
-            <span class="c1"># overwrite m=0 terms for n&gt;=Nt/2 (Nyquist-frequency terms)</span>
-            <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
+        <span class="c1"># overwrite m=0 terms for n&gt;=Nt/2 (Nyquist-frequency terms)</span>
+        <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
 
-            <span class="n">fNy_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span> 
-                            <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
-                            <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
-                            <span class="n">x</span><span class="p">[</span><span class="n">k_plus_2n</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">],</span>
-                        <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">fNy_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                        <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
+                        <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
+                        <span class="n">x</span><span class="p">[</span><span class="n">k_plus_2n</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">],</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
-            <span class="n">w</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">fNy_term</span><span class="p">)</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">fNy_term</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">w</span></div>
 
@@ -1120,8 +1148,13 @@
 <span class="sd">            x_m[n] = \sum_{l=-N_t/2}^{N_t/2-1} \exp\left(\frac{2\pi i nl}{N_t}</span>
 <span class="sd">                        \right) \Phi[l] X[l-mN_t/2] .</span>
 
-<span class="sd">        The :math:`m=0` terms, if required, are calculated using the same method</span>
-<span class="sd">        as in `forward_transform_truncated_window`. </span>
+<span class="sd">        The :math:`m=0` terms are calculated separately in the frequency domain.</span>
+<span class="sd">        The zero- and Nyquist-frequency terms are evaluated together by folding</span>
+<span class="sd">        the compact frequency-domain Meyer window onto :math:`N_t/2` samples</span>
+<span class="sd">        and applying a batched inverse FFT of length :math:`N_t/2`.</span>
+
+<span class="sd">        This calculation is exact and does not depend on the time-domain</span>
+<span class="sd">        truncation parameter :math:`q`. </span>
 
 <span class="sd">        This is vectorised to allow for batch jobs computing the dwt for </span>
 <span class="sd">        multiple time series at once; note the shapes of the input and output </span>
@@ -1152,13 +1185,13 @@
 
         <span class="n">l_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
         <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
-        <span class="n">m_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
+        <span class="n">m_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="n">l_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">-</span> \
                 <span class="n">m_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span>
 
-        <span class="n">X</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span>
+        <span class="n">X_full</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span>
 
-        <span class="n">X</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">'wrap'</span><span class="p">)</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">X_full</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">'wrap'</span><span class="p">)</span>
 
         <span class="n">Phi</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifftshift</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">)[</span><span class="o">*</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,)</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">leading</span><span class="p">),</span>
                                                 <span class="n">l_vals</span><span class="p">,</span>
@@ -1166,51 +1199,85 @@
 
         <span class="n">x_mn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifft</span><span class="p">(</span><span class="n">Phi</span><span class="o">*</span><span class="n">X</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
 
-        <span class="n">w</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span> <span class="o">*</span> \
+        <span class="n">w_positive</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span> <span class="o">*</span> \
                 <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">n_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> <span class="n">m_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:])</span> <span class="o">*</span> \
-                    <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">(</span> <span class="n">jnp</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Cnm</span><span class="p">[:,:])</span> <span class="o">*</span> <span class="n">x_mn</span> <span class="p">)</span> <span class="o">*</span> \
+                    <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">(</span> <span class="n">jnp</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Cnm</span><span class="p">[:,</span><span class="mi">1</span><span class="p">:])</span> <span class="o">*</span> <span class="n">x_mn</span> <span class="p">)</span> <span class="o">*</span> \
                         <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">n_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span> 
 
-        <span class="n">k_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+        <span class="c1"># ------------------------------------------------------------</span>
+        <span class="c1"># Correct m=0 terms: DC and Nyquist together</span>
+        <span class="c1"># ------------------------------------------------------------</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_m0</span><span class="p">:</span>
-            <span class="c1"># overwrite m=0 terms for n&lt;Nt/2 (zero-frequency terms)</span>
-            <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span> <span class="o">//</span> <span class="mi">2</span>
+        <span class="n">l_vals_m0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">M</span><span class="p">,</span> <span class="n">M</span><span class="p">)</span>
 
-            <span class="n">k_plus_2n</span> <span class="o">=</span> <span class="p">(</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">n_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
+        <span class="n">Phi_m0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifftshift</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">)[</span><span class="n">l_vals_m0</span><span class="p">]</span>
 
-            <span class="n">f0_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
-                            <span class="n">jnp</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">k_plus_2n</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">'wrap'</span><span class="p">),</span>
-                        <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="c1"># First row: frequencies around DC</span>
+        <span class="c1"># Second row: frequencies around Nyquist</span>
+        <span class="n">m0_indices</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span>
+            <span class="n">l_vals_m0</span><span class="p">,</span>
+            <span class="n">l_vals_m0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">])</span>
 
-            <span class="n">w</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">f0_term</span><span class="p">)</span>
+        <span class="c1"># Shape (..., 2, Nt)</span>
+        <span class="n">X_m0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">take</span><span class="p">(</span>
+            <span class="n">X_full</span><span class="p">,</span>
+            <span class="n">m0_indices</span><span class="p">,</span>
+            <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s1">'wrap'</span><span class="p">,</span>
+        <span class="p">)</span>
 
-            <span class="c1"># overwrite m=0 terms for n&gt;=Nt/2 (Nyquist-frequency terms)</span>
-            <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
+        <span class="c1"># Apply the same Meyer window to both edge bands</span>
+        <span class="n">X_m0</span> <span class="o">=</span> <span class="n">X_m0</span> <span class="o">*</span> <span class="n">Phi_m0</span>
 
-            <span class="n">fNy_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span> 
-                            <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="n">k_vals</span><span class="p">[:,</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
-                            <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> \
-                            <span class="n">jnp</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">k_plus_2n</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">'wrap'</span><span class="p">),</span>
-                        <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="c1"># Fold Nt samples -&gt; Nt/2 samples</span>
+        <span class="c1"># Shape (..., 2, M)</span>
+        <span class="n">X_m0</span> <span class="o">=</span> <span class="n">X_m0</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">M</span><span class="p">]</span> <span class="o">+</span> <span class="n">X_m0</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">M</span><span class="p">:]</span>
 
-            <span class="n">w</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">n_vals</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">fNy_term</span><span class="p">)</span>
+        <span class="c1"># One batched Nt/2-point IFFT:</span>
+        <span class="c1">#   [..., 0, :] = DC coefficients</span>
+        <span class="c1">#   [..., 1, :] = Nyquist coefficients</span>
+        <span class="n">w_m0_edges</span> <span class="o">=</span> <span class="n">M</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span> <span class="o">*</span> \
+        <span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifft</span><span class="p">(</span><span class="n">X_m0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">real</span>
+
+        <span class="c1"># Pack both halves into column m=0</span>
+        <span class="n">w_m0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">w_m0_edges</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:],</span>
+                <span class="n">w_m0_edges</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="p">:],</span>
+            <span class="p">),</span>
+            <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># Combine the m=0 and m&gt;0 terms together. </span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">w_m0</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">],</span>
+                <span class="n">w_positive</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">w</span></div>
 
     
-<div class="viewcode-block" id="WDM_transform.inverse_transform">
-<a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform">[docs]</a>
+<div class="viewcode-block" id="WDM_transform.inverse_transform_truncated_window">
+<a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_truncated_window">[docs]</a>
     <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">inverse_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">w</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">""" </span>
-<span class="sd">        Perform the inverse discrete wavelet transform. Transforms the wavelet </span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">inverse_transform_truncated_window</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                           <span class="n">w</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""</span>
+<span class="sd">        Perform the inverse discrete wavelet transform. Transforms the wavelet</span>
 <span class="sd">        coefficients from the time-frequency domain into the time domain.</span>
 
-<span class="sd">        This method computes the inverse dwt using the truncated wavelets.</span>
-<span class="sd">        This is also vectorised to allow for batch jobs computing the idwt for </span>
-<span class="sd">        multiple sets of wavelet coefficients at once; note the shapes of the </span>
+<span class="sd">        This method computes the inverse dwt using the truncated time-domain</span>
+<span class="sd">        wavelets, so its accuracy depends on the truncation parameter</span>
+<span class="sd">        :math:`q`, in the same way as `forward_transform_truncated_window`.</span>
+<span class="sd">        Consider using `inverse_transform_fft` instead, which uses the</span>
+<span class="sd">        frequency-domain window and is exact.</span>
+
+<span class="sd">        This is also vectorised to allow for batch jobs computing the idwt for</span>
+<span class="sd">        multiple sets of wavelet coefficients at once; note the shapes of the</span>
 <span class="sd">        input and output arrays.</span>
 
 <span class="sd">        Parameters</span>
@@ -1263,41 +1330,257 @@
                               <span class="k">lambda</span> <span class="n">n</span><span class="p">,</span> <span class="n">acc</span><span class="p">:</span> <span class="n">add_one_time</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> 
                               <span class="n">x</span><span class="p">)</span>
         
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_m0</span><span class="p">:</span>
-            <span class="c1"># overwrite m=0 terms for n&lt;Nt/2 (zero-frequency terms)</span>
-            <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+        <span class="c1"># overwrite m=0 terms for n&lt;Nt/2 (zero-frequency terms)</span>
+        <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
 
-            <span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
-            <span class="k">def</span><span class="w"> </span><span class="nf">add_zero_freq</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
-                <span class="n">k_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
-                <span class="n">wavelet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="p">]</span>
-                <span class="n">indices</span> <span class="o">=</span> <span class="p">(</span><span class="n">k_vals</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span>
-                <span class="n">coeff</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">n</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
-                <span class="n">term</span>  <span class="o">=</span> <span class="n">coeff</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">wavelet</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> 
-                <span class="n">updates_shape</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">indices</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">indices</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">updates_shape</span><span class="p">))</span>
-                <span class="k">return</span> <span class="n">x</span>
+        <span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">add_zero_freq</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+            <span class="n">k_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">wavelet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="p">]</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="p">(</span><span class="n">k_vals</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span>
+            <span class="n">coeff</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">n</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">term</span>  <span class="o">=</span> <span class="n">coeff</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">wavelet</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+            <span class="n">updates_shape</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">indices</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">indices</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">updates_shape</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">x</span>
 
-            <span class="n">x</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">fori_loop</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> 
-                                  <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span>
-                                  <span class="k">lambda</span> <span class="n">n</span><span class="p">,</span> <span class="n">acc</span><span class="p">:</span> <span class="n">add_zero_freq</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> 
-                                  <span class="n">x</span><span class="p">)</span>
-            
-            <span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
-            <span class="k">def</span><span class="w"> </span><span class="nf">add_Nyquist_freq</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
-                <span class="n">k_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
-                <span class="n">wavelet</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">k_vals</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="p">]</span>
-                <span class="n">indices</span> <span class="o">=</span> <span class="p">(</span><span class="n">k_vals</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span>
-                <span class="n">coeff</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">n</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
-                <span class="n">term</span>  <span class="o">=</span> <span class="n">coeff</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">wavelet</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> 
-                <span class="n">updates_shape</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">indices</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">indices</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">updates_shape</span><span class="p">))</span>
-                <span class="k">return</span> <span class="n">x</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">fori_loop</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span>
+                              <span class="k">lambda</span> <span class="n">n</span><span class="p">,</span> <span class="n">acc</span><span class="p">:</span> <span class="n">add_zero_freq</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span>
+                              <span class="n">x</span><span class="p">)</span>
 
-            <span class="n">x</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">fori_loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> 
-                                  <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span>
-                                  <span class="k">lambda</span> <span class="n">n</span><span class="p">,</span> <span class="n">acc</span><span class="p">:</span> <span class="n">add_Nyquist_freq</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> 
-                                  <span class="n">x</span><span class="p">)</span>
+        <span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">add_Nyquist_freq</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+            <span class="n">k_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">wavelet</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="n">k_vals</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">window_TD</span><span class="p">[</span><span class="n">k_vals</span><span class="p">]</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="p">(</span><span class="n">k_vals</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">n</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span>
+            <span class="n">coeff</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">n</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">term</span>  <span class="o">=</span> <span class="n">coeff</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">wavelet</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+            <span class="n">updates_shape</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">indices</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">indices</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">updates_shape</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">x</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">fori_loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span>
+                              <span class="k">lambda</span> <span class="n">n</span><span class="p">,</span> <span class="n">acc</span><span class="p">:</span> <span class="n">add_Nyquist_freq</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span>
+                              <span class="n">x</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x</span></div>
+
+
+<div class="viewcode-block" id="WDM_transform.inverse_transform_fft">
+<a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.inverse_transform_fft">[docs]</a>
+    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">inverse_transform_fft</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">w</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""</span>
+<span class="sd">        Perform the inverse discrete wavelet transform using the rapid</span>
+<span class="sd">        frequency-domain FFT algorithm.</span>
+
+<span class="sd">        For the :math:`m&gt;0` terms, the WDM coefficients are first transformed</span>
+<span class="sd">        along the wavelet time index :math:`n`. The positive- and</span>
+<span class="sd">        negative-frequency branches are then multiplied by the frequency-domain</span>
+<span class="sd">        Meyer window and overlap-added into the full Fourier spectrum.</span>
+
+<span class="sd">        The special :math:`m=0` column is treated separately. The first</span>
+<span class="sd">        :math:`N_t/2` coefficients correspond to the zero-frequency edge</span>
+<span class="sd">        wavelets and the remaining :math:`N_t/2` coefficients correspond to</span>
+<span class="sd">        the Nyquist-frequency edge wavelets. These are transformed together</span>
+<span class="sd">        using a batched FFT of length :math:`N_t/2`, expanded over the compact</span>
+<span class="sd">        support of the Meyer window, and added to the corresponding edges of</span>
+<span class="sd">        the full Fourier spectrum.</span>
+
+<span class="sd">        Finally, an inverse FFT of length :math:`N` returns the time-domain</span>
+<span class="sd">        signal.</span>
+
+<span class="sd">        This calculation uses the frequency-domain Meyer window directly and</span>
+<span class="sd">        therefore does not depend on the time-domain truncation parameter</span>
+<span class="sd">        :math:`q`.</span>
+
+<span class="sd">        This is vectorised to allow for batch jobs computing the inverse dwt</span>
+<span class="sd">        for multiple sets of wavelet coefficients at once.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        w : jnp.ndarray</span>
+<span class="sd">            Wavelet coefficients. Array shape (..., Nt, Nf).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x : jnp.ndarray</span>
+<span class="sd">            Reconstructed time-domain signal. Array shape (..., N).</span>
+<span class="sd">        """</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">jax_dtype</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="n">w</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span> <span class="o">==</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">),</span> \
+                <span class="sa">f</span><span class="s2">"Input coefficients must have shape (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="si">}</span><span class="s2">), "</span> \
+                <span class="sa">f</span><span class="s2">"got </span><span class="si">{</span><span class="n">w</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span><span class="si">=}</span><span class="s2">."</span>
+
+        <span class="n">leading</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># ============================================================</span>
+        <span class="c1"># m &gt; 0 terms</span>
+        <span class="c1"># ============================================================</span>
+
+        <span class="n">n_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">)</span>
+        <span class="n">m_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">)</span>
+        <span class="n">l_vals</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">phase</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="p">(</span>
+            <span class="n">n_vals</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> <span class="n">m_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="p">)</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Cnm</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:])</span>
+
+        <span class="c1"># FFT over the WDM time index n.</span>
+        <span class="c1"># Shape (..., Nt, Nf-1)</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft</span><span class="p">(</span>
+            <span class="n">w</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">*</span> <span class="n">phase</span><span class="p">,</span>
+            <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Put the FFT into the local-frequency ordering</span>
+        <span class="c1"># l = -Nt/2, ..., Nt/2-1.</span>
+        <span class="n">A_positive</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">take</span><span class="p">(</span>
+            <span class="n">A</span><span class="p">,</span>
+            <span class="n">l_vals</span><span class="p">,</span>
+            <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s1">'wrap'</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># The negative-frequency branch follows from</span>
+        <span class="c1">#</span>
+        <span class="c1">#     FFT(a*)[l] = conj(FFT(a)[-l]).</span>
+        <span class="c1">#</span>
+        <span class="n">A_negative</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">take</span><span class="p">(</span>
+            <span class="n">jnp</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">A</span><span class="p">),</span>
+            <span class="o">-</span><span class="n">l_vals</span><span class="p">,</span>
+            <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s1">'wrap'</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">Phi</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifftshift</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">)[</span><span class="n">l_vals</span><span class="p">]</span>
+
+        <span class="n">Phi</span> <span class="o">=</span> <span class="n">Phi</span><span class="p">[</span>
+            <span class="o">*</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,)</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">leading</span><span class="p">),</span>
+            <span class="p">:,</span>
+            <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span>
+        <span class="p">]</span>
+
+        <span class="n">X_positive</span> <span class="o">=</span> <span class="n">A_positive</span> <span class="o">*</span> <span class="n">Phi</span> <span class="o">/</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.</span><span class="p">)</span>
+        <span class="n">X_negative</span> <span class="o">=</span> <span class="n">A_negative</span> <span class="o">*</span> <span class="n">Phi</span> <span class="o">/</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.</span><span class="p">)</span>
+
+        <span class="c1"># Global Fourier indices of the two Wilson branches.</span>
+        <span class="n">positive_indices</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">l_vals</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+            <span class="o">+</span> <span class="n">m_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span>
+        <span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span>
+
+        <span class="n">negative_indices</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">l_vals</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+            <span class="o">-</span> <span class="n">m_vals</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="o">//</span><span class="mi">2</span>
+        <span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span>
+
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">positive_indices</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">negative_indices</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">X_values</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">X_positive</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">leading</span> <span class="o">+</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,)),</span>
+                <span class="n">X_negative</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">leading</span> <span class="o">+</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,)),</span>
+            <span class="p">),</span>
+            <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">X_full</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+            <span class="n">leading</span> <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="p">,),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">X_values</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Adjacent Meyer bands overlap in frequency.</span>
+        <span class="n">X_full</span> <span class="o">=</span> <span class="n">X_full</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">indices</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">X_values</span><span class="p">)</span>
+
+        <span class="c1"># ============================================================</span>
+        <span class="c1"># m = 0 terms: DC and Nyquist together</span>
+        <span class="c1"># ============================================================</span>
+
+        <span class="n">M</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span> <span class="o">//</span> <span class="mi">2</span>
+        <span class="n">l_vals_m0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">M</span><span class="p">,</span> <span class="n">M</span><span class="p">)</span>
+
+        <span class="c1"># Pack the two physical edge bands:</span>
+        <span class="c1">#</span>
+        <span class="c1">#   [..., 0, :] -&gt; zero-frequency coefficients</span>
+        <span class="c1">#   [..., 1, :] -&gt; Nyquist-frequency coefficients</span>
+        <span class="c1">#</span>
+        <span class="c1"># Shape (..., 2, M)</span>
+        <span class="n">w_m0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">w</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">M</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                <span class="n">w</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">M</span><span class="p">:,</span> <span class="mi">0</span><span class="p">],</span>
+            <span class="p">),</span>
+            <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Because the edge wavelets are spaced by 2*dT, their Fourier</span>
+        <span class="c1"># phase has period M. One batched M-point FFT therefore gives</span>
+        <span class="c1"># both edge spectra.</span>
+        <span class="c1">#</span>
+        <span class="c1"># Shape (..., 2, M)</span>
+        <span class="n">A_m0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft</span><span class="p">(</span>
+            <span class="n">w_m0</span><span class="p">,</span>
+            <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># The Meyer support contains Nt = 2M frequency samples, while</span>
+        <span class="c1"># A_m0 has period M. Repeat each edge spectrum over both halves</span>
+        <span class="c1"># of the compact support.</span>
+        <span class="c1">#</span>
+        <span class="c1"># Shape (..., 2, Nt)</span>
+        <span class="n">A_m0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">A_m0</span><span class="p">,</span>
+                <span class="n">A_m0</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">Phi_m0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifftshift</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span>
+        <span class="p">)[</span><span class="n">l_vals_m0</span><span class="p">]</span>
+
+        <span class="c1"># Same Meyer window for the DC and Nyquist edge branches.</span>
+        <span class="n">X_m0</span> <span class="o">=</span> <span class="n">A_m0</span> <span class="o">*</span> <span class="n">Phi_m0</span>
+
+        <span class="c1"># First edge is centred on DC, second on Nyquist.</span>
+        <span class="c1">#</span>
+        <span class="c1"># Shape (2, Nt)</span>
+        <span class="n">m0_indices</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">l_vals_m0</span><span class="p">,</span>
+                <span class="n">l_vals_m0</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span>
+
+        <span class="c1"># Flatten the two edge bands so they can be scatter-added in</span>
+        <span class="c1"># one operation.</span>
+        <span class="n">m0_indices</span> <span class="o">=</span> <span class="n">m0_indices</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">X_m0</span> <span class="o">=</span> <span class="n">X_m0</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+            <span class="n">leading</span> <span class="o">+</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,)</span>
+        <span class="p">)</span>
+
+        <span class="n">X_full</span> <span class="o">=</span> <span class="n">X_full</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">m0_indices</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">X_m0</span><span class="p">)</span>
+
+        <span class="c1"># ============================================================</span>
+        <span class="c1"># Return to the time domain</span>
+        <span class="c1"># ============================================================</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">ifft</span><span class="p">(</span>
+            <span class="n">X_full</span><span class="p">,</span>
+            <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">real</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span>
 
         <span class="k">return</span> <span class="n">x</span></div>
 
@@ -1316,7 +1599,7 @@
 <span class="sd">            x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .</span>
 
 <span class="sd">        This method is slow and very memory inefficient. It is here</span>
-<span class="sd">        mainly for testing. Consider using `inverse_transform` instead.</span>
+<span class="sd">        mainly for testing. Consider using `inverse_transform_fft` instead.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -1352,7 +1635,7 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">"""</span>
 <span class="sd">        Forward discrete wavelet transform.</span>
 
-<span class="sd">        Calls `self.fast_forward_transform`. Vectorised to allow for </span>
+<span class="sd">        Calls `self.forward_transform_fft`. Vectorised to allow for</span>
 <span class="sd">        transforming multiple time series at once.</span>
 
 <span class="sd">        Parameters</span>
@@ -1378,8 +1661,8 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">"""</span>
 <span class="sd">        Inverse discrete wavelet transform.</span>
 
-<span class="sd">        Calls `self.inverse_transform`. Vectorised to allow for transforming </span>
-<span class="sd">        multiple time series at once.</span>
+<span class="sd">        Calls `self.inverse_transform_fft`. Vectorised to allow for</span>
+<span class="sd">        transforming multiple time series at once.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -1395,17 +1678,15 @@
 
         <span class="k">assert</span> <span class="n">jnp</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">isreal</span><span class="p">(</span><span class="n">w</span><span class="p">)),</span> <span class="s2">"wavelet coefficients must be real."</span>
 
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">w</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">inverse_transform_fft</span><span class="p">(</span><span class="n">w</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="WDM_transform.build_time_delay_filter_interpolants">
 <a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.build_time_delay_filter_interpolants">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_time_delay_filter_interpolants</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                              <span class="n">max_lag_L</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-                                             <span class="n">num_interp_points</span> <span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-                                             <span class="n">max_bytes</span> <span class="p">:</span> <span class="nb">int</span>
-                                                <span class="o">=</span> <span class="n">FILTER_TABLE_BLOCK_BYTES</span>
-                                             <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                                             <span class="n">num_interp_points</span> <span class="p">:</span> <span class="nb">int</span>
+                                             <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">""" </span>
 <span class="sd">        If the user needs to do any time-shift operations involving the </span>
 <span class="sd">        WDM wavelets, then this function should be called first. It tabulates </span>
@@ -1415,6 +1696,10 @@
 <span class="sd">        :math:`-\Delta T/2\leq \delta\leq \Delta T/2`. Subsequent lookups</span>
 <span class="sd">        interpolate linearly between the tabulated points.</span>
 
+<span class="sd">        The filters depend on :math:`\ell-\delta/\Delta T` and the window</span>
+<span class="sd">        shape (`d`, `A_frac`) only, so the table is the same for every tiling;</span>
+<span class="sd">        see `filters.filter_functions`.</span>
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        max_lag_L : int</span>
@@ -1422,13 +1707,6 @@
 <span class="sd">        num_interp_points : int</span>
 <span class="sd">            The number of interpolation points in the range</span>
 <span class="sd">            :math:`-\Delta T/2\leq \delta\leq \Delta T/2.`</span>
-<span class="sd">        max_bytes : int</span>
-<span class="sd">            Working-set budget, in bytes, for one frequency block of the</span>
-<span class="sd">            tabulation, passed straight to `build_filter_tables`. The</span>
-<span class="sd">            tabulation is blocked over frequency so that its peak allocation</span>
-<span class="sd">            is bounded by this rather than by :math:`N`; lower it if the build</span>
-<span class="sd">            still does not fit. Defaults to</span>
-<span class="sd">            `filters.FILTER_TABLE_BLOCK_BYTES`, 256 MiB. Optional.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1437,14 +1715,6 @@
 <span class="sd">            :math:`T'_l`, index 1 is :math:`T_l`. Also stored as</span>
 <span class="sd">            `self.filter_tables`, but the returned value is what should be</span>
 <span class="sd">            passed to the methods that use it - see the note below them.</span>
-
-<span class="sd">        Notes</span>
-<span class="sd">        -----</span>
-<span class="sd">        The returned table is small - :math:`2(2L+1)` by `num_interp_points` -</span>
-<span class="sd">        and independent of :math:`N`. Only the intermediates scale with the</span>
-<span class="sd">        time series, and `build_filter_tables` bounds those, so this is safe to</span>
-<span class="sd">        call on year-plus grids for any `num_interp_points` whose table itself</span>
-<span class="sd">        fits in memory.</span>
 <span class="sd">        """</span>
         <span class="k">assert</span> <span class="n">max_lag_L</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> \
                         <span class="s2">"Max lag must be positive"</span>
@@ -1462,13 +1732,9 @@
         <span class="c1"># shape (2, 2L+1, num_interp_points); index 0 is T', index 1 is T</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">filter_tables</span> <span class="o">=</span> <span class="n">build_filter_tables</span><span class="p">(</span>
                                 <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_lag_L</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">delta_interp_grid</span><span class="p">,</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">freqs</span><span class="p">,</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">window_FD</span><span class="p">,</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">dF</span><span class="p">,</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="p">,</span>
-                                <span class="n">max_bytes</span><span class="o">=</span><span class="n">max_bytes</span><span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">delta_interp_grid</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">d</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">A_frac</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_tables</span></div>
 
@@ -1673,12 +1939,11 @@
 
 <div class="viewcode-block" id="WDM_transform.apply_variable_time_shift">
 <a class="viewcode-back" href="../../../../WDM.code.discrete_wavelet_transform.html#WDM.code.discrete_wavelet_transform.WDM.WDM_transform.apply_variable_time_shift">[docs]</a>
-    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">static_argnames</span><span class="o">=</span><span class="p">(</span><span class="s1">'lag_block'</span><span class="p">,))</span>
+    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">apply_variable_time_shift</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                   <span class="n">filter_tables</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
                                   <span class="n">wdm_coeff</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
-                                  <span class="n">delta</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
-                                  <span class="n">lag_block</span> <span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+                                  <span class="n">delta</span> <span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">"""</span>
 <span class="sd">        Perform the variable time shift operation on a grid of WDM coefficients</span>
 <span class="sd">        by evaluating the sum</span>
@@ -1717,10 +1982,22 @@
 <span class="sd">        textbook form.</span>
 
 <span class="sd">        The matrix elements are evaluated in real arithmetic - see</span>
-<span class="sd">        `real_matrix_element` below for that rearrangement. The carrier phase</span>
-<span class="sd">        :math:`\phi=2\pi(m+\sigma/2)\Delta F\delta_n` does not depend on</span>
-<span class="sd">        :math:`l`, so it is built once outside the lag loop and the</span>
-<span class="sd">        :math:`\sigma=\pm1` cases follow from it by angle addition.</span>
+<span class="sd">        `matrix_element_weights` below for that rearrangement. The carrier</span>
+<span class="sd">        phase :math:`\phi=2\pi(m+\sigma/2)\Delta F\delta_n` does not depend on</span>
+<span class="sd">        :math:`l`, so its :math:`\sigma=0` cosine and sine are built once</span>
+<span class="sd">        outside the lag loop. They are the only :math:`(N_t, N_f)` arrays here:</span>
+<span class="sd">        the :math:`\sigma=\pm1` sidebands differ by a half-bin phase that is</span>
+<span class="sd">        rank-1 in :math:`n`, so angle addition folds them into the per-element</span>
+<span class="sd">        weights rather than into four more grids.</span>
+
+<span class="sd">        The lag sum is a python loop, so all :math:`2L+1` terms are unrolled</span>
+<span class="sd">        into the graph. XLA:CPU fuses the accumulation chain into one pass but</span>
+<span class="sd">        will not fuse across a `lax.fori_loop` body, so blocking the sum sends</span>
+<span class="sd">        the :math:`(N_t, N_f)` accumulator back to memory once per block. At</span>
+<span class="sd">        :math:`N_t=4096`, :math:`N_f=1024`, :math:`L=25` that costs 2.16 s</span>
+<span class="sd">        unrolled against 2.26 s at eight lags per block and 4.37 s at</span>
+<span class="sd">        fifty-one. Unrolling pays for it in graph size, but only at compile</span>
+<span class="sd">        time - about half a second here, then cached.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -1731,13 +2008,6 @@
 <span class="sd">            WDM coefficient grid. Array, dtype=float, shape=(Nt,Nf)</span>
 <span class="sd">        delta : jnp.array</span>
 <span class="sd">            Array, dtype=float, shape=(Nt,)</span>
-<span class="sd">        lag_block : int or None</span>
-<span class="sd">            Number of lags handled per loop iteration. `None` (the default)</span>
-<span class="sd">            unrolls the lag sum completely, which is fastest for small `L`</span>
-<span class="sd">            because the lag index becomes a compile-time constant. For</span>
-<span class="sd">            :math:`L \gtrsim 30` prefer a small block (8 is a reasonable</span>
-<span class="sd">            start): the unrolled graph becomes large enough that scheduling</span>
-<span class="sd">            cost, compile time and compile-time memory outweigh the benefit.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1753,15 +2023,14 @@
         <span class="n">sign_n</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">n</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">)[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
         <span class="n">sign_m</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">m</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">)[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
 
-        <span class="c1"># cos/sin of the sigma=0 carrier; sigma=+-1 by angle addition with</span>
-        <span class="c1"># the rank-1 half-bin phase</span>
+        <span class="c1"># The only two (Nt, Nf) grids in the whole sum: cos and sin of the</span>
+        <span class="c1"># sigma=0 carrier. The sigma=+-1 sidebands are NOT built - they differ</span>
+        <span class="c1"># by the rank-1 half-bin phase below, which angle addition lets every</span>
+        <span class="c1"># matrix element absorb into a rank-1 coefficient instead.</span>
         <span class="n">theta</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dF</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">delta</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
         <span class="n">cos_t</span><span class="p">,</span> <span class="n">sin_t</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
         <span class="n">half</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dF</span><span class="o">*</span><span class="n">delta</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
         <span class="n">cos_h</span><span class="p">,</span> <span class="n">sin_h</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">half</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">half</span><span class="p">)</span>
-        <span class="n">carrier</span> <span class="o">=</span> <span class="p">{</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span> <span class="p">(</span><span class="n">cos_t</span><span class="o">*</span><span class="n">cos_h</span> <span class="o">+</span> <span class="n">sin_t</span><span class="o">*</span><span class="n">sin_h</span><span class="p">,</span> <span class="n">sin_t</span><span class="o">*</span><span class="n">cos_h</span> <span class="o">-</span> <span class="n">cos_t</span><span class="o">*</span><span class="n">sin_h</span><span class="p">),</span>
-                    <span class="mi">0</span><span class="p">:</span> <span class="p">(</span><span class="n">cos_t</span><span class="p">,</span> <span class="n">sin_t</span><span class="p">),</span>
-                   <span class="o">+</span><span class="mi">1</span><span class="p">:</span> <span class="p">(</span><span class="n">cos_t</span><span class="o">*</span><span class="n">cos_h</span> <span class="o">-</span> <span class="n">sin_t</span><span class="o">*</span><span class="n">sin_h</span><span class="p">,</span> <span class="n">sin_t</span><span class="o">*</span><span class="n">cos_h</span> <span class="o">+</span> <span class="n">cos_t</span><span class="o">*</span><span class="n">sin_h</span><span class="p">)}</span>
 
         <span class="c1"># every lag at once: shape (2L+1, Nt), no Nf axis</span>
         <span class="n">lags</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">max_lag_L</span><span class="p">,</span> <span class="n">max_lag_L</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
@@ -1783,10 +2052,18 @@
         <span class="c1"># (1j)**l for l modulo 4, as (real, imaginary) pairs</span>
         <span class="n">i_pow</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.</span><span class="p">]])</span>
 
-        <span class="k">def</span><span class="w"> </span><span class="nf">real_matrix_element</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">matrix_element_weights</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
 <span class="w">            </span><span class="sa">r</span><span class="sd">"""</span>
 <span class="sd">            :math:`X_{n(n-l);m(m+\sigma)}(-\delta_n)` in real arithmetic, for</span>
-<span class="sd">            one lag and one frequency offset. Array, shape=(Nt, Nf).</span>
+<span class="sd">            one lag and one frequency offset, as the weights of `cos_t` and</span>
+<span class="sd">            `sin_t` rather than as the grid itself.</span>
+
+<span class="sd">            The element is</span>
+<span class="sd">            :math:`(\hat{a}\cos\theta + \hat{b}\sin\theta)` times</span>
+<span class="sd">            :math:`(-1)^m` when `alternates`, and both weights are rank-1 in</span>
+<span class="sd">            :math:`n`. Returning them instead of the assembled</span>
+<span class="sd">            :math:`(N_t, N_f)` grid is what keeps the sidebands from ever</span>
+<span class="sd">            being materialised.</span>
 
 <span class="sd">            Parameters</span>
 <span class="sd">            ----------</span>
@@ -1798,6 +2075,13 @@
 <span class="sd">                that range rather than over :math:`l` itself.</span>
 <span class="sd">            sigma : int</span>
 <span class="sd">                Frequency lag, :math:`0` or :math:`\pm1`.</span>
+
+<span class="sd">            Returns</span>
+<span class="sd">            -------</span>
+<span class="sd">            a, b : jnp.array</span>
+<span class="sd">                Weights of `cos_t` and `sin_t`. Array, shape=(Nt, 1).</span>
+<span class="sd">            alternates : bool</span>
+<span class="sd">                Whether the element carries a further factor of :math:`(-1)^m`.</span>
 <span class="sd">            """</span>
             <span class="c1"># C = (+-i)**l, the scalar lag phase: sigma=-1 carries (1j)**l,</span>
             <span class="c1"># sigma=+1 its conjugate, and sigma=0 has no such factor at all.</span>
@@ -1808,6 +2092,13 @@
                 <span class="n">lag_phase_re</span> <span class="o">=</span> <span class="n">i_pow_re</span>
                 <span class="n">lag_phase_im</span> <span class="o">=</span> <span class="n">i_pow_im</span> <span class="k">if</span> <span class="n">sigma</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="k">else</span> <span class="o">-</span><span class="n">i_pow_im</span>
 
+            <span class="c1"># The sideband carrier is cos/sin of (theta + sigma*half). Angle</span>
+            <span class="c1"># addition splits it back onto cos_t and sin_t with these rank-1</span>
+            <span class="c1"># weights. Mind that cos(sigma*half) is 1 at sigma=0, NOT cos_h -</span>
+            <span class="c1"># cosine being even covers sigma=+-1 only.</span>
+            <span class="n">cos_s</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="k">if</span> <span class="n">sigma</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">cos_h</span>
+            <span class="n">sin_s</span> <span class="o">=</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">sigma</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">sigma</span><span class="o">*</span><span class="n">sin_h</span>
+
             <span class="c1"># The parity factor conj(i**a) i**b, with a = (n+m) % 2 and</span>
             <span class="c1"># b = (n'+m') % 2, collapses to a choice of just two cases:</span>
             <span class="c1">#     (l+sigma) even -&gt;  1</span>
@@ -1816,18 +2107,22 @@
             <span class="c1">#     even -&gt;  lag_phase_re cos(phi) + lag_phase_im sin(phi)</span>
             <span class="c1">#     odd  -&gt; -lag_phase_im cos(phi) + lag_phase_re sin(phi)</span>
             <span class="c1"># which is why nothing here needs to be complex.</span>
-            <span class="n">carrier_cos</span><span class="p">,</span> <span class="n">carrier_sin</span> <span class="o">=</span> <span class="n">carrier</span><span class="p">[</span><span class="n">sigma</span><span class="p">]</span>
-            <span class="n">element</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
-                    <span class="p">((</span><span class="n">l</span> <span class="o">+</span> <span class="n">sigma</span><span class="p">)</span> <span class="o">%</span> <span class="mi">2</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
-                    <span class="n">sign_n</span><span class="o">*</span><span class="n">sign_m</span><span class="o">*</span><span class="p">(</span><span class="o">-</span><span class="n">lag_phase_im</span><span class="o">*</span><span class="n">carrier_cos</span>
-                                   <span class="o">+</span> <span class="n">lag_phase_re</span><span class="o">*</span><span class="n">carrier_sin</span><span class="p">),</span>
-                    <span class="n">lag_phase_re</span><span class="o">*</span><span class="n">carrier_cos</span> <span class="o">+</span> <span class="n">lag_phase_im</span><span class="o">*</span><span class="n">carrier_sin</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">l</span> <span class="o">+</span> <span class="n">sigma</span><span class="p">)</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">a</span> <span class="o">=</span> <span class="n">lag_phase_re</span><span class="o">*</span><span class="n">cos_s</span> <span class="o">+</span> <span class="n">lag_phase_im</span><span class="o">*</span><span class="n">sin_s</span>
+                <span class="n">b</span> <span class="o">=</span> <span class="n">lag_phase_im</span><span class="o">*</span><span class="n">cos_s</span> <span class="o">-</span> <span class="n">lag_phase_re</span><span class="o">*</span><span class="n">sin_s</span>
+                <span class="n">alternates</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">a</span> <span class="o">=</span> <span class="n">sign_n</span><span class="o">*</span><span class="p">(</span><span class="n">lag_phase_re</span><span class="o">*</span><span class="n">sin_s</span> <span class="o">-</span> <span class="n">lag_phase_im</span><span class="o">*</span><span class="n">cos_s</span><span class="p">)</span>
+                <span class="n">b</span> <span class="o">=</span> <span class="n">sign_n</span><span class="o">*</span><span class="p">(</span><span class="n">lag_phase_re</span><span class="o">*</span><span class="n">cos_s</span> <span class="o">+</span> <span class="n">lag_phase_im</span><span class="o">*</span><span class="n">sin_s</span><span class="p">)</span>
+                <span class="n">alternates</span> <span class="o">=</span> <span class="kc">True</span>
 
             <span class="c1"># the two remaining factors: (-1)**(l m), and the delay filter</span>
-            <span class="n">alternating</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">l</span> <span class="o">%</span> <span class="mi">2</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">sign_m</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">l</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">alternates</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">alternates</span>
 
-            <span class="k">return</span> <span class="n">element</span> <span class="o">*</span> <span class="n">alternating</span> \
-                        <span class="o">*</span> <span class="n">delay_filter</span><span class="p">[</span><span class="n">sigma</span><span class="p">][</span><span class="n">i</span><span class="p">][:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+            <span class="n">delay</span> <span class="o">=</span> <span class="n">delay_filter</span><span class="p">[</span><span class="n">sigma</span><span class="p">][</span><span class="n">i</span><span class="p">][:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+
+            <span class="k">return</span> <span class="n">a</span><span class="o">*</span><span class="n">delay</span><span class="p">,</span> <span class="n">b</span><span class="o">*</span><span class="n">delay</span><span class="p">,</span> <span class="n">alternates</span>
 
         <span class="k">def</span><span class="w"> </span><span class="nf">body</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">acc</span><span class="p">):</span>
             <span class="n">l</span> <span class="o">=</span> <span class="n">i</span> <span class="o">-</span> <span class="n">max_lag_L</span>
@@ -1837,25 +2132,28 @@
             <span class="n">rows</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">dynamic_slice_in_dim</span><span class="p">(</span><span class="n">cyclic_ext</span><span class="p">,</span> <span class="n">max_lag_L</span> <span class="o">-</span> <span class="n">l</span><span class="p">,</span>
                                                 <span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
+            <span class="c1"># The three sigma are summed before touching acc, so one lag costs</span>
+            <span class="c1"># one pass over the accumulator rather than three.</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
             <span class="k">for</span> <span class="n">sigma</span> <span class="ow">in</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
                 <span class="c1"># offset by 1 because cyclic_ext carries one extra column at</span>
                 <span class="c1"># each edge, so column m+sigma sits at index m+sigma+1</span>
                 <span class="n">coeff</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">slice_in_dim</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">sigma</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
                                              <span class="n">sigma</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
-                <span class="n">acc</span> <span class="o">=</span> <span class="n">acc</span> <span class="o">+</span> <span class="n">coeff</span><span class="o">*</span><span class="n">real_matrix_element</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">sigma</span><span class="p">)</span>
+                <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">alternates</span> <span class="o">=</span> <span class="n">matrix_element_weights</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">sigma</span><span class="p">)</span>
+                <span class="n">term</span> <span class="o">=</span> <span class="n">coeff</span><span class="o">*</span><span class="p">(</span><span class="n">cos_t</span><span class="o">*</span><span class="n">a</span> <span class="o">+</span> <span class="n">sin_t</span><span class="o">*</span><span class="n">b</span><span class="p">)</span>
 
-            <span class="k">return</span> <span class="n">acc</span>
+                <span class="n">total</span> <span class="o">=</span> <span class="n">total</span> <span class="o">+</span> <span class="p">(</span><span class="n">term</span><span class="o">*</span><span class="n">sign_m</span> <span class="k">if</span> <span class="n">alternates</span> <span class="k">else</span> <span class="n">term</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">acc</span> <span class="o">+</span> <span class="n">total</span>
 
         <span class="n">acc</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">wdm_coeff</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">lag_block</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">max_lag_L</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-                <span class="n">acc</span> <span class="o">=</span> <span class="n">body</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">acc</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">acc</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">max_lag_L</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">acc</span> <span class="o">=</span> <span class="n">body</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">acc</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">fori_loop</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">max_lag_L</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span>
-                                 <span class="n">unroll</span><span class="o">=</span><span class="n">lag_block</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">acc</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -1869,7 +2167,7 @@
 <span class="sd">        """</span>
         <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"WDM_transform(Nf=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="si">}</span><span class="s2">, N=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">N</span><span class="si">}</span><span class="s2">, q=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">q</span><span class="si">}</span><span class="s2">, "</span>
-                <span class="sa">f</span><span class="s2">"d=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">d</span><span class="si">}</span><span class="s2">, A_frac=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">A_frac</span><span class="si">}</span><span class="s2">, calc_m0=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">calc_m0</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span> <span class="p">)</span>
+                <span class="sa">f</span><span class="s2">"d=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">d</span><span class="si">}</span><span class="s2">, A_frac=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">A_frac</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span> <span class="p">)</span>
         <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Nt</span><span class="w"> </span><span class="si">= }</span><span class="s2"> time cells"</span> <span class="p">)</span>
         <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">Nf</span><span class="w"> </span><span class="si">= }</span><span class="s2"> frequency cells"</span> <span class="p">)</span>
         <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="w"> </span><span class="si">= }</span><span class="s2"> time resolution"</span> <span class="p">)</span>

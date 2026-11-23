@@ -61,7 +61,7 @@
 <li class="toctree-l2"><a class="reference internal" href="filtering_and_glitch_removal.html">Filtering, whitening and glitch removal</a></li>
 <li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
 <li class="toctree-l2"><a class="reference internal" href="accuracy_truncated_transform.html">Exploring the accuracy of the truncated wavelet transform</a></li>
-<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">m=0 Wavelet Coefficients</a></li>
+<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">Fast calculation of the <span class="math notranslate nohighlight">\(m=0\)</span> wavelet coefficients</a></li>
 <li class="toctree-l2"><a class="reference internal" href="wavelet_transform_examples.html">Examples of wavelet transforms</a></li>
 <li class="toctree-l2"><a class="reference internal" href="time_delay_filters_demo.html">Time-Delay Filters</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Variable Time Shifts</a></li>
@@ -173,7 +173,7 @@ plt.show()
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>N, Nf= times.shape[0], 200
 
-wdm = WDM.WDM_transform(dt=1/fs, Nf=Nf, N=N, q=32, calc_m0=True)
+wdm = WDM.WDM_transform(dt=1/fs, Nf=Nf, N=N, q=32)
 
 print(wdm)
 </pre></div>
@@ -184,7 +184,7 @@ print(wdm)
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-WDM_transform(Nf=200, N=20000, q=32, d=4, A_frac=0.25, calc_m0=True)
+WDM_transform(Nf=200, N=20000, q=32, d=4, A_frac=0.25)
 self.Nt = 100 time cells
 self.Nf = 200 frequency cells
 self.dT = 1000.0 time resolution
@@ -286,7 +286,7 @@ print("The mismatch between the methods is:", calc_mismatch(shifted_signal_const
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 3.163538320194448e-10
+The mismatch between the methods is: 3.1402569433680583e-10
 </pre></div></div>
 </div>
 <p>Second, let’s consider the case of a variable time shift <span class="math notranslate nohighlight">\(\delta(t)\)</span> of the form <span class="math notranslate nohighlight">\(a + bt\)</span>.</p>
@@ -345,7 +345,7 @@ print("The mismatch between the methods is:", calc_mismatch(shifted_signal_varia
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 6.748666181444207e-08
+The mismatch between the methods is: 6.747889724767475e-08
 </pre></div></div>
 </div>
 <p>The accuracy of the variable time-shift depends on the evolution of the time shift arguments</p>
@@ -512,7 +512,7 @@ print("The mismatch between the methods is:", calc_mismatch(shifted_signal_m0_va
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 0.3793719909539073
+The mismatch between the methods is: 0.3793721268718119
 </pre></div></div>
 </div>
 <p>Case 2: Signal too close to boundary</p>
@@ -634,7 +634,7 @@ print("The mismatch between the methods is:", calc_mismatch(shifted_signal_wide_
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-The mismatch between the methods is: 1.4562770818682402e-05
+The mismatch between the methods is: 1.4563356395935756e-05
 </pre></div></div>
 </div>
 </section>

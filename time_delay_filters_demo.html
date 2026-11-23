@@ -61,7 +61,7 @@
 <li class="toctree-l2"><a class="reference internal" href="filtering_and_glitch_removal.html">Filtering, whitening and glitch removal</a></li>
 <li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
 <li class="toctree-l2"><a class="reference internal" href="accuracy_truncated_transform.html">Exploring the accuracy of the truncated wavelet transform</a></li>
-<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">m=0 Wavelet Coefficients</a></li>
+<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">Fast calculation of the <span class="math notranslate nohighlight">\(m=0\)</span> wavelet coefficients</a></li>
 <li class="toctree-l2"><a class="reference internal" href="wavelet_transform_examples.html">Examples of wavelet transforms</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Time-Delay Filters</a></li>
 <li class="toctree-l2"><a class="reference internal" href="variable_time_shift_example.html">Variable Time Shifts</a></li>
@@ -111,7 +111,7 @@ import matplotlib.pylab as plt
 
 import WDM
 from WDM.code.discrete_wavelet_transform import WDM
-from WDM.code.time_delay_filters.filters import time_delay_filter_Tl_reference, time_delay_filter_Tprimel_reference
+from WDM.code.time_delay_filters.filters import filter_functions
 </pre></div>
 </div>
 </div>
@@ -125,16 +125,16 @@ Nt = 32
 Nf = 16
 N = Nt*Nf
 
-wdm = WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8, calc_m0=True)
+wdm = WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8)
 </pre></div>
 </div>
 </div>
 <p>Plot the time-delay filter functions</p>
 <div class="math notranslate nohighlight" id="equation-time-delay-filters-demo-0">
-<span class="eqno">(87)<a class="headerlink" href="#equation-time-delay-filters-demo-0" title="Link to this equation"></a></span>\[T_\ell(\delta t) = \int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta t))
+<span class="eqno">(93)<a class="headerlink" href="#equation-time-delay-filters-demo-0" title="Link to this equation"></a></span>\[T_\ell(\delta t) = \int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta t))
                            |\tilde{\Phi}(f)|^2\]</div>
 <div class="math notranslate nohighlight" id="equation-time-delay-filters-demo-1">
-<span class="eqno">(88)<a class="headerlink" href="#equation-time-delay-filters-demo-1" title="Link to this equation"></a></span>\[T'_\ell(\delta t) = \int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta t))
+<span class="eqno">(94)<a class="headerlink" href="#equation-time-delay-filters-demo-1" title="Link to this equation"></a></span>\[T'_\ell(\delta t) = \int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta t))
                            \tilde{\Phi}\left(f-\frac{1}{2}\Delta F\right)
                            \tilde{\Phi}\left(f+\frac{1}{2}\Delta F\right)\]</div>
 <div class="nbinput docutils container">
@@ -149,20 +149,10 @@ Tprimel_vals = {}
 ell_max = 2
 
 for ell in range(-ell_max, ell_max+1):
-    Tl_vals[ell] = jnp.array([time_delay_filter_Tl_reference(ell,
-                                                   delta_t,
-                                                   wdm.freqs,
-                                                   wdm.window_FD,
-                                                   wdm.dT,
-                                                   wdm.df) for delta_t in delta_t_vals])
-    Tprimel_vals[ell] = jnp.array([time_delay_filter_Tprimel_reference(ell,
-                                                             delta_t,
-                                                             wdm.freqs,
-                                                             wdm.window_FD,
-                                                             wdm.dT,
-                                                             wdm.dF,
-                                                             wdm.N,
-                                                             wdm.df) for delta_t in delta_t_vals])
+    # functions of ell - delta/dT; index 0 is T', index 1 is T
+    filters = filter_functions(ell - delta_t_vals/wdm.dT, wdm.d, wdm.A_frac)
+    Tl_vals[ell] = filters[1]
+    Tprimel_vals[ell] = filters[0]
 
 fig, axes = plt.subplots(ncols=2, figsize=(10, 4))
 

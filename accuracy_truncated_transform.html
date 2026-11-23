@@ -24,7 +24,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="m=0 Wavelet Coefficients" href="m_equal_0_terms.html" />
+    <link rel="next" title="Fast calculation of the \(m=0\) wavelet coefficients" href="m_equal_0_terms.html" />
     <link rel="prev" title="Benchmarking" href="benchmarking.html" /> 
 </head>
 
@@ -61,7 +61,7 @@
 <li class="toctree-l2"><a class="reference internal" href="filtering_and_glitch_removal.html">Filtering, whitening and glitch removal</a></li>
 <li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Exploring the accuracy of the truncated wavelet transform</a></li>
-<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">m=0 Wavelet Coefficients</a></li>
+<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">Fast calculation of the <span class="math notranslate nohighlight">\(m=0\)</span> wavelet coefficients</a></li>
 <li class="toctree-l2"><a class="reference internal" href="wavelet_transform_examples.html">Examples of wavelet transforms</a></li>
 <li class="toctree-l2"><a class="reference internal" href="time_delay_filters_demo.html">Time-Delay Filters</a></li>
 <li class="toctree-l2"><a class="reference internal" href="variable_time_shift_example.html">Variable Time Shifts</a></li>
@@ -152,12 +152,11 @@ for i, q in enumerate(q_vals):
     wdm = WDM.WDM.WDM_transform(dt=0.5,
                                 Nf=Nf,
                                 N=N,
-                                q=q,
-                                calc_m0=True)
+                                q=q)
 
     w = wdm.forward_transform_truncated(x)
 
-    x_recovered = wdm.inverse_transform(w)
+    x_recovered = wdm.inverse_transform_truncated_window(w)
 
     err_vals[i] = np.max(np.abs(x - x_recovered))
 </pre></div>
@@ -170,8 +169,7 @@ for i, q in enumerate(q_vals):
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>wdm = WDM.WDM.WDM_transform(dt=0.5,
                             Nf=Nf,
-                            N=N,
-                            calc_m0=True)
+                            N=N)
 
 w = wdm.forward_transform_exact(x)
 
@@ -231,12 +229,11 @@ for j, d in enumerate(d_vals):
                                                                     Nf=Nf,
                                                                     N=N,
                                                                     q=q,
-                                                                    d=d,
-                                                                    calc_m0=True)
+                                                                    d=d)
 
         w = wdm.forward_transform_truncated(x)
 
-        x_recovered = wdm.inverse_transform(w)
+        x_recovered = wdm.inverse_transform_truncated_window(w)
 
         err_vals[d][i] = np.max(np.abs(x - x_recovered))
 </pre></div>
@@ -272,14 +269,6 @@ plt.show()
 <img alt="_images/accuracy_truncated_transform_15_0.png" src="_images/accuracy_truncated_transform_15_0.png" />
 </div>
 </div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
-</pre></div>
-</div>
-</div>
 </section>
 
 
@@ -287,7 +276,7 @@ plt.show()
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="benchmarking.html" class="btn btn-neutral float-left" title="Benchmarking" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="m_equal_0_terms.html" class="btn btn-neutral float-right" title="m=0 Wavelet Coefficients" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="m_equal_0_terms.html" class="btn btn-neutral float-right" title="Fast calculation of the \(m=0\) wavelet coefficients" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

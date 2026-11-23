@@ -25,7 +25,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Time-Delay Filters" href="time_delay_filters_demo.html" />
-    <link rel="prev" title="m=0 Wavelet Coefficients" href="m_equal_0_terms.html" /> 
+    <link rel="prev" title="Fast calculation of the \(m=0\) wavelet coefficients" href="m_equal_0_terms.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -61,7 +61,7 @@
 <li class="toctree-l2"><a class="reference internal" href="filtering_and_glitch_removal.html">Filtering, whitening and glitch removal</a></li>
 <li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
 <li class="toctree-l2"><a class="reference internal" href="accuracy_truncated_transform.html">Exploring the accuracy of the truncated wavelet transform</a></li>
-<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">m=0 Wavelet Coefficients</a></li>
+<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">Fast calculation of the <span class="math notranslate nohighlight">\(m=0\)</span> wavelet coefficients</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Examples of wavelet transforms</a></li>
 <li class="toctree-l2"><a class="reference internal" href="time_delay_filters_demo.html">Time-Delay Filters</a></li>
 <li class="toctree-l2"><a class="reference internal" href="variable_time_shift_example.html">Variable Time Shifts</a></li>
@@ -121,7 +121,7 @@ from WDM.code.plotting.plotting import time_domain_plot, frequency_domain_plot, 
 N = 8192
 Nf = 512
 
-wdm = WDM.WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8, calc_m0=True)
+wdm = WDM.WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8)
 print(wdm)
 </pre></div>
 </div>
@@ -131,7 +131,7 @@ print(wdm)
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-WDM_transform(Nf=512, N=8192, q=8, d=4, A_frac=0.25, calc_m0=True)
+WDM_transform(Nf=512, N=8192, q=8, d=4, A_frac=0.25)
 self.Nt = 16 time cells
 self.Nf = 512 frequency cells
 self.dT = 512.0 time resolution
@@ -143,7 +143,7 @@ self.K = 8192 window length
 </div>
 <p>Low frequency sine wave.</p>
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-0">
-<span class="eqno">(79)<a class="headerlink" href="#equation-wavelet-transform-examples-0" title="Link to this equation"></a></span>\[x(t) = \sin(2\pi ft)\]</div>
+<span class="eqno">(85)<a class="headerlink" href="#equation-wavelet-transform-examples-0" title="Link to this equation"></a></span>\[x(t) = \sin(2\pi ft)\]</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
@@ -175,7 +175,7 @@ plt.show()
 </div>
 <p>Low frequency cosine wave</p>
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-1">
-<span class="eqno">(80)<a class="headerlink" href="#equation-wavelet-transform-examples-1" title="Link to this equation"></a></span>\[x(t) = \cos(2\pi ft)\]</div>
+<span class="eqno">(86)<a class="headerlink" href="#equation-wavelet-transform-examples-1" title="Link to this equation"></a></span>\[x(t) = \cos(2\pi ft)\]</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
@@ -207,7 +207,7 @@ plt.show()
 </div>
 <p>High frequency sine wave</p>
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-2">
-<span class="eqno">(81)<a class="headerlink" href="#equation-wavelet-transform-examples-2" title="Link to this equation"></a></span>\[x(t) = \sin(2\pi ft)\]</div>
+<span class="eqno">(87)<a class="headerlink" href="#equation-wavelet-transform-examples-2" title="Link to this equation"></a></span>\[x(t) = \sin(2\pi ft)\]</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
@@ -238,7 +238,7 @@ plt.show()
 </div>
 <p>Gaussian pulse</p>
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-3">
-<span class="eqno">(82)<a class="headerlink" href="#equation-wavelet-transform-examples-3" title="Link to this equation"></a></span>\[x(t) = \exp\left(\frac{-(t-t_c)^2}{2w^2}\right)\]</div>
+<span class="eqno">(88)<a class="headerlink" href="#equation-wavelet-transform-examples-3" title="Link to this equation"></a></span>\[x(t) = \exp\left(\frac{-(t-t_c)^2}{2w^2}\right)\]</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
@@ -270,7 +270,7 @@ plt.show()
 </div>
 <p>Top hat pulse</p>
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-4">
-<span class="eqno">(83)<a class="headerlink" href="#equation-wavelet-transform-examples-4" title="Link to this equation"></a></span>\[x(t) = \Theta\left(t-t_c+\frac{w}{2}\right) - \Theta\left(t-t_c-\frac{w}{2}\right)\]</div>
+<span class="eqno">(89)<a class="headerlink" href="#equation-wavelet-transform-examples-4" title="Link to this equation"></a></span>\[x(t) = \Theta\left(t-t_c+\frac{w}{2}\right) - \Theta\left(t-t_c-\frac{w}{2}\right)\]</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
@@ -302,7 +302,7 @@ plt.show()
 </div>
 <p>Narrow top hat pulse</p>
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-5">
-<span class="eqno">(84)<a class="headerlink" href="#equation-wavelet-transform-examples-5" title="Link to this equation"></a></span>\[x(t) = \Theta\left(t-t_c+\frac{w}{2}\right) - \Theta\left(t-t_c-\frac{w}{2}\right)\]</div>
+<span class="eqno">(90)<a class="headerlink" href="#equation-wavelet-transform-examples-5" title="Link to this equation"></a></span>\[x(t) = \Theta\left(t-t_c+\frac{w}{2}\right) - \Theta\left(t-t_c-\frac{w}{2}\right)\]</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
@@ -333,7 +333,7 @@ plt.show()
 </div>
 <p>Gaussian white noise</p>
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-6">
-<span class="eqno">(85)<a class="headerlink" href="#equation-wavelet-transform-examples-6" title="Link to this equation"></a></span>\[x[k] \equiv x(t_k) \sim \mathcal{N}(0,1)\]</div>
+<span class="eqno">(91)<a class="headerlink" href="#equation-wavelet-transform-examples-6" title="Link to this equation"></a></span>\[x[k] \equiv x(t_k) \sim \mathcal{N}(0,1)\]</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
@@ -362,7 +362,7 @@ plt.show()
 </div>
 <p>Locally Stationary Wavelet White Noise Process. This is defined by having the wavelet coefficients satisfy</p>
 <div class="math notranslate nohighlight" id="equation-wavelet-transform-examples-7">
-<span class="eqno">(86)<a class="headerlink" href="#equation-wavelet-transform-examples-7" title="Link to this equation"></a></span>\[w_{nm} \sim \mathcal{N}(0,1)\]</div>
+<span class="eqno">(92)<a class="headerlink" href="#equation-wavelet-transform-examples-7" title="Link to this equation"></a></span>\[w_{nm} \sim \mathcal{N}(0,1)\]</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
@@ -391,21 +391,13 @@ plt.show()
 <img alt="_images/wavelet_transform_examples_18_0.png" src="_images/wavelet_transform_examples_18_0.png" />
 </div>
 </div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
-</pre></div>
-</div>
-</div>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="m_equal_0_terms.html" class="btn btn-neutral float-left" title="m=0 Wavelet Coefficients" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="m_equal_0_terms.html" class="btn btn-neutral float-left" title="Fast calculation of the \(m=0\) wavelet coefficients" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="time_delay_filters_demo.html" class="btn btn-neutral float-right" title="Time-Delay Filters" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

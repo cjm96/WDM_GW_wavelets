@@ -195,6 +195,99 @@ parity of <span class="math notranslate nohighlight">\(n+m\)</span>.</p>
 </dl>
 </dd></dl>
 
+<dl class="py data">
+<dt class="sig sig-object py" id="WDM.code.utils.utils.MAX_WORKING_SET_BYTES_FALLBACK">
+<span class="sig-prename descclassname"><span class="pre">WDM.code.utils.utils.</span></span><span class="sig-name descname"><span class="pre">MAX_WORKING_SET_BYTES_FALLBACK</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1073741824</span></em><a class="headerlink" href="#WDM.code.utils.utils.MAX_WORKING_SET_BYTES_FALLBACK" title="Link to this definition"></a></dt>
+<dd><p>Working-set limit used when the machine’s memory cannot be detected.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="WDM.code.utils.utils.MAX_WORKING_SET_FRACTION">
+<span class="sig-prename descclassname"><span class="pre">WDM.code.utils.utils.</span></span><span class="sig-name descname"><span class="pre">MAX_WORKING_SET_FRACTION</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.75</span></em><a class="headerlink" href="#WDM.code.utils.utils.MAX_WORKING_SET_FRACTION" title="Link to this definition"></a></dt>
+<dd><p>Fraction of the machine’s memory that one working set may occupy before
+the reference transforms refuse to run. This is a refusal threshold: the
+arrays it guards are built whole and cannot be blocked. Raise it if you
+have headroom.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="WDM.code.utils.utils.check_working_set">
+<span class="sig-prename descclassname"><span class="pre">WDM.code.utils.utils.</span></span><span class="sig-name descname"><span class="pre">check_working_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nbytes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">what</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instead</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/WDM/code/utils/utils.html#check_working_set"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.utils.utils.check_working_set" title="Link to this definition"></a></dt>
+<dd><p>Refuse to build an array that would not fit in memory.</p>
+<p>The reference and truncated transforms build dense arrays whose size
+grows as <span class="math notranslate nohighlight">\(N^2\)</span> (the wavelet bases) or <span class="math notranslate nohighlight">\(qNN_f\)</span> (the truncated
+window transform). At production grid sizes these reach tens or hundreds
+of GiB - enough to take a machine down rather than merely run slowly -
+so it is better to refuse with an explanation than to start allocating.</p>
+<p>The guarded methods are jitted with <cite>self</cite> static, so <span class="math notranslate nohighlight">\(N\)</span>,
+<span class="math notranslate nohighlight">\(N_t\)</span>, <span class="math notranslate nohighlight">\(N_f\)</span> and <span class="math notranslate nohighlight">\(K\)</span> are compile-time constants at the
+call site: this check costs arithmetic at trace time and nothing at all
+at run time.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nbytes</strong> (<em>int</em>) – Estimated peak working set, in bytes.</p></li>
+<li><p><strong>what</strong> (<em>str</em>) – Description of the array being built, naming its shape. Used in the
+error message.</p></li>
+<li><p><strong>instead</strong> (<em>str</em>) – Name of the production method to suggest instead.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>MemoryError</strong> – If <cite>nbytes</cite> exceeds <cite>MAX_WORKING_SET_FRACTION</cite> of detected memory.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="WDM.code.utils.utils.detect_memory_bytes">
+<span class="sig-prename descclassname"><span class="pre">WDM.code.utils.utils.</span></span><span class="sig-name descname"><span class="pre">detect_memory_bytes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/WDM/code/utils/utils.html#detect_memory_bytes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.utils.utils.detect_memory_bytes" title="Link to this definition"></a></dt>
+<dd><p>Total memory available to JAX, in bytes.</p>
+<p>Prefers the memory limit of the default JAX device, so that a run on an
+accelerator is bounded by device memory rather than host memory. The CPU
+backend reports no such limit, in which case the host’s physical memory
+is used. If neither can be determined - <cite>os.sysconf</cite> is absent on
+Windows - <cite>MAX_WORKING_SET_BYTES_FALLBACK</cite> is returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>nbytes</strong> – Total memory, in bytes.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="WDM.code.utils.utils.format_bytes">
+<span class="sig-prename descclassname"><span class="pre">WDM.code.utils.utils.</span></span><span class="sig-name descname"><span class="pre">format_bytes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nbytes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/WDM/code/utils/utils.html#format_bytes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.utils.utils.format_bytes" title="Link to this definition"></a></dt>
+<dd><p>Render a number of bytes in the largest unit that keeps it above one.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>nbytes</strong> (<em>float</em>) – A number of bytes.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>text</strong> – Human-readable size.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Example:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">512</span><span class="p">,</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">28</span><span class="p">,</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">34</span><span class="p">,</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">44</span><span class="p">]:</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">format_bytes</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="go">512 -&gt; 512.00 B</span>
+<span class="go">262144 -&gt; 256.00 KiB</span>
+<span class="go">268435456 -&gt; 256.00 MiB</span>
+<span class="go">17179869184 -&gt; 16.00 GiB</span>
+<span class="go">17592186044416 -&gt; 16.00 TiB</span>
+</pre></div>
+</div>
+</dd></dl>
+
 <dl class="py function">
 <dt class="sig sig-object py" id="WDM.code.utils.utils.next_multiple">
 <span class="sig-prename descclassname"><span class="pre">WDM.code.utils.utils.</span></span><span class="sig-name descname"><span class="pre">next_multiple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="_modules/WDM/code/utils/utils.html#next_multiple"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.utils.utils.next_multiple" title="Link to this definition"></a></dt>
@@ -216,7 +309,7 @@ parity of <span class="math notranslate nohighlight">\(n+m\)</span>.</p>
 <p class="rubric">Notes</p>
 <p>Example with N = 3:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]:</span>
-<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">next_multiple</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">2d</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">next_multiple</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="si">:</span><span class="s2">2d</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="go">-4 -&gt; -3</span>
 <span class="go">-3 -&gt; -3</span>
 <span class="go">-2 -&gt;  0</span>
@@ -256,11 +349,11 @@ parity of <span class="math notranslate nohighlight">\(n+m\)</span>.</p>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">Nf</span> <span class="o">=</span> <span class="mi">4</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">K</span> <span class="o">=</span> <span class="mi">8</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">x</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">Nt</span><span class="o">*</span><span class="n">Nf</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">overlapping_windows</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">Nt</span><span class="p">,</span> <span class="n">Nf</span><span class="p">)</span>
-<span class="go">array([ [12, 13, 14, 15,  0,  1,  2,  3],</span>
-<span class="go">        [ 0,  1,  2,  3,  4,  5,  6,  7],</span>
-<span class="go">        [ 4,  5,  6,  7,  8,  9, 10, 11],</span>
-<span class="go">        [ 8,  9, 10, 11, 12, 13, 14, 15] ])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">overlapping_windows</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">Nt</span><span class="p">,</span> <span class="n">Nf</span><span class="p">))</span>
+<span class="go">[[12 13 14 15  0  1  2  3]</span>
+<span class="go"> [ 0  1  2  3  4  5  6  7]</span>
+<span class="go"> [ 4  5  6  7  8  9 10 11]</span>
+<span class="go"> [ 8  9 10 11 12 13 14 15]]</span>
 </pre></div>
 </div>
 </dd></dl>

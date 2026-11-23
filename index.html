@@ -143,6 +143,11 @@ transform for the time-frequency analysis of gravitational wave data.</p>
 </li>
 <li class="toctree-l6"><a class="reference internal" href="WDM.code.utils.html#module-WDM.code.utils.utils">WDM.code.utils.utils module</a><ul>
 <li class="toctree-l7"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.C_nm"><code class="docutils literal notranslate"><span class="pre">C_nm()</span></code></a></li>
+<li class="toctree-l7"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.MAX_WORKING_SET_BYTES_FALLBACK"><code class="docutils literal notranslate"><span class="pre">MAX_WORKING_SET_BYTES_FALLBACK</span></code></a></li>
+<li class="toctree-l7"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.MAX_WORKING_SET_FRACTION"><code class="docutils literal notranslate"><span class="pre">MAX_WORKING_SET_FRACTION</span></code></a></li>
+<li class="toctree-l7"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.check_working_set"><code class="docutils literal notranslate"><span class="pre">check_working_set()</span></code></a></li>
+<li class="toctree-l7"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.detect_memory_bytes"><code class="docutils literal notranslate"><span class="pre">detect_memory_bytes()</span></code></a></li>
+<li class="toctree-l7"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.format_bytes"><code class="docutils literal notranslate"><span class="pre">format_bytes()</span></code></a></li>
 <li class="toctree-l7"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.next_multiple"><code class="docutils literal notranslate"><span class="pre">next_multiple()</span></code></a></li>
 <li class="toctree-l7"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.overlapping_windows"><code class="docutils literal notranslate"><span class="pre">overlapping_windows()</span></code></a></li>
 <li class="toctree-l7"><a class="reference internal" href="WDM.code.utils.html#WDM.code.utils.utils.pad_signal"><code class="docutils literal notranslate"><span class="pre">pad_signal()</span></code></a></li>
@@ -163,11 +168,10 @@ transform for the time-frequency analysis of gravitational wave data.</p>
 <li class="toctree-l5"><a class="reference internal" href="WDM.code.time_delay_filters.html">WDM.code.time_delay_filters package</a><ul>
 <li class="toctree-l6"><a class="reference internal" href="WDM.code.time_delay_filters.html#submodules">Submodules</a></li>
 <li class="toctree-l6"><a class="reference internal" href="WDM.code.time_delay_filters.html#wdm-code-time-delay-filters-filters-module">WDM.code.time_delay_filters.filters module</a><ul>
-<li class="toctree-l7"><a class="reference internal" href="WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.FILTER_TABLE_BLOCK_BYTES"><code class="docutils literal notranslate"><span class="pre">FILTER_TABLE_BLOCK_BYTES</span></code></a></li>
+<li class="toctree-l7"><a class="reference internal" href="WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.NUM_QUADRATURE_NODES"><code class="docutils literal notranslate"><span class="pre">NUM_QUADRATURE_NODES</span></code></a></li>
 <li class="toctree-l7"><a class="reference internal" href="WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.build_filter_tables"><code class="docutils literal notranslate"><span class="pre">build_filter_tables()</span></code></a></li>
-<li class="toctree-l7"><a class="reference internal" href="WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.time_delay_filter_Tl_reference"><code class="docutils literal notranslate"><span class="pre">time_delay_filter_Tl_reference()</span></code></a></li>
-<li class="toctree-l7"><a class="reference internal" href="WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.time_delay_filter_Tprimel_reference"><code class="docutils literal notranslate"><span class="pre">time_delay_filter_Tprimel_reference()</span></code></a></li>
-<li class="toctree-l7"><a class="reference internal" href="WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.window_support"><code class="docutils literal notranslate"><span class="pre">window_support()</span></code></a></li>
+<li class="toctree-l7"><a class="reference internal" href="WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.filter_functions"><code class="docutils literal notranslate"><span class="pre">filter_functions()</span></code></a></li>
+<li class="toctree-l7"><a class="reference internal" href="WDM.code.time_delay_filters.html#WDM.code.time_delay_filters.filters.window_in_bins"><code class="docutils literal notranslate"><span class="pre">window_in_bins()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -186,7 +190,12 @@ transform for the time-frequency analysis of gravitational wave data.</p>
 <li class="toctree-l2"><a class="reference internal" href="filtering_and_glitch_removal.html">Filtering, whitening and glitch removal</a></li>
 <li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
 <li class="toctree-l2"><a class="reference internal" href="accuracy_truncated_transform.html">Exploring the accuracy of the truncated wavelet transform</a></li>
-<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">m=0 Wavelet Coefficients</a></li>
+<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">Fast calculation of the <span class="math notranslate nohighlight">\(m=0\)</span> wavelet coefficients</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="m_equal_0_terms.html#Comparison-with-the-exact-transform">Comparison with the exact transform</a></li>
+<li class="toctree-l3"><a class="reference internal" href="m_equal_0_terms.html#Independence-from-the-truncation-parameter-q">Independence from the truncation parameter <span class="math notranslate nohighlight">\(q\)</span></a></li>
+<li class="toctree-l3"><a class="reference internal" href="m_equal_0_terms.html#Edge-coefficients-for-a-low-frequency-signal">Edge coefficients for a low-frequency signal</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="wavelet_transform_examples.html">Examples of wavelet transforms</a></li>
 <li class="toctree-l2"><a class="reference internal" href="time_delay_filters_demo.html">Time-Delay Filters</a></li>
 <li class="toctree-l2"><a class="reference internal" href="variable_time_shift_example.html">Variable Time Shifts</a></li>

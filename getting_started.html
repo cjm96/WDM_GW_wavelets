@@ -61,7 +61,7 @@
 <li class="toctree-l2"><a class="reference internal" href="filtering_and_glitch_removal.html">Filtering, whitening and glitch removal</a></li>
 <li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
 <li class="toctree-l2"><a class="reference internal" href="accuracy_truncated_transform.html">Exploring the accuracy of the truncated wavelet transform</a></li>
-<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">m=0 Wavelet Coefficients</a></li>
+<li class="toctree-l2"><a class="reference internal" href="m_equal_0_terms.html">Fast calculation of the <span class="math notranslate nohighlight">\(m=0\)</span> wavelet coefficients</a></li>
 <li class="toctree-l2"><a class="reference internal" href="wavelet_transform_examples.html">Examples of wavelet transforms</a></li>
 <li class="toctree-l2"><a class="reference internal" href="time_delay_filters_demo.html">Time-Delay Filters</a></li>
 <li class="toctree-l2"><a class="reference internal" href="variable_time_shift_example.html">Variable Time Shifts</a></li>
@@ -142,11 +142,51 @@ plt.show()
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="_images/getting_started_3_0.png" src="_images/getting_started_3_0.png" />
-</div>
+<div class="highlight"><pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">FileNotFoundError</span>                         Traceback (most recent call last)
+<span class="ansi-cyan-fg">Cell</span><span class="ansi-cyan-fg"> </span><span class="ansi-green-fg">In[2]</span><span class="ansi-green-fg">, line 1</span>
+<span class="ansi-green-fg">----&gt; </span><span class="ansi-green-fg">1</span> data = np.loadtxt(<span class="ansi-yellow-fg">&#34;../data/waveform_SXS:BBH:0305_Reh22.txt&#34;</span>)
+<span class="ansi-green-fg">      2</span>
+<span class="ansi-green-fg">      3</span> time = data[<span class="ansi-green-fg">0</span>]
+<span class="ansi-green-fg">      4</span> re_strain = data[<span class="ansi-green-fg">1</span>]
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~/miniforge3/envs/lisatools/lib/python3.13/site-packages/numpy/lib/_npyio_impl.py:1397</span>, in <span class="ansi-cyan-fg">loadtxt</span><span class="ansi-blue-fg">(fname, dtype, comments, delimiter, converters, skiprows, usecols, unpack, ndmin, encoding, max_rows, quotechar, like)</span>
+<span class="ansi-green-fg">   1394</span> <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> <span style="color: rgb(0,135,0)">isinstance</span>(delimiter, <span style="color: rgb(0,135,0)">bytes</span>):
+<span class="ansi-green-fg">   1395</span>     delimiter = delimiter.decode(<span class="ansi-yellow-fg">&#39;</span><span class="ansi-yellow-fg">latin1</span><span class="ansi-yellow-fg">&#39;</span>)
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1397</span> arr = <span class="ansi-black-fg ansi-yellow-bg">_read</span><span class="ansi-black-fg ansi-yellow-bg">(</span><span class="ansi-black-fg ansi-yellow-bg">fname</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">dtype</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">dtype</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">comment</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">comment</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">delimiter</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">delimiter</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1398</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">converters</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">converters</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">skiplines</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">skiprows</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">usecols</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">usecols</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1399</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">unpack</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">unpack</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">ndmin</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">ndmin</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">encoding</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">encoding</span><span class="ansi-black-fg ansi-yellow-bg">,</span>
+<span class="ansi-green-fg">   1400</span> <span class="ansi-black-fg ansi-yellow-bg">            </span><span class="ansi-black-fg ansi-yellow-bg">max_rows</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">max_rows</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">quote</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">quotechar</span><span class="ansi-black-fg ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">   1402</span> <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> arr
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~/miniforge3/envs/lisatools/lib/python3.13/site-packages/numpy/lib/_npyio_impl.py:1024</span>, in <span class="ansi-cyan-fg">_read</span><span class="ansi-blue-fg">(fname, delimiter, comment, quote, imaginary_unit, usecols, skiplines, max_rows, converters, ndmin, unpack, dtype, encoding)</span>
+<span class="ansi-green-fg">   1022</span>     fname = os.fspath(fname)
+<span class="ansi-green-fg">   1023</span> <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> <span style="color: rgb(0,135,0)">isinstance</span>(fname, <span style="color: rgb(0,135,0)">str</span>):
+<span class="ansi-green-fg">-&gt; </span><span class="ansi-green-fg">1024</span>     fh = <span class="ansi-black-fg ansi-yellow-bg">np</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">lib</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">_datasource</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">open</span><span class="ansi-black-fg ansi-yellow-bg">(</span><span class="ansi-black-fg ansi-yellow-bg">fname</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">&#39;</span><span class="ansi-black-fg ansi-yellow-bg">rt</span><span class="ansi-black-fg ansi-yellow-bg">&#39;</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">encoding</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">encoding</span><span class="ansi-black-fg ansi-yellow-bg">)</span>
+<span class="ansi-green-fg">   1025</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">if</span> encoding <span class="ansi-bold" style="color: rgb(175,0,255)">is</span> <span class="ansi-bold" style="color: rgb(0,135,0)">None</span>:
+<span class="ansi-green-fg">   1026</span>         encoding = <span style="color: rgb(0,135,0)">getattr</span>(fh, <span class="ansi-yellow-fg">&#39;</span><span class="ansi-yellow-fg">encoding</span><span class="ansi-yellow-fg">&#39;</span>, <span class="ansi-yellow-fg">&#39;</span><span class="ansi-yellow-fg">latin1</span><span class="ansi-yellow-fg">&#39;</span>)
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~/miniforge3/envs/lisatools/lib/python3.13/site-packages/numpy/lib/_datasource.py:192</span>, in <span class="ansi-cyan-fg">open</span><span class="ansi-blue-fg">(path, mode, destpath, encoding, newline)</span>
+<span class="ansi-green-fg">    155</span> <span class="ansi-yellow-fg">&#34;&#34;&#34;</span>
+<span class="ansi-green-fg">    156</span> <span class="ansi-yellow-fg">Open `path` with `mode` and return the file object.</span>
+<span class="ansi-green-fg">    157</span>
+<span class="ansi-green-fg">   (...)</span><span class="ansi-green-fg">    188</span>
+<span class="ansi-green-fg">    189</span> <span class="ansi-yellow-fg">&#34;&#34;&#34;</span>
+<span class="ansi-green-fg">    191</span> ds = DataSource(destpath)
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">192</span> <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> <span class="ansi-black-fg ansi-yellow-bg">ds</span><span class="ansi-black-fg ansi-yellow-bg">.</span><span class="ansi-black-fg ansi-yellow-bg">open</span><span class="ansi-black-fg ansi-yellow-bg">(</span><span class="ansi-black-fg ansi-yellow-bg">path</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">mode</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">encoding</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">encoding</span><span class="ansi-black-fg ansi-yellow-bg">,</span><span class="ansi-black-fg ansi-yellow-bg"> </span><span class="ansi-black-fg ansi-yellow-bg">newline</span><span class="ansi-black-fg ansi-yellow-bg">=</span><span class="ansi-black-fg ansi-yellow-bg">newline</span><span class="ansi-black-fg ansi-yellow-bg">)</span>
+
+<span class="ansi-cyan-fg">File </span><span class="ansi-green-fg">~/miniforge3/envs/lisatools/lib/python3.13/site-packages/numpy/lib/_datasource.py:529</span>, in <span class="ansi-cyan-fg">DataSource.open</span><span class="ansi-blue-fg">(self, path, mode, encoding, newline)</span>
+<span class="ansi-green-fg">    526</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> _file_openers[ext](found, mode=mode,
+<span class="ansi-green-fg">    527</span>                               encoding=encoding, newline=newline)
+<span class="ansi-green-fg">    528</span> <span class="ansi-bold" style="color: rgb(0,135,0)">else</span>:
+<span class="ansi-green-fg">--&gt; </span><span class="ansi-green-fg">529</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">raise</span> <span class="ansi-bold" style="color: rgb(215,95,95)">FileNotFoundError</span>(<span class="ansi-yellow-fg">f</span><span class="ansi-yellow-fg">&#34;</span><span class="ansi-bold" style="color: rgb(175,95,135)">{</span>path<span class="ansi-bold" style="color: rgb(175,95,135)">}</span><span class="ansi-yellow-fg"> not found.</span><span class="ansi-yellow-fg">&#34;</span>)
+
+<span class="ansi-red-fg">FileNotFoundError</span>: ../data/waveform_SXS:BBH:0305_Reh22.txt not found.
+</pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>current_length = len(time)
@@ -165,7 +205,7 @@ Current length of time series: 7688
 </div>
 <p>Let’s take a wavelet transform of this using <span class="math notranslate nohighlight">\(N_f=512\)</span> frequency slices. The <code class="docutils literal notranslate"><span class="pre">wdm</span></code> object will handle the wavelet transform. We need to pad the signal so that it’s length is an even multiple of this number</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>dt = np.mean(np.diff(time))
@@ -174,7 +214,7 @@ Nf = 512
 
 N = WDM.utils.next_multiple(current_length, 2*Nf)
 
-wdm = WDM.WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8, calc_m0=True)
+wdm = WDM.WDM.WDM_transform(dt=dt, Nf=Nf, N=N, q=8)
 
 re_strain_padded, mask = WDM.utils.pad_signal(re_strain, N)
 im_strain_padded, mask = WDM.utils.pad_signal(im_strain, N)
@@ -193,7 +233,7 @@ Padded length of time series: 8192
 </div>
 <p>We can print the wdm object to see some key information about the wavelets we are using.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>print(wdm)
@@ -217,7 +257,7 @@ self.K = 8192 window length
 </div>
 <p>Take the forward discrete wavelet transform (dwt). This transforms from the time domain to the time-frequency domain.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>w = wdm.dwt(re_strain_padded)
@@ -226,7 +266,7 @@ self.K = 8192 window length
 </div>
 <p>We can plot these coefficients in the time-frequency plane. The black line shows the frequency obtained directly from the NR waveform. Note, this doesn’t look as beautifully smooth as the oversampled periodograms we are used to looking at, but this is what we want for data analysis.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = WDM.plotting.time_frequency_plot(wdm, w, part='abs', scale='linear')
@@ -246,7 +286,7 @@ plt.show()
 <p>Let’s take an inverse discrete wavelet transform (idwt).</p>
 <p>This transforms back into the time domain. We do this to check we can recover the original signal. We will use the mask to get the output back to the original shape.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>re_strain_recovered = wdm.idwt(w)[mask]
@@ -266,7 +306,7 @@ Max residual: 3.0877427351083675e-14
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>fig, ax = plt.subplots()
@@ -291,7 +331,7 @@ plt.show()
 <p>The operations for the forward and inverse discrete wavelet transform are vectorised for multiple transforms to be performed at once in batches.</p>
 <p>We demonstrate this here by transforming both + and <span class="math notranslate nohighlight">\(\times\)</span> components of the GW signal (batch size=2).</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>GW_signal_padded = np.vstack((re_strain_padded, re_strain_padded))

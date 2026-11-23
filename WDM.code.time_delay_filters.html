@@ -105,53 +105,25 @@
 <section id="wdm-code-time-delay-filters-filters-module">
 <h2>WDM.code.time_delay_filters.filters module<a class="headerlink" href="#wdm-code-time-delay-filters-filters-module" title="Link to this heading"></a></h2>
 <dl class="py data" id="module-WDM.code.time_delay_filters.filters">
-<dt class="sig sig-object py" id="WDM.code.time_delay_filters.filters.FILTER_TABLE_BLOCK_BYTES">
-<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">FILTER_TABLE_BLOCK_BYTES</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">268435456</span></em><a class="headerlink" href="#WDM.code.time_delay_filters.filters.FILTER_TABLE_BLOCK_BYTES" title="Link to this definition"></a></dt>
-<dd><p>Default working-set budget, in bytes, for one frequency block of
-<cite>build_filter_tables</cite>. The whole point of the blocking is that the peak
-allocation stops depending on <span class="math notranslate nohighlight">\(N\)</span>, so this only has to be small
-enough to fit and large enough that the matrix products stay efficient.
-It is the default of every <cite>max_bytes</cite> argument in the package, so that
-the budget has one definition rather than one per call site.</p>
+<dt class="sig sig-object py" id="WDM.code.time_delay_filters.filters.NUM_QUADRATURE_NODES">
+<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">NUM_QUADRATURE_NODES</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">64</span></em><a class="headerlink" href="#WDM.code.time_delay_filters.filters.NUM_QUADRATURE_NODES" title="Link to this definition"></a></dt>
+<dd><p>Gauss-Legendre nodes on each smooth piece of the window, before the extra
+nodes <cite>_quadrature</cite> adds for the oscillation of the integrand.</p>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="WDM.code.time_delay_filters.filters.build_filter_tables">
-<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">build_filter_tables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deltas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freqs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_FD</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dT</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dF</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_bytes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">268435456</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#build_filter_tables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.build_filter_tables" title="Link to this definition"></a></dt>
-<dd><p>Evaluate both time-delay filters on a grid of lags and delays.</p>
-<p><span class="math notranslate nohighlight">\(T_{\ell}\)</span> and <span class="math notranslate nohighlight">\(T'_{\ell}\)</span> are the same integral over a
-different window product, so they are built together. The lag phase and
-the delay phase separate, which turns the whole grid into two matrix
-products rather than a loop over <span class="math notranslate nohighlight">\((\ell,\delta)\)</span> pairs.</p>
-<p>The frequency axis is the contraction index, so nothing of size <span class="math notranslate nohighlight">\(N\)</span>
-appears in the result - only in the intermediates. Those intermediates are
-what used to make this function unusable at year-plus durations: written
-as a single pair of matrix products they need
-<span class="math notranslate nohighlight">\(16(3A+B)N\)</span> bytes, which is tens of gigabytes for
-<span class="math notranslate nohighlight">\(N\sim 10^7\)</span>, and it is the choice of <cite>num_interp_points</cite> (<span class="math notranslate nohighlight">\(B\)</span>)
-that tips a working configuration over the edge. Two things bound it here:</p>
-<ul class="simple">
-<li><p>the integral is restricted to the window’s compact support (see
-<cite>window_support</cite>), which is exact rather than an approximation and on
-production grids removes a factor of order <span class="math notranslate nohighlight">\(N_f\)</span>;</p></li>
-<li><p>what remains is accumulated over frequency blocks sized by <cite>max_bytes</cite>,
-so the peak allocation is capped whatever the grid.</p></li>
-</ul>
+<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">build_filter_tables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_over_dT</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">A_frac</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#build_filter_tables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.build_filter_tables" title="Link to this definition"></a></dt>
+<dd><p>Evaluate both time-delay filters on a grid of lags and delays,
+<span class="math notranslate nohighlight">\(T_{\ell}(\delta)=T(\ell-\delta/\Delta T)\)</span> and likewise for
+<span class="math notranslate nohighlight">\(T'\)</span>; see <cite>filter_functions</cite>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>lags</strong> (<em>jnp.ndarray</em>) – The time index differences <span class="math notranslate nohighlight">\(\ell\)</span>, dtype=int, shape=(A,).</p></li>
-<li><p><strong>deltas</strong> (<em>jnp.ndarray</em>) – The time delays <span class="math notranslate nohighlight">\(\delta\)</span>, shape=(B,).</p></li>
-<li><p><strong>freqs</strong> (<em>jnp.ndarray</em>) – The sample frequencies of the wdm object time series.</p></li>
-<li><p><strong>window_FD</strong> (<em>jnp.ndarray</em>) – The frequency-domain Meyer window, <span class="math notranslate nohighlight">\(\tilde{\Phi}(f)\)</span>.</p></li>
-<li><p><strong>dT</strong> (<em>float</em>) – Time resolution of the wdm object.</p></li>
-<li><p><strong>dF</strong> (<em>float</em>) – Frequency resolution of the wdm object.</p></li>
-<li><p><strong>df</strong> (<em>float</em>) – The frequency resolution of the wdm object time series.</p></li>
-<li><p><strong>max_bytes</strong> (<em>int</em>) – Working-set budget, in bytes, for one frequency block. The point of
-the blocking is that the peak allocation stops depending on <span class="math notranslate nohighlight">\(N\)</span>,
-so this only has to be small enough to fit and large enough that the
-matrix products stay efficient. Defaults to
-<cite>FILTER_TABLE_BLOCK_BYTES</cite>, 256 MiB. Optional.</p></li>
+<li><p><strong>delta_over_dT</strong> (<em>jnp.ndarray</em>) – The time delays in units of <span class="math notranslate nohighlight">\(\Delta T\)</span>, shape=(B,).</p></li>
+<li><p><strong>d</strong> (<em>int</em>) – Steepness parameter of the window.</p></li>
+<li><p><strong>A_frac</strong> (<em>float</em>) – Bandwidth fraction of the flat top.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -165,113 +137,54 @@ matrix products stay efficient. Defaults to
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="WDM.code.time_delay_filters.filters.time_delay_filter_Tl_reference">
-<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">time_delay_filter_Tl_reference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ell</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freqs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_FD</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dT</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#time_delay_filter_Tl_reference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.time_delay_filter_Tl_reference" title="Link to this definition"></a></dt>
-<dd><p>The time-delay filter for the case <span class="math notranslate nohighlight">\(m'=m\)</span> is defined as</p>
+<dt class="sig sig-object py" id="WDM.code.time_delay_filters.filters.filter_functions">
+<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">filter_functions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">A_frac</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#filter_functions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.filter_functions" title="Link to this definition"></a></dt>
+<dd><p>The time-delay filters as functions of <span class="math notranslate nohighlight">\(x=\ell-\delta/\Delta T\)</span>,</p>
 <div class="math notranslate nohighlight" id="equation-wdm-code-time-delay-filters-0">
-<span class="eqno">(73)<a class="headerlink" href="#equation-wdm-code-time-delay-filters-0" title="Link to this equation"></a></span>\[T_{\ell}(\delta)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta))
-                    |\tilde{\Phi}(f)|^2 .\]</div>
-<p>This function is SLOW and is NOT used in production; <cite>build_filter_tables</cite>
-builds the same quantity for a whole grid of lags and delays at once.
-It is kept as the reference implementation of the defining integral,
-against which the tabulated version is tested.</p>
+<span class="eqno">(73)<a class="headerlink" href="#equation-wdm-code-time-delay-filters-0" title="Link to this equation"></a></span>\[T(x)=\int\mathrm{d}u\,\Phi(u)^2\cos(\pi u x) , \qquad
+T'(x)=\int\mathrm{d}u\,\Phi\left(u-\tfrac12\right)
+                      \Phi\left(u+\tfrac12\right)\cos(\pi u x) ,\]</div>
+<p>with <span class="math notranslate nohighlight">\(\Phi\)</span> the window in units of <span class="math notranslate nohighlight">\(\Delta F\)</span>
+(<cite>window_in_bins</cite>). These are <span class="math notranslate nohighlight">\(T_{\ell}(\delta)\)</span> and
+<span class="math notranslate nohighlight">\(T'_{\ell}(\delta)\)</span> for every tiling: they depend on the window
+shape alone. Both integrands are even and smooth between the window’s
+kinks, so each is a Gauss-Legendre sum over <span class="math notranslate nohighlight">\(u\geq0\)</span>, split there.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>ell</strong> (<em>int</em>) – The time index difference <span class="math notranslate nohighlight">\(\ell=n-n'\)</span>.</p></li>
-<li><p><strong>delta</strong> (<em>float</em>) – The time delay <span class="math notranslate nohighlight">\(\delta\)</span>, in the time units of <cite>wdm</cite>.</p></li>
-<li><p><strong>freqs</strong> (<em>jnp.ndarray</em>) – The sample frequencies of the wdm object time series.</p></li>
-<li><p><strong>window_FD</strong> (<em>jnp.ndarray</em>) – The frequency-domain Meyer window function, <span class="math notranslate nohighlight">\(\tilde{\Phi}(f)\)</span> of
-the wdm object.</p></li>
-<li><p><strong>dT</strong> (<em>float</em>) – Time resolution of the the wdm object.</p></li>
-<li><p><strong>df</strong> (<em>float</em>) – The frequency resolution of the wdm object time series.</p></li>
+<li><p><strong>x</strong> (<em>jnp.ndarray</em>) – <span class="math notranslate nohighlight">\(\ell-\delta/\Delta T\)</span>. Any shape.</p></li>
+<li><p><strong>d</strong> (<em>int</em>) – Steepness parameter of the window.</p></li>
+<li><p><strong>A_frac</strong> (<em>float</em>) – Bandwidth fraction of the flat top.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>T_l</strong> – The time-delay filter <span class="math notranslate nohighlight">\(T_{\ell}(\delta)\)</span>.</p>
+<dd class="field-even"><p><strong>filters</strong> – shape=(2,)+x.shape. Index 0 is <span class="math notranslate nohighlight">\(T'\)</span>, index 1 is <span class="math notranslate nohighlight">\(T\)</span>.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>float</p>
+<dd class="field-odd"><p>jnp.ndarray</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="WDM.code.time_delay_filters.filters.time_delay_filter_Tprimel_reference">
-<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">time_delay_filter_Tprimel_reference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ell</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freqs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_FD</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dT</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dF</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#time_delay_filter_Tprimel_reference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.time_delay_filter_Tprimel_reference" title="Link to this definition"></a></dt>
-<dd><p>The time-delay filter for the case <span class="math notranslate nohighlight">\(m'=m\pm 1\)</span> is defined as</p>
-<div class="math notranslate nohighlight" id="equation-wdm-code-time-delay-filters-1">
-<span class="eqno">(74)<a class="headerlink" href="#equation-wdm-code-time-delay-filters-1" title="Link to this equation"></a></span>\[T'_{\ell}(\delta)=\int\mathrm{d}f\exp(2\pi i f(\ell\Delta T-\delta))
-                    \tilde{\Phi}\left(f-\frac{1}{2}\Delta F\right)
-                    \tilde{\Phi}\left(f+\frac{1}{2}\Delta F\right) .\]</div>
-<p>This function is SLOW and is NOT used in production; <cite>build_filter_tables</cite>
-builds the same quantity for a whole grid of lags and delays at once.
-It is kept as the reference implementation of the defining integral,
-against which the tabulated version is tested.</p>
+<dt class="sig sig-object py" id="WDM.code.time_delay_filters.filters.window_in_bins">
+<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">window_in_bins</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">A_frac</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#window_in_bins"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.window_in_bins" title="Link to this definition"></a></dt>
+<dd><p>The Meyer window as a function of frequency in units of <span class="math notranslate nohighlight">\(\Delta F\)</span>,
+<span class="math notranslate nohighlight">\(\Phi(u)=\sqrt{\Delta F}\,\tilde{\Phi}(u\Delta F)\)</span>, normalised so
+that <span class="math notranslate nohighlight">\(\int\mathrm{d}u\,\Phi(u)^2=1\)</span>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>ell</strong> (<em>int</em>) – The time index difference <span class="math notranslate nohighlight">\(\ell=n-n'\)</span>.</p></li>
-<li><p><strong>delta</strong> (<em>float</em>) – The time delay <span class="math notranslate nohighlight">\(\delta\)</span>, in the time units of <cite>wdm</cite>.</p></li>
-<li><p><strong>freqs</strong> (<em>jnp.ndarray</em>) – The sample frequencies of the wdm object time series.</p></li>
-<li><p><strong>window_FD</strong> (<em>jnp.ndarray</em>) – The frequency-domain Meyer window function, <span class="math notranslate nohighlight">\(\tilde{\Phi}(f)\)</span> of
-the wdm object.</p></li>
-<li><p><strong>dT</strong> (<em>float</em>) – Time resolution of the the wdm object.</p></li>
-<li><p><strong>dF</strong> (<em>float</em>) – Frequency resolution of the wdm object.</p></li>
-<li><p><strong>N</strong> (<em>int</em>) – Length of the input time series.</p></li>
-<li><p><strong>df</strong> (<em>float</em>) – The frequency resolution of the wdm object time series.</p></li>
+<li><p><strong>u</strong> (<em>jnp.ndarray</em>) – Frequency in units of <span class="math notranslate nohighlight">\(\Delta F\)</span>.</p></li>
+<li><p><strong>d</strong> (<em>int</em>) – Steepness parameter of the window.</p></li>
+<li><p><strong>A_frac</strong> (<em>float</em>) – Bandwidth fraction of the flat top.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>Tprime_l</strong> – The time-delay filter <span class="math notranslate nohighlight">\(T'_{\ell}(\delta)\)</span>.</p>
+<dd class="field-even"><p><strong>Phi</strong> – The window, shaped like <cite>u</cite>.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="WDM.code.time_delay_filters.filters.window_support">
-<span class="sig-prename descclassname"><span class="pre">WDM.code.time_delay_filters.filters.</span></span><span class="sig-name descname"><span class="pre">window_support</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">window_FD</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shift</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="_modules/WDM/code/time_delay_filters/filters.html#window_support"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#WDM.code.time_delay_filters.filters.window_support" title="Link to this definition"></a></dt>
-<dd><p>Bound the frequency samples that can contribute to the filter integrals.</p>
-<p>The Meyer window is compactly supported: <cite>window_FD</cite> is exactly zero
-outside a band of roughly <span class="math notranslate nohighlight">\((1-A_{\rm frac})N_t\)</span> samples centred on
-<span class="math notranslate nohighlight">\(f=0\)</span>, which on production grids is a factor <span class="math notranslate nohighlight">\(\sim N_f\)</span>
-shorter than the array itself.</p>
-<p>The range is measured from the two window products themselves rather
-than inferred from the support of <cite>window_FD</cite>. Inferring it needs the
-argument that each factor of the rolled product is the same support
-translated by <span class="math notranslate nohighlight">\(\mp\)</span> <cite>shift</cite>, so the product lives on the overlap of
-the two translates, which sits inside the untranslated support. That
-argument holds only while neither translate wraps: <cite>jnp.roll</cite> is
-circular, so a copy pushed off one end reappears at the other, and the
-overlap can then land somewhere the untranslated support does not cover
-at all. Trimming to the window’s own support would silently integrate
-over the wrong samples. Measuring cannot make that mistake, and costs one
-boolean array of length <span class="math notranslate nohighlight">\(N\)</span>.</p>
-<p>The masks are exact: a product of two floats is non-zero wherever both
-factors are, so the only discrepancy possible is a product underflowing
-to zero where the mask says otherwise, which widens the range rather than
-narrowing it.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>window_FD</strong> (<em>jnp.ndarray</em>) – The frequency-domain Meyer window, <span class="math notranslate nohighlight">\(\tilde{\Phi}(f)\)</span>,
-shape=(N,).</p></li>
-<li><p><strong>shift</strong> (<em>int</em>) – The half-bin index offset <span class="math notranslate nohighlight">\(\Delta F/2\delta f\)</span> applied to the
-window in the <span class="math notranslate nohighlight">\(T'_{\ell}\)</span> integrand.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>start, stop</strong> – Half-open index range covering every sample at which either window
-product is non-zero. <cite>(0, N)</cite> is returned if neither is ever
-non-zero, and also whenever the non-zero samples straddle the array
-edge, so the caller always integrates over a superset of the true
-support.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>int</p>
+<dd class="field-odd"><p>jnp.ndarray</p>
 </dd>
 </dl>
 </dd></dl>

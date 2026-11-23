@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>m=0 Wavelet Coefficients &mdash; WDM 0.0.1 documentation</title>
+  <title>Fast calculation of the \(m=0\) wavelet coefficients &mdash; WDM 0.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/nbsphinx-code-cells.css?v=2aa19091" />
@@ -61,7 +61,12 @@
 <li class="toctree-l2"><a class="reference internal" href="filtering_and_glitch_removal.html">Filtering, whitening and glitch removal</a></li>
 <li class="toctree-l2"><a class="reference internal" href="benchmarking.html">Benchmarking</a></li>
 <li class="toctree-l2"><a class="reference internal" href="accuracy_truncated_transform.html">Exploring the accuracy of the truncated wavelet transform</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">m=0 Wavelet Coefficients</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Fast calculation of the <span class="math notranslate nohighlight">\(m=0\)</span> wavelet coefficients</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Comparison-with-the-exact-transform">Comparison with the exact transform</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Independence-from-the-truncation-parameter-q">Independence from the truncation parameter <span class="math notranslate nohighlight">\(q\)</span></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Edge-coefficients-for-a-low-frequency-signal">Edge coefficients for a low-frequency signal</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="wavelet_transform_examples.html">Examples of wavelet transforms</a></li>
 <li class="toctree-l2"><a class="reference internal" href="time_delay_filters_demo.html">Time-Delay Filters</a></li>
 <li class="toctree-l2"><a class="reference internal" href="variable_time_shift_example.html">Variable Time Shifts</a></li>
@@ -88,7 +93,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="examples.html">Example Notebooks</a></li>
-      <li class="breadcrumb-item active">m=0 Wavelet Coefficients</li>
+      <li class="breadcrumb-item active">Fast calculation of the <span class="math notranslate nohighlight">\(m=0\)</span> wavelet coefficients</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/m_equal_0_terms.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
@@ -98,15 +103,64 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="m=0-Wavelet-Coefficients">
-<h1>m=0 Wavelet Coefficients<a class="headerlink" href="#m=0-Wavelet-Coefficients" title="Link to this heading"></a></h1>
-<p>The wavelet basis is labelled by the indices <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span>;</p>
+  <section id="Fast-calculation-of-the-m=0-wavelet-coefficients">
+<h1>Fast calculation of the <span class="math notranslate nohighlight">\(m=0\)</span> wavelet coefficients<a class="headerlink" href="#Fast-calculation-of-the-m=0-wavelet-coefficients" title="Link to this heading"></a></h1>
+<p>The WDM wavelet basis is labelled by the indices <span class="math notranslate nohighlight">\(n\)</span> and <span class="math notranslate nohighlight">\(m\)</span>,</p>
 <div class="math notranslate nohighlight" id="equation-m-equal-0-terms-0">
-<span class="eqno">(78)<a class="headerlink" href="#equation-m-equal-0-terms-0" title="Link to this equation"></a></span>\[x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .\]</div>
-<p>The index <span class="math notranslate nohighlight">\(m\)</span> labels wavelets of different frequencies and varies in the range <span class="math notranslate nohighlight">\(m\in\{0,1,\ldots,N_f-1\}\)</span>.</p>
-<p>The terms with <span class="math notranslate nohighlight">\(m=0\)</span> include both the lowest frequency (<span class="math notranslate nohighlight">\(f\approx 0\)</span>) and the highest frequency (<span class="math notranslate nohighlight">\(f\approx f_{\rm Nyquist}\)</span>) wavelets. These terms need to be handled separately from the majority of the terms with <span class="math notranslate nohighlight">\(m&gt;0\)</span>. This slows down the wavelet transfrom.</p>
-<p>However, very often the lowest and highest frequencies are not used for data analysis. E.g. when computing a GW log-likelihood we typically only integrate over a range <span class="math notranslate nohighlight">\(f_{\rm low}\leq f \leq f_{\rm high}\)</span> where the limits are chosen to be well inside the frequency range of the FFT.</p>
-<p>For this reason the <code class="docutils literal notranslate"><span class="pre">WDM_transform</span></code> class is by default initialised with <code class="docutils literal notranslate"><span class="pre">calc_m0=False</span></code>. This will speed up the transformation but will get the calculations of the <span class="math notranslate nohighlight">\(m=0\)</span> terms wrong. If the <span class="math notranslate nohighlight">\(m=0\)</span> terms are needed, then set <code class="docutils literal notranslate"><span class="pre">calc_m0=True</span></code>.</p>
+<span class="eqno">(77)<a class="headerlink" href="#equation-m-equal-0-terms-0" title="Link to this equation"></a></span>\[x[k] =
+\sum_{n=0}^{N_t-1}
+\sum_{m=0}^{N_f-1}
+w_{nm} g_{nm}[k].\]</div>
+<p>For <span class="math notranslate nohighlight">\(m&gt;0\)</span>, the production WDM transform uses the rapid frequency-domain algorithm based on a global FFT followed by short inverse FFTs.</p>
+<p>The <span class="math notranslate nohighlight">\(m=0\)</span> column is special. It contains two different sets of edge wavelets:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(0 \leq n &lt; N_t/2\)</span>: wavelets centred at zero frequency;</p></li>
+<li><p><span class="math notranslate nohighlight">\(N_t/2 \leq n &lt; N_t\)</span>: wavelets centred at the Nyquist frequency.</p></li>
+</ul>
+<p>These wavelets are separated in time by <span class="math notranslate nohighlight">\(2\Delta T\)</span> rather than <span class="math notranslate nohighlight">\(\Delta T\)</span>. Previously they were calculated using truncated time-domain wavelets, making their accuracy and runtime dependent on the truncation parameter <span class="math notranslate nohighlight">\(q\)</span>.</p>
+<p>The <span class="math notranslate nohighlight">\(m=0\)</span> coefficients can instead be calculated exactly in the frequency domain using the same global FFT already required by the rest of the transform.</p>
+<p>Let</p>
+<div class="math notranslate nohighlight" id="equation-m-equal-0-terms-1">
+<span class="eqno">(78)<a class="headerlink" href="#equation-m-equal-0-terms-1" title="Link to this equation"></a></span>\[M = \frac{N_t}{2}.\]</div>
+<p>For the zero-frequency wavelets,</p>
+<div class="math notranslate nohighlight" id="equation-m-equal-0-terms-2">
+<span class="eqno">(79)<a class="headerlink" href="#equation-m-equal-0-terms-2" title="Link to this equation"></a></span>\[w_{n0}
+=
+\delta f
+\sum_{l=-M}^{M-1}
+X[l]\tilde{\Phi}[l]
+\exp\left(\frac{2\pi i n l}{M}\right).\]</div>
+<p>Because the phase is periodic under <span class="math notranslate nohighlight">\(l\rightarrow l+M\)</span>,</p>
+<div class="math notranslate nohighlight" id="equation-m-equal-0-terms-3">
+<span class="eqno">(80)<a class="headerlink" href="#equation-m-equal-0-terms-3" title="Link to this equation"></a></span>\[\exp\left(\frac{2\pi i n(l+M)}{M}\right)
+=
+\exp\left(\frac{2\pi i nl}{M}\right),\]</div>
+<p>the <span class="math notranslate nohighlight">\(N_t=2M\)</span> frequency samples can be folded into <span class="math notranslate nohighlight">\(M\)</span> samples:</p>
+<div class="math notranslate nohighlight" id="equation-m-equal-0-terms-4">
+<span class="eqno">(81)<a class="headerlink" href="#equation-m-equal-0-terms-4" title="Link to this equation"></a></span>\[Z_0[r]
+=
+X[r-M]\tilde{\Phi}[r-M]
++
+X[r]\tilde{\Phi}[r],
+\qquad
+0\leq r&lt;M.\]</div>
+<p>The complete set of zero-frequency coefficients is therefore obtained from one length-<span class="math notranslate nohighlight">\(M\)</span> inverse FFT,</p>
+<div class="math notranslate nohighlight" id="equation-m-equal-0-terms-5">
+<span class="eqno">(82)<a class="headerlink" href="#equation-m-equal-0-terms-5" title="Link to this equation"></a></span>\[w_{n0}
+=
+M\delta f\,
+\mathrm{Re}\left[
+\mathrm{IFFT}_M(Z_0)[n]
+\right].\]</div>
+<p>The Nyquist-frequency terms have exactly the same structure, except that the frequency samples are taken around the Nyquist frequency rather than around zero:</p>
+<div class="math notranslate nohighlight" id="equation-m-equal-0-terms-6">
+<span class="eqno">(83)<a class="headerlink" href="#equation-m-equal-0-terms-6" title="Link to this equation"></a></span>\[Z_{\rm Ny}[r]
+=
+X[r-M+N/2]\tilde{\Phi}[r-M]
++
+X[r+N/2]\tilde{\Phi}[r].\]</div>
+<p>Thus the two halves of the <span class="math notranslate nohighlight">\(m=0\)</span> column can be evaluated together using one batched length-<span class="math notranslate nohighlight">\(N_t/2\)</span> inverse FFT.</p>
+<p>The production <code class="docutils literal notranslate"><span class="pre">forward_transform_fft</span></code> therefore calculates the <span class="math notranslate nohighlight">\(m=0\)</span> coefficients without a truncated time-domain window, so its forward transform is independent of <span class="math notranslate nohighlight">\(q\)</span>. The reference and truncated methods still compute the <span class="math notranslate nohighlight">\(m=0\)</span> column from truncated time-domain wavelets, so for those the accuracy of the <span class="math notranslate nohighlight">\(m=0\)</span> column tracks the accuracy of the rest of the grid, and both improve as <span class="math notranslate nohighlight">\(q\)</span> grows.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
@@ -122,38 +176,124 @@ import WDM
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>Nf = 32
-N = 32*Nf
+N = 32 * Nf
+dt = 1.0
 
-wdm_m_all  = WDM.WDM.WDM_transform(dt=1, Nf=Nf, N=N, calc_m0=True)
-wdm_m_geq0 = WDM.WDM.WDM_transform(dt=1., Nf=Nf, N=N) # default calc_m0=False
+# the exact transform is used below as the reference calculation.
+wdm = WDM.WDM.WDM_transform(
+    dt=dt,
+    Nf=Nf,
+    N=N,
+    q=8,
+)
+
+M = wdm.Nt // 2
 </pre></div>
 </div>
 </div>
-<p>If we use the <code class="docutils literal notranslate"><span class="pre">wdm_m_geq0</span></code> wdm transform to analyse a signal with lots of power at very low (or very high) frequencies then we will get the wrong result.</p>
-<div class="nbinput nblast docutils container">
+<section id="Comparison-with-the-exact-transform">
+<h2>Comparison with the exact transform<a class="headerlink" href="#Comparison-with-the-exact-transform" title="Link to this heading"></a></h2>
+<p>The new frequency-domain calculation can be checked directly against <code class="docutils literal notranslate"><span class="pre">forward_transform_exact</span></code>, which evaluates the projection onto the complete wavelet basis without time-domain truncation.</p>
+<p>We test the two parts of the packed <span class="math notranslate nohighlight">\(m=0\)</span> column separately:</p>
+<ul class="simple">
+<li><p>the zero-frequency terms, <span class="math notranslate nohighlight">\(0\leq n&lt;N_t/2\)</span>;</p></li>
+<li><p>the Nyquist-frequency terms, <span class="math notranslate nohighlight">\(N_t/2\leq n&lt;N_t\)</span>.</p></li>
+</ul>
+<p>Since the new calculation is also exact, the differences should be limited by floating-point numerical precision rather than by the truncation parameter <span class="math notranslate nohighlight">\(q\)</span>.</p>
+<div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>f = lambda u, a: np.sin(a*np.pi*u) * np.exp(-0.5*u**2)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>rng = np.random.default_rng(1234)
+x = rng.normal(size=wdm.N)
+
+w_exact = wdm.forward_transform_exact(x)
+w_fft = wdm.forward_transform_fft(x)
+
+error_dc = np.max(
+    np.abs(w_fft[:M, 0] - w_exact[:M, 0])
+)
+
+error_Ny = np.max(
+    np.abs(w_fft[M:, 0] - w_exact[M:, 0])
+)
+
+error_all = np.max(
+    np.abs(w_fft - w_exact)
+)
+
+print(f"Maximum DC error:      {error_dc:.3e}")
+print(f"Maximum Nyquist error: {error_Ny:.3e}")
+print(f"Maximum total error:   {error_all:.3e}")
+
+assert np.allclose(
+    w_fft[:M, 0],
+    w_exact[:M, 0],
+    rtol=1e-6,
+    atol=1e-6,
+)
+
+assert np.allclose(
+    w_fft[M:, 0],
+    w_exact[M:, 0],
+    rtol=1e-6,
+    atol=1e-6,
+)
 </pre></div>
 </div>
 </div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Maximum DC error:      4.996e-16
+Maximum Nyquist error: 5.551e-16
+Maximum total error:   1.131e-12
+</pre></div></div>
+</div>
+</section>
+<section id="Independence-from-the-truncation-parameter-q">
+<h2>Independence from the truncation parameter <span class="math notranslate nohighlight">\(q\)</span><a class="headerlink" href="#Independence-from-the-truncation-parameter-q" title="Link to this heading"></a></h2>
+<p>The previous <span class="math notranslate nohighlight">\(m=0\)</span> calculation used the time-domain Meyer window truncated to</p>
+<div class="math notranslate nohighlight" id="equation-m-equal-0-terms-7">
+<span class="eqno">(84)<a class="headerlink" href="#equation-m-equal-0-terms-7" title="Link to this equation"></a></span>\[K = 2qN_f\]</div>
+<p>samples. Increasing <span class="math notranslate nohighlight">\(q\)</span> therefore improved the accuracy of the edge coefficients at additional computational cost.</p>
+<p>The new calculation uses the compactly supported frequency-domain Meyer window directly. Consequently, no truncation is performed and the result of <code class="docutils literal notranslate"><span class="pre">forward_transform_fft</span></code> should be independent of <span class="math notranslate nohighlight">\(q\)</span>.</p>
+<p>We can verify this by constructing two WDM transforms with different values of <span class="math notranslate nohighlight">\(q\)</span> and applying them to exactly the same signal.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>test_signal_lowf = f((wdm_m_all.times-wdm_m_all.T/2)/(wdm_m_all.T/16), 1)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>wdm_q2 = WDM.WDM.WDM_transform(
+    dt=dt,
+    Nf=Nf,
+    N=N,
+    q=2,
+)
 
-plt.plot(wdm_m_all.times, test_signal_lowf, label='Test signal')
+wdm_q8 = WDM.WDM.WDM_transform(
+    dt=dt,
+    Nf=Nf,
+    N=N,
+    q=8,
+)
 
-reconstructed_m_all = wdm_m_all.idwt(wdm_m_all.forward_transform_short_fft(test_signal_lowf))
-plt.plot(wdm_m_all.times, reconstructed_m_all, label=r'Reconstructed (all $m$)', ls='--', lw=3)
+w_q2 = wdm_q2.forward_transform_fft(x)
+w_q8 = wdm_q8.forward_transform_fft(x)
 
-reconstructed_m_geq0 = wdm_m_geq0.idwt(wdm_m_geq0.forward_transform_short_fft(test_signal_lowf))
-plt.plot(wdm_m_geq0.times, reconstructed_m_geq0, label=r'Reconstructed ($m&gt;0$)', ls='--', lw=3)
+error_q = np.max(
+    np.abs(w_q2[:, 0] - w_q8[:, 0])
+)
 
-plt.xlabel('Time'); plt.ylabel('Signal'); plt.legend(loc='upper right')
-plt.show()
+print(f"Maximum m=0 difference between q=2 and q=8: {error_q:.3e}")
+
+assert np.allclose(
+    w_q2[:, 0],
+    w_q8[:, 0],
+    rtol=1e-10,
+    atol=1e-10,
+)
 </pre></div>
 </div>
 </div>
@@ -161,25 +301,74 @@ plt.show()
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="_images/m_equal_0_terms_5_0.png" src="_images/m_equal_0_terms_5_0.png" />
+<div class="highlight"><pre>
+Maximum m=0 difference between q=2 and q=8: 0.000e+00
+</pre></div></div>
 </div>
-</div>
-<p>However, for signals where all the power concentrated is in the middle of the bandwidth it will work OK.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>test_signal_highf = f((wdm_m_all.times-wdm_m_all.T/2)/(wdm_m_all.T/16), 4)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>print(
+    "Maximum total difference:",
+    np.max(np.abs(w_q2 - w_q8)),
+)
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Maximum total difference: 0.0
+</pre></div></div>
+</div>
+</section>
+<section id="Edge-coefficients-for-a-low-frequency-signal">
+<h2>Edge coefficients for a low-frequency signal<a class="headerlink" href="#Edge-coefficients-for-a-low-frequency-signal" title="Link to this heading"></a></h2>
+<p>As a visual check, consider a signal with substantial power close to zero frequency. This is precisely the regime in which the correct treatment of the <span class="math notranslate nohighlight">\(m=0\)</span> wavelets is important.</p>
+<p>The fast frequency-domain coefficients should lie directly on top of those calculated using the exact wavelet basis.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>f = lambda u, a: np.sin(a * np.pi * u) * np.exp(-0.5 * u**2)
 
-plt.plot(wdm_m_all.times, test_signal_highf, label='Test signal')
+test_signal = f(
+    (wdm.times - wdm.T/2) / (wdm.T/16),
+    1,
+)
 
-reconstructed_m_all = wdm_m_all.idwt(wdm_m_all.forward_transform_short_fft(test_signal_highf))
-plt.plot(wdm_m_all.times, reconstructed_m_all, label=r'Reconstructed (all $m$)', ls='--', lw=2)
+w_exact = wdm.forward_transform_exact(test_signal)
+w_fft = wdm.forward_transform_fft(test_signal)
 
-reconstructed_m_geq0 = wdm_m_geq0.idwt(wdm_m_geq0.forward_transform_short_fft(test_signal_highf))
-plt.plot(wdm_m_geq0.times, reconstructed_m_geq0, label=r'Reconstructed ($m&gt;0$)', ls='--', lw=2)
+n_vals = np.arange(wdm.Nt)
 
-plt.xlabel('Time'); plt.ylabel('Signal'); plt.legend(loc='upper right')
+plt.figure(figsize=(7, 4))
+
+plt.plot(
+    n_vals,
+    w_exact[:, 0],
+    label='Exact',
+)
+
+plt.plot(
+    n_vals,
+    w_fft[:, 0],
+    '--',
+    label='Fast FFT',
+)
+
+plt.axvline(
+    M - 0.5,
+    ls=':',
+    label='DC / Nyquist boundary',
+)
+
+plt.xlabel(r'Time index $n$')
+plt.ylabel(r'$w_{n0}$')
+plt.legend()
 plt.show()
 </pre></div>
 </div>
@@ -188,17 +377,10 @@ plt.show()
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="_images/m_equal_0_terms_7_0.png" src="_images/m_equal_0_terms_7_0.png" />
+<img alt="_images/m_equal_0_terms_9_0.png" src="_images/m_equal_0_terms_9_0.png" />
 </div>
 </div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
-</pre></div>
-</div>
-</div>
+</section>
 </section>
 
 
