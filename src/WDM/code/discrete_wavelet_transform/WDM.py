@@ -2,9 +2,8 @@ import jax
 import jax.numpy as jnp
 
 from WDM.code.utils.Meyer import Meyer
-from WDM.code.utils.utils import C_nm, overlapping_windows
-from WDM.code.time_delay_filters.filters import (FILTER_TABLE_BLOCK_BYTES,
-                                                 build_filter_tables)
+from WDM.code.utils.utils import C_nm, check_working_set, overlapping_windows
+from WDM.code.time_delay_filters.filters import build_filter_tables
 
 from typing import Tuple
 from functools import partial
@@ -79,11 +78,7 @@ class WDM_transform:
     Cnm : jnp.ndarray 
         Coefficients :math:`C_{nm}` used for the wavelet transform. Equal to 1 
         if :math:`n+m` is even or :math:`i` if it's odd. Array shape=(N_t, N_f).
-    calc_m0 : bool
-        If this is set to False (default value) then the wavelet coefficients
-        with :math:`m=0` are handled INCORRECTLY. This is faster. If these 
-        coefficients are needed the initialise the class with `calc_m0=True`.
-    window_TD : jnp.ndarray 
+    window_TD : jnp.ndarray
         The time-domain Meyer window function, :math:`\phi(t)`. 
         Array shape=(N,).
     window_FD : jnp.ndarray 
@@ -107,8 +102,7 @@ class WDM_transform:
                  N : int,
                  q : int = 16,
                  d : int = 4,
-                 A_frac : float = 0.25,
-                 calc_m0 : bool = False) -> None:
+                 A_frac : float = 0.25) -> None:
         r"""
         Initialize the WDM_transform.
 
@@ -126,10 +120,6 @@ class WDM_transform:
             Steepness parameter for the transition. Optional.
         A_frac : float
             Bandwidth fraction of flat-top response. Optional.
-        calc_m0 : bool
-            If False, then the wavelet calculations for the :math:`m=0` temrs 
-            will be wrong; this has performance benefits. If True, then all 
-            calculations will be correct, but this may be slower. Optional.
 
         Returns
         -------
@@ -141,7 +131,6 @@ class WDM_transform:
         self.q = int(q)
         self.A_frac = float(A_frac)
         self.d = int(d)
-        self.calc_m0 = bool(calc_m0)
 
         self.validate_parameters()
 
@@ -442,15 +431,29 @@ class WDM_transform:
 
         Returns
         -------
-        basis : jnp.ndarray 
+        basis : jnp.ndarray
             Array of shape (N, Nt, Nf). The time-domain wavelet basis.
             The first axis is frequency, the second is the wavelet time index,
             and the third is the wavelet frequency index.
+
+        Raises
+        ------
+        MemoryError
+            If the basis would exceed the working-set limit; see
+            `utils.check_working_set`. The basis grows as :math:`N^2`, so
+            this method is only usable on small grids.
         """
         if self._cached_Gnm_basis is not None:
             pass
 
         else:
+            # the complex (N, Nt, Nf) basis, plus one live temporary; note
+            # Nt*Nf = N, so this grows as N^2 and does not depend on Nf
+            check_working_set(2 * 16 * self.N * self.Nt * self.Nf,
+                              f"Gnm_basis builds a complex (N, Nt, Nf) = "
+                              f"({self.N}, {self.Nt}, {self.Nf}) array which",
+                              "forward_transform_fft")
+
             n_vals = jnp.arange(self.Nt)
             m_vals = jnp.arange(self.Nf)
 
@@ -469,28 +472,27 @@ class WDM_transform:
                              jnp.conj(self.Cnm[jnp.newaxis,:,:])*\
                               self.window_FD[shift_do%self.N][:,jnp.newaxis,:])
 
-            if self.calc_m0:
-                # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-                n_vals = jnp.arange(self.Nt//2)
+            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
+            n_vals = jnp.arange(self.Nt//2)
 
-                f0_term = jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
-                                om[:,jnp.newaxis]*self.dT) * \
-                                    self.window_FD[:,jnp.newaxis]
+            f0_term = jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
+                            om[:,jnp.newaxis]*self.dT) * \
+                                self.window_FD[:,jnp.newaxis]
 
-                basis = basis.at[:, n_vals, 0].set(f0_term)
+            basis = basis.at[:, n_vals, 0].set(f0_term)
 
-                # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
-                n_vals = jnp.arange(self.Nt//2, self.Nt)
+            # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
+            n_vals = jnp.arange(self.Nt//2, self.Nt)
 
-                shift_up = (jnp.arange(self.N) + self.N//2) 
-                shift_do = (jnp.arange(self.N) - self.N//2) 
+            shift_up = (jnp.arange(self.N) + self.N//2)
+            shift_do = (jnp.arange(self.N) - self.N//2)
 
-                fNy_term = 0.5 * jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
-                                om[:,jnp.newaxis]*self.dT) * \
-                            (self.window_FD[shift_up%self.N][:,jnp.newaxis] +
-                                self.window_FD[shift_do%self.N][:,jnp.newaxis])
+            fNy_term = 0.5 * jnp.exp(-2j*n_vals[jnp.newaxis,:] * \
+                            om[:,jnp.newaxis]*self.dT) * \
+                        (self.window_FD[shift_up%self.N][:,jnp.newaxis] +
+                            self.window_FD[shift_do%self.N][:,jnp.newaxis])
 
-                basis = basis.at[:, n_vals, 0].set(fNy_term)
+            basis = basis.at[:, n_vals, 0].set(fNy_term)
 
             self._cached_Gnm_basis = basis
 
@@ -608,13 +610,27 @@ class WDM_transform:
 
         Returns
         -------
-        basis : jnp.ndarray 
+        basis : jnp.ndarray
             Array of shape (N, Nt, Nf). The time-domain wavelet basis.
+
+        Raises
+        ------
+        MemoryError
+            If the basis would exceed the working-set limit; see
+            `utils.check_working_set`. The basis grows as :math:`N^2`, so
+            this method is only usable on small grids.
         """
         if self._cached_gnm_basis is not None:
             pass
 
         else:
+            # the real (N, Nt, Nf) basis; the vmapped result and its
+            # transpose are both live, hence the factor of two
+            check_working_set(2 * 8 * self.N * self.Nt * self.Nf,
+                              f"gnm_basis builds a real (N, Nt, Nf) = "
+                              f"({self.N}, {self.Nt}, {self.Nf}) array which",
+                              "inverse_transform_fft")
+
             n_vals = jnp.arange(self.Nt)
             m_vals = jnp.arange(self.Nf)
             k_vals = jnp.arange(self.N)
@@ -632,27 +648,26 @@ class WDM_transform:
             basis = f_vmapped(n_vals, m_vals)
             basis = jnp.transpose(basis, (2, 0, 1))
 
-            if self.calc_m0:
-                # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-                n_vals = jnp.arange(self.Nt//2)
+            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
+            n_vals = jnp.arange(self.Nt//2)
 
-                f0_term = self.window_TD[(k_vals[:,jnp.newaxis]
-                                    -2*n_vals[jnp.newaxis,:]*self.Nf)%self.N]
+            f0_term = self.window_TD[(k_vals[:,jnp.newaxis]
+                                -2*n_vals[jnp.newaxis,:]*self.Nf)%self.N]
 
-                basis = basis.at[:, n_vals, 0].set(f0_term)
+            basis = basis.at[:, n_vals, 0].set(f0_term)
 
-                # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
-                n_vals = jnp.arange(self.Nt//2, self.Nt)
+            # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
+            n_vals = jnp.arange(self.Nt//2, self.Nt)
 
-                def temp_func(n):
-                    return (-1)**(k_vals) * \
-                            self.window_TD[(k_vals-2*n*self.Nf)%self.N]
+            def temp_func(n):
+                return (-1)**(k_vals) * \
+                        self.window_TD[(k_vals-2*n*self.Nf)%self.N]
 
-                f_vmapped = jax.vmap(temp_func)
+            f_vmapped = jax.vmap(temp_func)
 
-                fNy_term = f_vmapped(n_vals).T
+            fNy_term = f_vmapped(n_vals).T
 
-                basis = basis.at[:, n_vals, 0].set(fNy_term)
+            basis = basis.at[:, n_vals, 0].set(fNy_term)
 
             self._cached_gnm_basis = basis
 
@@ -787,7 +802,7 @@ class WDM_transform:
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
         for n in range(self.Nt):
-            for m in range(not self.calc_m0, self.Nf): # start at m=0 or 1 
+            for m in range(self.Nf):
                 gnm = B[:, n, m]
                 gnm_x = gnm[(k_vals+(1 if m>0 else 2)*n*self.Nf)%self.N] * \
                             x[(k_vals+(1 if m>0 else 2)*n*self.Nf)%self.N]
@@ -827,21 +842,36 @@ class WDM_transform:
 
         Returns
         -------
-        w : jnp.ndarray 
-            Array shape (Nt, Nf). 
+        w : jnp.ndarray
+            Array shape (Nt, Nf).
             WDM time-frequency-domain wavelet coefficients.
+
+        Raises
+        ------
+        MemoryError
+            If the summand would exceed the working-set limit; see
+            `utils.check_working_set`. It grows as :math:`qNN_f`, so this
+            method is only usable on small grids.
 
         Notes
         -----
-        This method is slow. It is only intended to be used for testing and 
-        debugging purposes. 
+        This method is slow. It is only intended to be used for testing and
+        debugging purposes.
         """
         x = jnp.asarray(x)
 
         assert x.shape == (self.N,), \
                     f"Input signal must have shape ({self.N},), got {x.shape=}"
-        
-        w = jnp.zeros((self.Nt, self.Nf), dtype=self.jax_dtype) 
+
+        # the complex (K, Nt, Nf) summand, plus one live temporary; with
+        # K = 2 q Nf this grows as q N Nf
+        check_working_set(2 * 16 * self.K * self.Nt * self.Nf,
+                          f"forward_transform_truncated_window builds a "
+                          f"complex (K, Nt, Nf) = "
+                          f"({self.K}, {self.Nt}, {self.Nf}) array which",
+                          "forward_transform_fft")
+
+        w = jnp.zeros((self.Nt, self.Nf), dtype=self.jax_dtype)
 
         n_vals = jnp.arange(self.Nt)
         m_vals = jnp.arange(self.Nf)
@@ -858,29 +888,28 @@ class WDM_transform:
                     self.window_TD[k_vals%self.N,jnp.newaxis,jnp.newaxis], 
                 axis=0).real
 
-        if self.calc_m0:
-            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-            n_vals = jnp.arange(self.Nt//2)
+        # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
+        n_vals = jnp.arange(self.Nt//2)
 
-            k_plus_2n = (k_vals[:,jnp.newaxis]+2*n_vals[jnp.newaxis,:]*self.Nf)
+        k_plus_2n = (k_vals[:,jnp.newaxis]+2*n_vals[jnp.newaxis,:]*self.Nf)
 
-            f0_term = self.dt * jnp.sum(
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            x[k_plus_2n%self.N],
-                        axis=0)
+        f0_term = self.dt * jnp.sum(
+                        self.window_TD[k_vals%self.N, jnp.newaxis] * \
+                        x[k_plus_2n%self.N],
+                    axis=0)
 
-            w = w.at[n_vals, 0].set(f0_term)
+        w = w.at[n_vals, 0].set(f0_term)
 
-            # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
-            n_vals = jnp.arange(self.Nt//2, self.Nt)
+        # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
+        n_vals = jnp.arange(self.Nt//2, self.Nt)
 
-            fNy_term = self.dt * jnp.sum( 
-                            (-1)**k_vals[:,jnp.newaxis] * \
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            x[k_plus_2n%self.N],
-                        axis=0)
+        fNy_term = self.dt * jnp.sum(
+                        (-1)**k_vals[:,jnp.newaxis] * \
+                        self.window_TD[k_vals%self.N, jnp.newaxis] * \
+                        x[k_plus_2n%self.N],
+                    axis=0)
 
-            w = w.at[n_vals, 0].set(fNy_term)
+        w = w.at[n_vals, 0].set(fNy_term)
 
         return w
     
@@ -935,29 +964,28 @@ class WDM_transform:
 
         k_vals = jnp.arange(-self.K//2, self.K//2)
 
-        if self.calc_m0:
-            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-            n_vals = jnp.arange(self.Nt//2)
+        # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
+        n_vals = jnp.arange(self.Nt//2)
 
-            k_plus_2n = (k_vals[:,jnp.newaxis]+2*n_vals[jnp.newaxis,:]*self.Nf)
+        k_plus_2n = (k_vals[:,jnp.newaxis]+2*n_vals[jnp.newaxis,:]*self.Nf)
 
-            f0_term = self.dt * jnp.sum(
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            x[k_plus_2n%self.N],
-                        axis=0)
+        f0_term = self.dt * jnp.sum(
+                        self.window_TD[k_vals%self.N, jnp.newaxis] * \
+                        x[k_plus_2n%self.N],
+                    axis=0)
 
-            w = w.at[n_vals, 0].set(f0_term)
+        w = w.at[n_vals, 0].set(f0_term)
 
-            # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
-            n_vals = jnp.arange(self.Nt//2, self.Nt)
+        # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
+        n_vals = jnp.arange(self.Nt//2, self.Nt)
 
-            fNy_term = self.dt * jnp.sum( 
-                            (-1)**k_vals[:,jnp.newaxis] * \
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            x[k_plus_2n%self.N],
-                        axis=0)
+        fNy_term = self.dt * jnp.sum(
+                        (-1)**k_vals[:,jnp.newaxis] * \
+                        self.window_TD[k_vals%self.N, jnp.newaxis] * \
+                        x[k_plus_2n%self.N],
+                    axis=0)
 
-            w = w.at[n_vals, 0].set(fNy_term)
+        w = w.at[n_vals, 0].set(fNy_term)
 
         return w
     
@@ -982,8 +1010,13 @@ class WDM_transform:
             x_m[n] = \sum_{l=-N_t/2}^{N_t/2-1} \exp\left(\frac{2\pi i nl}{N_t}
                         \right) \Phi[l] X[l-mN_t/2] .
 
-        The :math:`m=0` terms, if required, are calculated using the same method
-        as in `forward_transform_truncated_window`. 
+        The :math:`m=0` terms are calculated separately in the frequency domain.
+        The zero- and Nyquist-frequency terms are evaluated together by folding
+        the compact frequency-domain Meyer window onto :math:`N_t/2` samples
+        and applying a batched inverse FFT of length :math:`N_t/2`.
+
+        This calculation is exact and does not depend on the time-domain
+        truncation parameter :math:`q`. 
 
         This is vectorised to allow for batch jobs computing the dwt for 
         multiple time series at once; note the shapes of the input and output 
@@ -1014,13 +1047,13 @@ class WDM_transform:
 
         l_vals = jnp.arange(-self.Nt//2, self.Nt//2)
         n_vals = jnp.arange(self.Nt)
-        m_vals = jnp.arange(self.Nf)
+        m_vals = jnp.arange(1, self.Nf)
         mask = l_vals[:,jnp.newaxis] - \
                 m_vals[jnp.newaxis,:]*self.Nt//2
 
-        X = jnp.fft.fft(x, axis=-1) * self.dt
+        X_full = jnp.fft.fft(x, axis=-1) * self.dt
 
-        X = jnp.take(X, mask, axis=-1, mode='wrap')
+        X = jnp.take(X_full, mask, axis=-1, mode='wrap')
 
         Phi = jnp.fft.ifftshift(self.window_FD)[*(jnp.newaxis,)*len(leading),
                                                 l_vals,
@@ -1028,48 +1061,82 @@ class WDM_transform:
 
         x_mn = self.Nt * jnp.fft.ifft(Phi*X, axis=-2)
 
-        w = jnp.sqrt(2.) * self.df * \
+        w_positive = jnp.sqrt(2.) * self.df * \
                 (-1)**(n_vals[:,jnp.newaxis] * m_vals[jnp.newaxis,:]) * \
-                    jnp.real( jnp.conj(self.Cnm[:,:]) * x_mn ) * \
+                    jnp.real( jnp.conj(self.Cnm[:,1:]) * x_mn ) * \
                         (-1)**(n_vals[:,jnp.newaxis]) 
 
-        k_vals = jnp.arange(-self.K//2, self.K//2)
+        # ------------------------------------------------------------
+        # Correct m=0 terms: DC and Nyquist together
+        # ------------------------------------------------------------
 
-        if self.calc_m0:
-            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-            n_vals = jnp.arange(self.Nt//2)
+        M = self.Nt // 2
+        l_vals_m0 = jnp.arange(-M, M)
 
-            k_plus_2n = (k_vals[:,jnp.newaxis]+2*n_vals[jnp.newaxis,:]*self.Nf)
+        Phi_m0 = jnp.fft.ifftshift(self.window_FD)[l_vals_m0]
 
-            f0_term = self.dt * jnp.sum(
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            jnp.take(x, k_plus_2n, axis=-1, mode='wrap'),
-                        axis=-2)
+        # First row: frequencies around DC
+        # Second row: frequencies around Nyquist
+        m0_indices = jnp.stack([
+            l_vals_m0,
+            l_vals_m0 + self.N//2,
+        ])
 
-            w = w.at[..., n_vals, 0].set(f0_term)
+        # Shape (..., 2, Nt)
+        X_m0 = jnp.take(
+            X_full,
+            m0_indices,
+            axis=-1,
+            mode='wrap',
+        )
 
-            # overwrite m=0 terms for n>=Nt/2 (Nyquist-frequency terms)
-            n_vals = jnp.arange(self.Nt//2, self.Nt)
+        # Apply the same Meyer window to both edge bands
+        X_m0 = X_m0 * Phi_m0
 
-            fNy_term = self.dt * jnp.sum( 
-                            (-1)**k_vals[:,jnp.newaxis] * \
-                            self.window_TD[k_vals%self.N, jnp.newaxis] * \
-                            jnp.take(x, k_plus_2n, axis=-1, mode='wrap'),
-                        axis=-2)
+        # Fold Nt samples -> Nt/2 samples
+        # Shape (..., 2, M)
+        X_m0 = X_m0[..., :M] + X_m0[..., M:]
 
-            w = w.at[..., n_vals, 0].set(fNy_term)
+        # One batched Nt/2-point IFFT:
+        #   [..., 0, :] = DC coefficients
+        #   [..., 1, :] = Nyquist coefficients
+        w_m0_edges = M * self.df * \
+        jnp.fft.ifft(X_m0, axis=-1).real
+
+        # Pack both halves into column m=0
+        w_m0 = jnp.concatenate(
+            (
+                w_m0_edges[..., 0, :],
+                w_m0_edges[..., 1, :],
+            ),
+            axis=-1,
+        )
+        # Combine the m=0 and m>0 terms together. 
+        w = jnp.concatenate(
+            (
+                w_m0[..., jnp.newaxis],
+                w_positive,
+            ),
+            axis=-1,
+        )
 
         return w
     
     @partial(jax.jit, static_argnums=0)
-    def inverse_transform(self, w : jnp.ndarray) -> jnp.ndarray:
-        r""" 
-        Perform the inverse discrete wavelet transform. Transforms the wavelet 
+    def inverse_transform_truncated_window(self,
+                                           w : jnp.ndarray) -> jnp.ndarray:
+        r"""
+        Perform the inverse discrete wavelet transform. Transforms the wavelet
         coefficients from the time-frequency domain into the time domain.
 
-        This method computes the inverse dwt using the truncated wavelets.
-        This is also vectorised to allow for batch jobs computing the idwt for 
-        multiple sets of wavelet coefficients at once; note the shapes of the 
+        This method computes the inverse dwt using the truncated time-domain
+        wavelets, so its accuracy depends on the truncation parameter
+        :math:`q`, in the same way as `forward_transform_truncated_window`.
+        Consider using `inverse_transform_fft` instead, which uses the
+        frequency-domain window and is exact.
+
+        This is also vectorised to allow for batch jobs computing the idwt for
+        multiple sets of wavelet coefficients at once; note the shapes of the
         input and output arrays.
 
         Parameters
@@ -1122,41 +1189,254 @@ class WDM_transform:
                               lambda n, acc: add_one_time(acc, n), 
                               x)
         
-        if self.calc_m0:
-            # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
-            n_vals = jnp.arange(self.Nt//2)
+        # overwrite m=0 terms for n<Nt/2 (zero-frequency terms)
+        n_vals = jnp.arange(self.Nt//2)
 
-            @jax.jit
-            def add_zero_freq(x, n):
-                k_vals = jnp.arange(-self.K//2, self.K//2)
-                wavelet = self.window_TD[k_vals]
-                indices = (k_vals+2*n*self.Nf)%self.N
-                coeff = jnp.atleast_1d(w[...,n,0])
-                term  = coeff[..., None] * wavelet[None, ...] 
-                updates_shape = x[..., indices].shape
-                x = x.at[..., indices].add(jnp.reshape(term, updates_shape))
-                return x
+        @jax.jit
+        def add_zero_freq(x, n):
+            k_vals = jnp.arange(-self.K//2, self.K//2)
+            wavelet = self.window_TD[k_vals]
+            indices = (k_vals+2*n*self.Nf)%self.N
+            coeff = jnp.atleast_1d(w[...,n,0])
+            term  = coeff[..., None] * wavelet[None, ...]
+            updates_shape = x[..., indices].shape
+            x = x.at[..., indices].add(jnp.reshape(term, updates_shape))
+            return x
 
-            x = jax.lax.fori_loop(0, 
-                                  self.Nt//2,
-                                  lambda n, acc: add_zero_freq(acc, n), 
-                                  x)
-            
-            @jax.jit
-            def add_Nyquist_freq(x, n):
-                k_vals = jnp.arange(-self.K//2, self.K//2)
-                wavelet = (-1)**(k_vals) * self.window_TD[k_vals]
-                indices = (k_vals+2*n*self.Nf)%self.N
-                coeff = jnp.atleast_1d(w[...,n,0])
-                term  = coeff[..., None] * wavelet[None, ...] 
-                updates_shape = x[..., indices].shape
-                x = x.at[..., indices].add(jnp.reshape(term, updates_shape))
-                return x
+        x = jax.lax.fori_loop(0,
+                              self.Nt//2,
+                              lambda n, acc: add_zero_freq(acc, n),
+                              x)
 
-            x = jax.lax.fori_loop(self.Nt//2, 
-                                  self.Nt,
-                                  lambda n, acc: add_Nyquist_freq(acc, n), 
-                                  x)
+        @jax.jit
+        def add_Nyquist_freq(x, n):
+            k_vals = jnp.arange(-self.K//2, self.K//2)
+            wavelet = (-1)**(k_vals) * self.window_TD[k_vals]
+            indices = (k_vals+2*n*self.Nf)%self.N
+            coeff = jnp.atleast_1d(w[...,n,0])
+            term  = coeff[..., None] * wavelet[None, ...]
+            updates_shape = x[..., indices].shape
+            x = x.at[..., indices].add(jnp.reshape(term, updates_shape))
+            return x
+
+        x = jax.lax.fori_loop(self.Nt//2,
+                              self.Nt,
+                              lambda n, acc: add_Nyquist_freq(acc, n),
+                              x)
+
+        return x
+
+    @partial(jax.jit, static_argnums=0)
+    def inverse_transform_fft(self, w : jnp.ndarray) -> jnp.ndarray:
+        r"""
+        Perform the inverse discrete wavelet transform using the rapid
+        frequency-domain FFT algorithm.
+
+        For the :math:`m>0` terms, the WDM coefficients are first transformed
+        along the wavelet time index :math:`n`. The positive- and
+        negative-frequency branches are then multiplied by the frequency-domain
+        Meyer window and overlap-added into the full Fourier spectrum.
+
+        The special :math:`m=0` column is treated separately. The first
+        :math:`N_t/2` coefficients correspond to the zero-frequency edge
+        wavelets and the remaining :math:`N_t/2` coefficients correspond to
+        the Nyquist-frequency edge wavelets. These are transformed together
+        using a batched FFT of length :math:`N_t/2`, expanded over the compact
+        support of the Meyer window, and added to the corresponding edges of
+        the full Fourier spectrum.
+
+        Finally, an inverse FFT of length :math:`N` returns the time-domain
+        signal.
+
+        This calculation uses the frequency-domain Meyer window directly and
+        therefore does not depend on the time-domain truncation parameter
+        :math:`q`.
+
+        This is vectorised to allow for batch jobs computing the inverse dwt
+        for multiple sets of wavelet coefficients at once.
+
+        Parameters
+        ----------
+        w : jnp.ndarray
+            Wavelet coefficients. Array shape (..., Nt, Nf).
+
+        Returns
+        -------
+        x : jnp.ndarray
+            Reconstructed time-domain signal. Array shape (..., N).
+        """
+        w = jnp.asarray(w, dtype=self.jax_dtype)
+
+        assert w.shape[-2:] == (self.Nt, self.Nf), \
+                f"Input coefficients must have shape ({self.Nt}, {self.Nf}), " \
+                f"got {w.shape[-2:]=}."
+
+        leading = w.shape[:-2]
+
+        # ============================================================
+        # m > 0 terms
+        # ============================================================
+
+        n_vals = jnp.arange(self.Nt)
+        m_vals = jnp.arange(1, self.Nf)
+        l_vals = jnp.arange(-self.Nt//2, self.Nt//2)
+
+        phase = (-1)**(
+            n_vals[:, jnp.newaxis] * m_vals[jnp.newaxis, :]
+        ) * jnp.conj(self.Cnm[:, 1:])
+
+        # FFT over the WDM time index n.
+        # Shape (..., Nt, Nf-1)
+        A = jnp.fft.fft(
+            w[..., :, 1:] * phase,
+            axis=-2,
+        )
+
+        # Put the FFT into the local-frequency ordering
+        # l = -Nt/2, ..., Nt/2-1.
+        A_positive = jnp.take(
+            A,
+            l_vals,
+            axis=-2,
+            mode='wrap',
+        )
+
+        # The negative-frequency branch follows from
+        #
+        #     FFT(a*)[l] = conj(FFT(a)[-l]).
+        #
+        A_negative = jnp.take(
+            jnp.conj(A),
+            -l_vals,
+            axis=-2,
+            mode='wrap',
+        )
+
+        Phi = jnp.fft.ifftshift(self.window_FD)[l_vals]
+
+        Phi = Phi[
+            *(jnp.newaxis,)*len(leading),
+            :,
+            jnp.newaxis
+        ]
+
+        X_positive = A_positive * Phi / jnp.sqrt(2.)
+        X_negative = A_negative * Phi / jnp.sqrt(2.)
+
+        # Global Fourier indices of the two Wilson branches.
+        positive_indices = (
+            l_vals[:, jnp.newaxis]
+            + m_vals[jnp.newaxis, :] * self.Nt//2
+        ) % self.N
+
+        negative_indices = (
+            l_vals[:, jnp.newaxis]
+            - m_vals[jnp.newaxis, :] * self.Nt//2
+        ) % self.N
+
+        indices = jnp.concatenate(
+            (
+                positive_indices.reshape(-1),
+                negative_indices.reshape(-1),
+            )
+        )
+
+        X_values = jnp.concatenate(
+            (
+                X_positive.reshape(leading + (-1,)),
+                X_negative.reshape(leading + (-1,)),
+            ),
+            axis=-1,
+        )
+
+        X_full = jnp.zeros(
+            leading + (self.N,),
+            dtype=X_values.dtype,
+        )
+
+        # Adjacent Meyer bands overlap in frequency.
+        X_full = X_full.at[..., indices].add(X_values)
+
+        # ============================================================
+        # m = 0 terms: DC and Nyquist together
+        # ============================================================
+
+        M = self.Nt // 2
+        l_vals_m0 = jnp.arange(-M, M)
+
+        # Pack the two physical edge bands:
+        #
+        #   [..., 0, :] -> zero-frequency coefficients
+        #   [..., 1, :] -> Nyquist-frequency coefficients
+        #
+        # Shape (..., 2, M)
+        w_m0 = jnp.stack(
+            (
+                w[..., :M, 0],
+                w[..., M:, 0],
+            ),
+            axis=-2,
+        )
+
+        # Because the edge wavelets are spaced by 2*dT, their Fourier
+        # phase has period M. One batched M-point FFT therefore gives
+        # both edge spectra.
+        #
+        # Shape (..., 2, M)
+        A_m0 = jnp.fft.fft(
+            w_m0,
+            axis=-1,
+        )
+
+        # The Meyer support contains Nt = 2M frequency samples, while
+        # A_m0 has period M. Repeat each edge spectrum over both halves
+        # of the compact support.
+        #
+        # Shape (..., 2, Nt)
+        A_m0 = jnp.concatenate(
+            (
+                A_m0,
+                A_m0,
+            ),
+            axis=-1,
+        )
+
+        Phi_m0 = jnp.fft.ifftshift(
+            self.window_FD
+        )[l_vals_m0]
+
+        # Same Meyer window for the DC and Nyquist edge branches.
+        X_m0 = A_m0 * Phi_m0
+
+        # First edge is centred on DC, second on Nyquist.
+        #
+        # Shape (2, Nt)
+        m0_indices = jnp.stack(
+            (
+                l_vals_m0,
+                l_vals_m0 + self.N//2,
+            ),
+            axis=0,
+        ) % self.N
+
+        # Flatten the two edge bands so they can be scatter-added in
+        # one operation.
+        m0_indices = m0_indices.reshape(-1)
+
+        X_m0 = X_m0.reshape(
+            leading + (-1,)
+        )
+
+        X_full = X_full.at[..., m0_indices].add(X_m0)
+
+        # ============================================================
+        # Return to the time domain
+        # ============================================================
+
+        x = jnp.fft.ifft(
+            X_full,
+            axis=-1,
+        ).real / self.dt
 
         return x
 
@@ -1172,7 +1452,7 @@ class WDM_transform:
             x[k] = \sum_{n=0}^{N_t-1} \sum_{m=0}^{N_f-1} w_{nm} g_{nm}[k] .
 
         This method is slow and very memory inefficient. It is here
-        mainly for testing. Consider using `inverse_transform` instead.
+        mainly for testing. Consider using `inverse_transform_fft` instead.
 
         Parameters
         ----------
@@ -1205,7 +1485,7 @@ class WDM_transform:
         r"""
         Forward discrete wavelet transform.
 
-        Calls `self.fast_forward_transform`. Vectorised to allow for 
+        Calls `self.forward_transform_fft`. Vectorised to allow for
         transforming multiple time series at once.
 
         Parameters
@@ -1228,8 +1508,8 @@ class WDM_transform:
         r"""
         Inverse discrete wavelet transform.
 
-        Calls `self.inverse_transform`. Vectorised to allow for transforming 
-        multiple time series at once.
+        Calls `self.inverse_transform_fft`. Vectorised to allow for
+        transforming multiple time series at once.
 
         Parameters
         ----------
@@ -1245,14 +1525,12 @@ class WDM_transform:
 
         assert jnp.all(jnp.isreal(w)), "wavelet coefficients must be real."
 
-        return self.inverse_transform(w)
+        return self.inverse_transform_fft(w)
 
     def build_time_delay_filter_interpolants(self,
                                              max_lag_L : int,
-                                             num_interp_points : int,
-                                             max_bytes : int
-                                                = FILTER_TABLE_BLOCK_BYTES
-                                             ) -> None:
+                                             num_interp_points : int
+                                             ) -> jnp.ndarray:
         r""" 
         If the user needs to do any time-shift operations involving the 
         WDM wavelets, then this function should be called first. It tabulates 
@@ -1262,6 +1540,10 @@ class WDM_transform:
         :math:`-\Delta T/2\leq \delta\leq \Delta T/2`. Subsequent lookups
         interpolate linearly between the tabulated points.
 
+        The filters depend on :math:`\ell-\delta/\Delta T` and the window
+        shape (`d`, `A_frac`) only, so the table is the same for every tiling;
+        see `filters.filter_functions`.
+
         Parameters
         ----------
         max_lag_L : int
@@ -1269,13 +1551,6 @@ class WDM_transform:
         num_interp_points : int
             The number of interpolation points in the range
             :math:`-\Delta T/2\leq \delta\leq \Delta T/2.`
-        max_bytes : int
-            Working-set budget, in bytes, for one frequency block of the
-            tabulation, passed straight to `build_filter_tables`. The
-            tabulation is blocked over frequency so that its peak allocation
-            is bounded by this rather than by :math:`N`; lower it if the build
-            still does not fit. Defaults to
-            `filters.FILTER_TABLE_BLOCK_BYTES`, 256 MiB. Optional.
 
         Returns
         -------
@@ -1284,14 +1559,6 @@ class WDM_transform:
             :math:`T'_l`, index 1 is :math:`T_l`. Also stored as
             `self.filter_tables`, but the returned value is what should be
             passed to the methods that use it - see the note below them.
-
-        Notes
-        -----
-        The returned table is small - :math:`2(2L+1)` by `num_interp_points` -
-        and independent of :math:`N`. Only the intermediates scale with the
-        time series, and `build_filter_tables` bounds those, so this is safe to
-        call on year-plus grids for any `num_interp_points` whose table itself
-        fits in memory.
         """
         assert max_lag_L > 0, \
                         "Max lag must be positive"
@@ -1309,13 +1576,9 @@ class WDM_transform:
         # shape (2, 2L+1, num_interp_points); index 0 is T', index 1 is T
         self.filter_tables = build_filter_tables(
                                 jnp.arange(-self.max_lag_L, self.max_lag_L+1),
-                                self.delta_interp_grid,
-                                self.freqs,
-                                self.window_FD,
-                                self.dT,
-                                self.dF,
-                                self.df,
-                                max_bytes=max_bytes)
+                                self.delta_interp_grid/self.dT,
+                                self.d,
+                                self.A_frac)
 
         return self.filter_tables
 
@@ -1508,12 +1771,11 @@ class WDM_transform:
 
         return jnp.real(X)
 
-    @partial(jax.jit, static_argnums=0, static_argnames=('lag_block',))
+    @partial(jax.jit, static_argnums=0)
     def apply_variable_time_shift(self,
                                   filter_tables : jnp.array,
                                   wdm_coeff : jnp.array,
-                                  delta : jnp.array,
-                                  lag_block : int = None) -> jnp.array:
+                                  delta : jnp.array) -> jnp.array:
         r"""
         Perform the variable time shift operation on a grid of WDM coefficients
         by evaluating the sum
@@ -1552,10 +1814,22 @@ class WDM_transform:
         textbook form.
 
         The matrix elements are evaluated in real arithmetic - see
-        `real_matrix_element` below for that rearrangement. The carrier phase
-        :math:`\phi=2\pi(m+\sigma/2)\Delta F\delta_n` does not depend on
-        :math:`l`, so it is built once outside the lag loop and the
-        :math:`\sigma=\pm1` cases follow from it by angle addition.
+        `matrix_element_weights` below for that rearrangement. The carrier
+        phase :math:`\phi=2\pi(m+\sigma/2)\Delta F\delta_n` does not depend on
+        :math:`l`, so its :math:`\sigma=0` cosine and sine are built once
+        outside the lag loop. They are the only :math:`(N_t, N_f)` arrays here:
+        the :math:`\sigma=\pm1` sidebands differ by a half-bin phase that is
+        rank-1 in :math:`n`, so angle addition folds them into the per-element
+        weights rather than into four more grids.
+
+        The lag sum is a python loop, so all :math:`2L+1` terms are unrolled
+        into the graph. XLA:CPU fuses the accumulation chain into one pass but
+        will not fuse across a `lax.fori_loop` body, so blocking the sum sends
+        the :math:`(N_t, N_f)` accumulator back to memory once per block. At
+        :math:`N_t=4096`, :math:`N_f=1024`, :math:`L=25` that costs 2.16 s
+        unrolled against 2.26 s at eight lags per block and 4.37 s at
+        fifty-one. Unrolling pays for it in graph size, but only at compile
+        time - about half a second here, then cached.
 
         Parameters
         ----------
@@ -1566,13 +1840,6 @@ class WDM_transform:
             WDM coefficient grid. Array, dtype=float, shape=(Nt,Nf)
         delta : jnp.array
             Array, dtype=float, shape=(Nt,)
-        lag_block : int or None
-            Number of lags handled per loop iteration. `None` (the default)
-            unrolls the lag sum completely, which is fastest for small `L`
-            because the lag index becomes a compile-time constant. For
-            :math:`L \gtrsim 30` prefer a small block (8 is a reasonable
-            start): the unrolled graph becomes large enough that scheduling
-            cost, compile time and compile-time memory outweigh the benefit.
 
         Returns
         -------
@@ -1588,15 +1855,14 @@ class WDM_transform:
         sign_n = jnp.where(n % 2 == 0, 1.0, -1.0)[:, jnp.newaxis]
         sign_m = jnp.where(m % 2 == 0, 1.0, -1.0)[jnp.newaxis, :]
 
-        # cos/sin of the sigma=0 carrier; sigma=+-1 by angle addition with
-        # the rank-1 half-bin phase
+        # The only two (Nt, Nf) grids in the whole sum: cos and sin of the
+        # sigma=0 carrier. The sigma=+-1 sidebands are NOT built - they differ
+        # by the rank-1 half-bin phase below, which angle addition lets every
+        # matrix element absorb into a rank-1 coefficient instead.
         theta = 2*jnp.pi*self.dF*jnp.outer(delta, m)
         cos_t, sin_t = jnp.cos(theta), jnp.sin(theta)
         half = jnp.pi*self.dF*delta[:, jnp.newaxis]
         cos_h, sin_h = jnp.cos(half), jnp.sin(half)
-        carrier = {-1: (cos_t*cos_h + sin_t*sin_h, sin_t*cos_h - cos_t*sin_h),
-                    0: (cos_t, sin_t),
-                   +1: (cos_t*cos_h - sin_t*sin_h, sin_t*cos_h + cos_t*sin_h)}
 
         # every lag at once: shape (2L+1, Nt), no Nf axis
         lags = jnp.arange(-max_lag_L, max_lag_L + 1)
@@ -1618,10 +1884,18 @@ class WDM_transform:
         # (1j)**l for l modulo 4, as (real, imaginary) pairs
         i_pow = jnp.array([[1., 0.], [0., 1.], [-1., 0.], [0., -1.]])
 
-        def real_matrix_element(l, i, sigma):
+        def matrix_element_weights(l, i, sigma):
             r"""
             :math:`X_{n(n-l);m(m+\sigma)}(-\delta_n)` in real arithmetic, for
-            one lag and one frequency offset. Array, shape=(Nt, Nf).
+            one lag and one frequency offset, as the weights of `cos_t` and
+            `sin_t` rather than as the grid itself.
+
+            The element is
+            :math:`(\hat{a}\cos\theta + \hat{b}\sin\theta)` times
+            :math:`(-1)^m` when `alternates`, and both weights are rank-1 in
+            :math:`n`. Returning them instead of the assembled
+            :math:`(N_t, N_f)` grid is what keeps the sidebands from ever
+            being materialised.
 
             Parameters
             ----------
@@ -1633,6 +1907,13 @@ class WDM_transform:
                 that range rather than over :math:`l` itself.
             sigma : int
                 Frequency lag, :math:`0` or :math:`\pm1`.
+
+            Returns
+            -------
+            a, b : jnp.array
+                Weights of `cos_t` and `sin_t`. Array, shape=(Nt, 1).
+            alternates : bool
+                Whether the element carries a further factor of :math:`(-1)^m`.
             """
             # C = (+-i)**l, the scalar lag phase: sigma=-1 carries (1j)**l,
             # sigma=+1 its conjugate, and sigma=0 has no such factor at all.
@@ -1643,6 +1924,13 @@ class WDM_transform:
                 lag_phase_re = i_pow_re
                 lag_phase_im = i_pow_im if sigma == -1 else -i_pow_im
 
+            # The sideband carrier is cos/sin of (theta + sigma*half). Angle
+            # addition splits it back onto cos_t and sin_t with these rank-1
+            # weights. Mind that cos(sigma*half) is 1 at sigma=0, NOT cos_h -
+            # cosine being even covers sigma=+-1 only.
+            cos_s = 1.0 if sigma == 0 else cos_h
+            sin_s = 0.0 if sigma == 0 else sigma*sin_h
+
             # The parity factor conj(i**a) i**b, with a = (n+m) % 2 and
             # b = (n'+m') % 2, collapses to a choice of just two cases:
             #     (l+sigma) even ->  1
@@ -1651,18 +1939,22 @@ class WDM_transform:
             #     even ->  lag_phase_re cos(phi) + lag_phase_im sin(phi)
             #     odd  -> -lag_phase_im cos(phi) + lag_phase_re sin(phi)
             # which is why nothing here needs to be complex.
-            carrier_cos, carrier_sin = carrier[sigma]
-            element = jnp.where(
-                    ((l + sigma) % 2) != 0,
-                    sign_n*sign_m*(-lag_phase_im*carrier_cos
-                                   + lag_phase_re*carrier_sin),
-                    lag_phase_re*carrier_cos + lag_phase_im*carrier_sin)
+            if (l + sigma) % 2 == 0:
+                a = lag_phase_re*cos_s + lag_phase_im*sin_s
+                b = lag_phase_im*cos_s - lag_phase_re*sin_s
+                alternates = False
+            else:
+                a = sign_n*(lag_phase_re*sin_s - lag_phase_im*cos_s)
+                b = sign_n*(lag_phase_re*cos_s + lag_phase_im*sin_s)
+                alternates = True
 
             # the two remaining factors: (-1)**(l m), and the delay filter
-            alternating = jnp.where((l % 2) != 0, sign_m, 1.0)
+            if l % 2 != 0:
+                alternates = not alternates
 
-            return element * alternating \
-                        * delay_filter[sigma][i][:, jnp.newaxis]
+            delay = delay_filter[sigma][i][:, jnp.newaxis]
+
+            return a*delay, b*delay, alternates
 
         def body(i, acc):
             l = i - max_lag_L
@@ -1672,25 +1964,28 @@ class WDM_transform:
             rows = jax.lax.dynamic_slice_in_dim(cyclic_ext, max_lag_L - l,
                                                 self.Nt, axis=0)
 
+            # The three sigma are summed before touching acc, so one lag costs
+            # one pass over the accumulator rather than three.
+            total = 0.0
             for sigma in (-1, 0, 1):
                 # offset by 1 because cyclic_ext carries one extra column at
                 # each edge, so column m+sigma sits at index m+sigma+1
                 coeff = jax.lax.slice_in_dim(rows, sigma + 1,
                                              sigma + 1 + self.Nf, axis=1)
 
-                acc = acc + coeff*real_matrix_element(l, i, sigma)
+                a, b, alternates = matrix_element_weights(l, i, sigma)
+                term = coeff*(cos_t*a + sin_t*b)
 
-            return acc
+                total = total + (term*sign_m if alternates else term)
+
+            return acc + total
 
         acc = jnp.zeros((self.Nt, self.Nf), dtype=wdm_coeff.dtype)
 
-        if lag_block is None:
-            for i in range(2*max_lag_L + 1):
-                acc = body(i, acc)
-            return acc
+        for i in range(2*max_lag_L + 1):
+            acc = body(i, acc)
 
-        return jax.lax.fori_loop(0, 2*max_lag_L + 1, body, acc,
-                                 unroll=lag_block)
+        return acc
 
     def __repr__(self) -> str:
         r"""
@@ -1703,7 +1998,7 @@ class WDM_transform:
         """
         lines = []
         lines.append( (f"WDM_transform(Nf={self.Nf}, N={self.N}, q={self.q}, "
-                f"d={self.d}, A_frac={self.A_frac}, calc_m0={self.calc_m0})") )
+                f"d={self.d}, A_frac={self.A_frac})") )
         lines.append( f"{self.Nt = } time cells" )
         lines.append( f"{self.Nf = } frequency cells" )
         lines.append( f"{self.dT = } time resolution" )
